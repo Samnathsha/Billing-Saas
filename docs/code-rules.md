@@ -17,6 +17,18 @@ a value that may be `undefined`, so the code must handle a missing item.
   `eslint.config.mjs`, where the change is visible in review.
 - `no-console`: only `console.error` is allowed until the logger exists.
 
+## Folder layout
+
+The folders follow blueprint section 9. Placeholders until a phase fills them:
+
+- `index.ts` (`export {};`) in each `src/modules/<name>`, `src/db/schema`
+  and `src/offline`: the folder's public entry point.
+- `.gitkeep` in `src/app/(public)`, `src/app/(app)/*`, `src/app/api/*`,
+  `src/components/{pos,forms,tables}`, `drizzle`, `scripts` and
+  `tests/{isolation,integration,security}`. Git cannot store an empty folder,
+  and a page or index file under `src/app` would create a live, unprotected
+  URL. Delete the `.gitkeep` when real files arrive.
+
 ## Who may import what
 
 | Folder | May import | Must not import |

@@ -186,6 +186,12 @@ const eslintConfig = defineConfig([
     rules: restrictImports(noParentRelative, noModules(), noDb, noApp, noComponents, noDbDriver, noDrizzle),
   },
 
+  {
+    // Command-line scripts talk to the person running them.
+    files: ["scripts/**"],
+    rules: { "no-console": "off" },
+  },
+
   globalIgnores([
     ".next/**",
     "out/**",

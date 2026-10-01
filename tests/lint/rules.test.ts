@@ -35,6 +35,8 @@ const blocked: [name: string, filePath: string, code: string, rule: string][] = 
   ["db imports a module", "src/db/with-tenant.ts", 'import { x } from "@/modules/sales";', "no-restricted-imports"],
   ["db schema imports a service", "src/db/schema/index.ts", 'export * from "@/modules/sales/service";', "no-restricted-imports"],
   ["component imports module code", "src/components/pos/cart.tsx", 'import { createSale } from "@/modules/sales";', "no-restricted-imports"],
+  ["schema imports another module's repo", "src/modules/auth/schema.ts", 'import { r } from "@/modules/tenants/repo";', "no-restricted-imports"],
+  ["service imports another module's schema", "src/modules/sales/service.ts", 'import { t } from "@/modules/tenants/schema";', "no-restricted-imports"],
 
   // XSS
   ["dangerouslySetInnerHTML in JSX", "src/components/x.tsx", "export const X = (p: { h: string }) => <div dangerouslySetInnerHTML={{ __html: p.h }} />;", "no-restricted-syntax"],
@@ -56,6 +58,7 @@ const allowed: [name: string, filePath: string, code: string][] = [
   ["module imports its own files", "src/modules/sales/service.ts", 'import { r } from "./repo";\nexport { r };'],
   ["db opens the connection", "src/db/client.ts", 'import { Pool } from "pg";\nexport const pool = new Pool();'],
   ["db schema gathers module tables", "src/db/schema/index.ts", 'export * from "@/modules/sales/schema";'],
+  ["schema references another module's tables", "src/modules/auth/schema.ts", 'import { tenants } from "@/modules/tenants/schema";\nexport { tenants };'],
   ["component imports a module DTO type", "src/components/pos/cart.tsx", 'import type { SaleDto } from "@/modules/sales";\nexport type { SaleDto };'],
 ];
 

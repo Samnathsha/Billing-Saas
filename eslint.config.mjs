@@ -166,8 +166,17 @@ const eslintConfig = defineConfig([
     rules: restrictImports(noParentRelative, noDeepModuleImport, noApp, noComponents, noDbDriver, noDrizzleValues, noDbClient),
   },
   {
-    files: ["src/modules/**/repo.ts", "src/modules/**/schema.ts"],
+    files: ["src/modules/**/repo.ts"],
     rules: restrictImports(noParentRelative, noDeepModuleImport, noApp, noComponents, noDbDriver, noDbClient),
+  },
+  {
+    // Tables reference other modules' tables (e.g. memberships -> tenants),
+    // so schema.ts may import another module's schema.ts, and nothing else.
+    files: ["src/modules/**/schema.ts"],
+    rules: restrictImports(noParentRelative, noApp, noComponents, noDbDriver, noDbClient, {
+      regex: "^@/modules/[^/]+/(?!schema$).+",
+      message: "schema.ts may import only another module's schema ('@/modules/<name>/schema').",
+    }),
   },
   {
     files: ["src/db/**"],

@@ -167,3 +167,8 @@ Each question has the default the app will use until answered.
     weighted average cost, corrected when the next purchase arrives.
 22. **Weighted average scope:** is average cost kept per branch or for the
     whole business? DEFAULT, accountant to confirm: per branch.
+23. **Branches in other states:** GST registration (GSTIN) is per state, so a
+    branch in a second state needs its own GSTIN and its own invoice series,
+    and CGST/SGST vs IGST depends on that branch's state. DEFAULT, accountant
+    to confirm: V1 supports branches in the business's registered state only;
+    GSTIN and state stay business settings, not branch settings.

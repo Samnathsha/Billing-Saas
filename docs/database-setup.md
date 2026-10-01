@@ -26,6 +26,35 @@ the same two roles:
    `DATABASE_URL_<ENV>` → `app_user` (pooled), `MIGRATOR_DATABASE_URL_<ENV>`
    → `migrator` (direct). The owner connection string is removed.
 
+## Migrations
+
+Tables are defined in `src/modules/<name>/schema.ts`. SQL migrations are
+generated into `drizzle/` and committed to Git. They always run as
+`migrator`.
+
+| Command | What it does |
+|---|---|
+| `npm run db:generate` | After changing a `schema.ts`: writes a new SQL file in `drizzle/` (review it before committing) |
+| `npm run db:migrate` | Applies new migrations to the dev database |
+| `npm run db:migrate:test` | Applies new migrations to the test database |
+| `npm run db:check` | Checks the migration files are consistent |
+
+Applied migrations are never edited; a fix is a new migration.
+
+Foundation tables (Phase 2): `tenants`, `users`, `permissions`, `roles`,
+`role_permissions`, `memberships`, `branches`, `devices`, `settings`,
+`audit_logs`, `sync_operations`, `rate_limits`. `app_user` gets access to
+them only together with row-level security (Phase 2 step 3). Full table
+descriptions: `docs/schema.md` (Phase 2 step 8).
+
+Deliberate exceptions to blueprint 6.1:
+- `memberships_user_idx` does not start with `tenant_id`: login must find a
+  user's businesses before a business is chosen.
+- `created_by` has no foreign key (it would tie every module's tables to
+  `users`); `audit_logs` is the authoritative record of who did what.
+- `audit_logs` and `sync_operations` have no `updated_at`/`version`: their
+  rows never change.
+
 ## Changing passwords later (rotation)
 
 Add `OWNER_DATABASE_URL_DEV=<owner connection string from the Neon console>`

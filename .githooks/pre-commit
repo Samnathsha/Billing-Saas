@@ -1,0 +1,25 @@
+#!/bin/sh
+# Stops a commit that contains a secret (password, API key, private key...).
+# Enabled by `npm install` (the "prepare" script sets core.hooksPath).
+# CI runs the same scan, so skipping this hook does not skip the check.
+
+# Git apps (e.g. VS Code) may start hooks without Homebrew on the PATH.
+PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo ""
+  echo "Commit stopped: the secret scanner (gitleaks) is not installed."
+  echo "Install it once with:  brew install gitleaks"
+  echo "Then run the commit again."
+  echo ""
+  exit 1
+fi
+
+if ! gitleaks git --pre-commit --staged --redact --ignore-gitleaks-allow --no-banner --verbose .; then
+  echo ""
+  echo "Commit stopped: gitleaks found what looks like a secret (shown as REDACTED above)."
+  echo "Remove it from the file, keep real values only in .env.local, and commit again."
+  echo "If it was a real password or key, change it too: treat it as leaked."
+  echo ""
+  exit 1
+fi

@@ -1,0 +1,13 @@
+# gitleaks settings, used by the pre-commit hook (.githooks/pre-commit) and
+# CI (.github/workflows/ci.yml). We use the full default rule set.
+#
+# Do not add allowlist entries to silence a finding. If a finding is a real
+# secret: remove it from the code AND rotate it (change the password or key),
+# because anything committed must be treated as leaked. If it is truly a
+# false positive, add the narrowest possible allowlist here with a comment
+# explaining why, so the change is visible in review.
+
+title = "billing-saas gitleaks config"
+
+[extend]
+useDefault = true

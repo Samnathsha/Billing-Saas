@@ -1,0 +1,33 @@
+name: Monthly audit check
+
+# ADR 0001: re-check the drizzle-kit warning every month. This run turns red
+# while any vulnerability (including developer tools) remains, so the check
+# does not depend on anyone remembering it. GitHub emails the repository
+# owner when a scheduled run fails. Record each result in the ADR's review log.
+
+on:
+  schedule:
+    - cron: "0 6 1 * *" # 06:00 UTC (11:30 India time) on the 1st of each month
+  workflow_dispatch: # also runnable by hand from the Actions tab
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Full npm audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Installed vs latest drizzle-kit
+        run: |
+          echo "Installed: $(node -p "require('./package-lock.json').packages['node_modules/drizzle-kit'].version")"
+          echo "Latest:    $(npm view drizzle-kit version)"
+      - name: Full audit (fails while any vulnerability remains)
+        run: npm audit

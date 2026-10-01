@@ -30,6 +30,8 @@ npm override could break the migration tool.
 4. Re-check the `drizzle-kit` warning on the 1st of every month: update
    `drizzle-kit` to its latest version, run `npm audit`, and record the result
    below. When the warning is gone, mark this decision as resolved.
+   `.github/workflows/monthly-audit.yml` runs the full audit on the 1st of
+   each month and turns red while any warning remains, as a reminder.
 
 ## Consequences
 

@@ -51,6 +51,35 @@ different databases, so tests can never wipe development data. An empty value
 counts as missing. `env.ts` uses `server-only`, so the build fails if browser
 code imports it.
 
+## Security headers
+
+Fixed headers on every response (`next.config.ts`, from
+`src/lib/security-headers.ts`): HSTS (2 years, subdomains, no preload yet),
+`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+`Referrer-Policy: strict-origin-when-cross-origin`, and a `Permissions-Policy`
+that turns off camera, microphone, location, payment, USB and similar
+features. `X-Powered-By` is removed.
+
+Content Security Policy: `src/proxy.ts` makes a new random nonce for every
+page request. Scripts and `<style>` blocks run only if they carry it, so
+injected scripts are blocked. Consequences:
+
+- Every page renders per request (the root layout calls `connection()`).
+  Pages cannot be pre-built or cached by a CDN.
+- `style="..."` attributes are allowed (`style-src-attr 'unsafe-inline'`)
+  because a nonce cannot cover them and Next.js itself uses them. They can
+  change looks only, never run code.
+- Development mode also allows `eval` and inline `<style>`, which React's
+  error overlay needs. Production does not.
+- A third-party script or font (analytics, payment widget, Google Fonts at
+  runtime) will be blocked until its address is added to the policy on
+  purpose.
+- API routes get `default-src 'none'; frame-ancestors 'none'`.
+
+`tests/e2e/security-headers.spec.ts` checks all of this in a real browser
+(`npm run test:e2e`), including that a script injected into the HTML is
+blocked.
+
 ## Banned code
 
 - `dangerouslySetInnerHTML`, writing `innerHTML`/`outerHTML`,

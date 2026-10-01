@@ -32,6 +32,25 @@ a value that may be `undefined`, so the code must handle a missing item.
 Imports outside the current folder use the `@/` alias, never `../`, so the
 rules above cannot be bypassed with relative paths.
 
+## Environment settings
+
+`src/lib/env.ts` validates settings with Zod; code imports `env` from there
+and never reads `process.env` directly. `src/instrumentation-node.ts` loads it
+when the server starts, so a missing or malformed setting stops the app with a
+message such as `DATABASE_URL_DEV is missing`. Messages name the variable,
+never its value.
+
+| Mode (`NODE_ENV`) | Required | Used for |
+|---|---|---|
+| development (`npm run dev`) | `DATABASE_URL_DEV` | your local database |
+| test (`npm test`) | `DATABASE_URL_TEST` | the test database |
+| production (`npm run build && npm start`) | `DATABASE_URL_DEV`, **for now** | local production builds only; the deployment phase adds a separate production variable |
+
+Both URLs must start with `postgres://` or `postgresql://`, and must point to
+different databases, so tests can never wipe development data. An empty value
+counts as missing. `env.ts` uses `server-only`, so the build fails if browser
+code imports it.
+
 ## Banned code
 
 - `dangerouslySetInnerHTML`, writing `innerHTML`/`outerHTML`,

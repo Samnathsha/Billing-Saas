@@ -15,6 +15,13 @@
       "when": 1790878985322,
       "tag": "0001_seed_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790879460948,
+      "tag": "0002_row_level_security",
+      "breakpoints": true
     }
   ]
 }

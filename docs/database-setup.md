@@ -47,6 +47,28 @@ Foundation tables (Phase 2): `tenants`, `users`, `permissions`, `roles`,
 them only together with row-level security (Phase 2 step 3). Full table
 descriptions: `docs/schema.md` (Phase 2 step 8).
 
+## Row-level security (migration 0002)
+
+- Every table has RLS **enabled and forced**. Forced means it binds
+  `migrator` too: migrations cannot read or change business data (a data fix
+  adds a temporary policy inside its own migration).
+- The app sets `app.tenant_id` and `app.user_id` per transaction
+  (`withTenant`, step 4). Nothing set means no rows.
+- Tables with `tenant_id`: rows of the current business only, for reading
+  and writing; a row cannot be written with or moved to another business.
+- `tenants`: the current business, plus (read-only) businesses the user is
+  an active member of. A business can only be created with the id set as the
+  current tenant.
+- `users`: yourself plus members of the current business; you can change
+  only your own account. Login by email and invitations: Phase 3.
+- `memberships`: also your own memberships in any business, read-only.
+- `permissions`: read-only. `rate_limits`: no business data, open to the app.
+- `app_user` privileges are granted table by table in the same migration as
+  its policy. No DELETE except `roles`, `role_permissions`, `rate_limits`.
+- New tenant table checklist: in its migration, run
+  `SELECT app_enable_tenant_rls('table');` and grant only the needed
+  privileges. `scripts/check-rls.ts` (step 6) fails CI otherwise.
+
 Deliberate exceptions to blueprint 6.1:
 - `memberships_user_idx` does not start with `tenant_id`: login must find a
   user's businesses before a business is chosen.

@@ -70,7 +70,11 @@ descriptions: `docs/schema.md` (Phase 2 step 8).
 - RLS trusts the context it is given: it limits rows to `app.tenant_id`, but
   does not check that `app.user_id` is a member. That check belongs to the
   session code (Phase 3), the only caller of `createTenantContext`.
-- `permissions`: read-only. `rate_limits`: no business data, open to the app.
+- `permissions`: read-only.
+- Login tables (`sessions`, `accounts`, `verifications`, `rate_limits`,
+  `security_events`) and creating `users`: only `auth_service` (migration
+  0007, ADR 0003). `app_user` has no access to them; `auth_service` has no
+  access to any business table. `check-rls` enforces both.
 - `app_user` privileges are granted table by table in the same migration as
   its policy. No DELETE except `roles`, `role_permissions`, `rate_limits`.
 - New tenant table checklist: in its migration, run

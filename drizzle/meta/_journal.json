@@ -36,6 +36,27 @@
       "when": 1790917791189,
       "tag": "0004_login_only_cross_tenant_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790920071552,
+      "tag": "0005_auth_tables_remove_old",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790920108177,
+      "tag": "0006_auth_tables_add",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790920113268,
+      "tag": "0007_auth_tables_rls",
+      "breakpoints": true
     }
   ]
 }

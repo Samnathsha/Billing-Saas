@@ -8,10 +8,16 @@ import type pg from "pg";
 // RLS. None are allowed unless listed here after review (with a reason).
 const SECURITY_DEFINER_ALLOWLIST: readonly string[] = [];
 
+// The only tables the login library (auth_service) may touch (ADR 0003).
+const AUTH_TABLES: readonly string[] = ["accounts", "rate_limits", "security_events", "sessions", "users", "verifications"];
+
+// Login secrets the app (app_user) must never be able to read.
+const LOGIN_SECRET_TABLES: readonly string[] = ["accounts", "rate_limits", "security_events", "sessions", "verifications"];
+
 type Row = Record<string, unknown>;
 
-async function rows<T extends Row>(client: pg.ClientBase, text: string): Promise<T[]> {
-  return (await client.query<T>(text)).rows;
+async function rows<T extends Row>(client: pg.ClientBase, text: string, params: unknown[] = []): Promise<T[]> {
+  return (await client.query<T>(text, params)).rows;
 }
 
 export async function checkRls(client: pg.ClientBase): Promise<string[]> {
@@ -51,8 +57,8 @@ export async function checkRls(client: pg.ClientBase): Promise<string[]> {
     }
   }
 
-  // 3. Policies only for app_user (a policy for migrator or PUBLIC opens a
-  //    way around RLS).
+  // 3. Policies only for app_user, or for auth_service on the login tables
+  //    (a policy for migrator or PUBLIC opens a way around RLS).
   for (const p of await rows<{ table: string; policy: string; roles: string }>(
     client,
     `SELECT tablename AS table, policyname AS policy, array_to_string(roles, ',') AS roles
@@ -60,7 +66,10 @@ export async function checkRls(client: pg.ClientBase): Promise<string[]> {
       WHERE schemaname = 'public' AND roles <> '{app_user}'
       ORDER BY 1, 2`,
   )) {
-    problems.push(`Policy ${p.policy} on ${p.table} applies to "${p.roles}"; policies may only target app_user.`);
+    if (p.roles === "auth_service" && AUTH_TABLES.includes(p.table)) continue;
+    problems.push(
+      `Policy ${p.policy} on ${p.table} applies to "${p.roles}"; policies may only target app_user (or auth_service on the login tables).`,
+    );
   }
 
   // 4. Foreign keys between two tenant tables must include tenant_id.
@@ -108,17 +117,46 @@ export async function checkRls(client: pg.ClientBase): Promise<string[]> {
     }
   }
 
-  // 7. app_user stays restricted.
-  const [role] = await rows<{ unsafe: boolean; owns: number }>(
+  // 7. app_user and auth_service stay restricted.
+  for (const roleName of ["app_user", "auth_service"]) {
+    const [role] = await rows<{ unsafe: boolean; owns: number }>(
+      client,
+      `SELECT (r.rolsuper OR r.rolbypassrls OR r.rolcreaterole OR r.rolcreatedb) AS unsafe,
+              (SELECT count(*) FROM pg_class c WHERE c.relowner = r.oid)::int AS owns
+         FROM pg_roles r WHERE r.rolname = $1`,
+      [roleName],
+    );
+    if (role === undefined) problems.push(`Role ${roleName} does not exist.`);
+    else {
+      if (role.unsafe) problems.push(`Role ${roleName} has superuser, BYPASSRLS, CREATEROLE or CREATEDB.`);
+      if (role.owns > 0) problems.push(`Role ${roleName} owns ${String(role.owns)} table(s) or other objects; it must own none.`);
+    }
+  }
+
+  // 8. auth_service has no privilege outside the login tables.
+  for (const t of await rows<{ table: string }>(
     client,
-    `SELECT (r.rolsuper OR r.rolbypassrls OR r.rolcreaterole OR r.rolcreatedb) AS unsafe,
-            (SELECT count(*) FROM pg_class c WHERE c.relowner = r.oid)::int AS owns
-       FROM pg_roles r WHERE r.rolname = 'app_user'`,
-  );
-  if (role === undefined) problems.push("Role app_user does not exist.");
-  else {
-    if (role.unsafe) problems.push("Role app_user has superuser, BYPASSRLS, CREATEROLE or CREATEDB.");
-    if (role.owns > 0) problems.push(`Role app_user owns ${String(role.owns)} table(s) or other objects; it must own none.`);
+    `SELECT c.relname AS table FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm')
+        AND has_table_privilege('auth_service', c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+      ORDER BY 1`,
+  )) {
+    if (!AUTH_TABLES.includes(t.table)) {
+      problems.push(`Role auth_service has a privilege on ${t.table}; it may only use the login tables (ADR 0003).`);
+    }
+  }
+
+  // 9. app_user cannot touch login secrets.
+  for (const t of await rows<{ table: string }>(
+    client,
+    `SELECT c.relname AS table FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+        AND has_table_privilege('app_user', c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+      ORDER BY 1`,
+  )) {
+    if (LOGIN_SECRET_TABLES.includes(t.table)) {
+      problems.push(`Role app_user has a privilege on ${t.table}, which holds login secrets; it must have none.`);
+    }
   }
 
   return problems;

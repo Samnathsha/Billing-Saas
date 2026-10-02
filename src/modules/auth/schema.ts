@@ -12,19 +12,22 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { bigint, inet, jsonb } from "drizzle-orm/pg-core";
 import { createdAtColumn, idColumn, mutableRowColumns, tenantIdColumn } from "@/db/columns";
 import { branches, tenants } from "@/modules/tenants/schema";
 
 // A person who can log in. Platform table: one identity may belong to
-// several businesses through memberships. Password and session storage are
-// decided with the auth library in Phase 3.
+// several businesses through memberships. Also Better Auth's "user" table
+// (ADR 0003); `name` is mapped to display_name. Created only by Better Auth
+// (auth_service); the password lives in `accounts`.
 export const users = pgTable(
   "users",
   {
     id: idColumn(),
     email: text("email").notNull(),
     displayName: text("display_name").notNull(),
-    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    image: text("image"),
     status: text("status").notNull().default("active"),
     ...mutableRowColumns(),
   },
@@ -122,20 +125,112 @@ export const memberships = pgTable(
   ],
 );
 
-// Counters for login and reset rate limits (blueprint 5.2). Platform table:
-// limits apply before anyone is logged in. Phase 3 decides the key format
-// (it should be a hash, not a raw email or IP address).
+// ---------------------------------------------------------------------------
+// Login tables (Better Auth, ADR 0002/0003). Only auth_service can reach
+// them; app_user has no access at all. Column names follow Better Auth.
+// ---------------------------------------------------------------------------
+
+const timestamps = () => ({
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+// A signed-in browser or till. Revoking = deleting the row; the cookie then
+// stops working at once (cookie cache is off). active_tenant_id is the
+// business chosen after login; it is re-checked against memberships on every
+// request (ADR 0003), so it is not a tenant_id for row-level security.
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: idColumn(),
+    token: text("token").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    activeTenantId: uuid("active_tenant_id").references(() => tenants.id, { onDelete: "set null" }),
+    ...timestamps(),
+  },
+  (t) => [unique("sessions_token_key").on(t.token), index("sessions_user_idx").on(t.userId)],
+);
+
+// How a user logs in. For email/password: provider_id = 'credential' and
+// `password` holds the Argon2id hash.
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: idColumn(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    scope: text("scope"),
+    password: text("password"),
+    ...timestamps(),
+  },
+  (t) => [
+    unique("accounts_provider_account_key").on(t.providerId, t.accountId),
+    index("accounts_user_idx").on(t.userId),
+  ],
+);
+
+// Single-use, expiring tokens (email verification, password reset).
+// Identifiers are stored hashed (storeIdentifier: "hashed").
+export const verifications = pgTable(
+  "verifications",
+  {
+    id: idColumn(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    ...timestamps(),
+  },
+  (t) => [index("verifications_identifier_idx").on(t.identifier)],
+);
+
+// Login and reset rate-limit counters (Better Auth's database storage).
 export const rateLimits = pgTable(
   "rate_limits",
   {
-    key: text("key").primaryKey(),
-    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
-    count: integer("count").notNull().default(0),
-    blockedUntil: timestamp("blocked_until", { withTimezone: true }),
+    id: idColumn(),
+    key: text("key").notNull(),
+    count: integer("count").notNull(),
+    // Milliseconds since 1970, as Better Auth stores it.
+    lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+  },
+  (t) => [unique("rate_limits_key_key").on(t.key), check("rate_limits_count_positive", sql`${t.count} >= 0`)],
+);
+
+// Security events that happen before a business is known (failed logins,
+// lockouts, password resets). Append-only. Review question R6.
+export const securityEvents = pgTable(
+  "security_events",
+  {
+    id: idColumn(),
     createdAt: createdAtColumn(),
+    // e.g. "auth.login_failed", "auth.password_reset".
+    event: text("event").notNull(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "restrict" }),
+    // SHA-256 of the lower-cased email for unknown accounts: links repeated
+    // attempts without storing the address itself.
+    emailHash: text("email_hash"),
+    ip: inet("ip"),
+    userAgent: text("user_agent"),
+    details: jsonb("details"),
   },
   (t) => [
-    check("rate_limits_key_length", sql`char_length(${t.key}) between 1 and 200`),
-    check("rate_limits_count_positive", sql`${t.count} >= 0`),
+    index("security_events_time_idx").on(t.createdAt.desc()),
+    check("security_events_event_format", sql`${t.event} ~ '^[a-z_]+(\\.[a-z_]+)+$'`),
   ],
 );

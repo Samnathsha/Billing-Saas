@@ -78,7 +78,7 @@ describe("check-rls", () => {
     const problems = await problemsAfter(
       "CREATE POLICY zz_backdoor ON branches FOR SELECT TO migrator USING (true)",
     );
-    expect(problems).toContain('Policy zz_backdoor on branches applies to "migrator"; policies may only target app_user.');
+    expect(problems.some((p) => p.startsWith('Policy zz_backdoor on branches applies to "migrator"'))).toBe(true);
   });
 
   it("catches a foreign key between tenant tables that skips tenant_id", async () => {
@@ -100,6 +100,33 @@ describe("check-rls", () => {
       await problemsAfter("CREATE VIEW zz_safe_view WITH (security_invoker = true) AS SELECT id FROM branches"),
     ).toEqual([]);
   });
+
+  it("catches auth_service getting any right on a business table", async () => {
+    expect(await problemsAfter("GRANT SELECT ON branches TO auth_service")).toContain(
+      "Role auth_service has a privilege on branches; it may only use the login tables (ADR 0003).",
+    );
+  });
+
+  it("catches a policy for auth_service outside the login tables", async () => {
+    const problems = await problemsAfter("CREATE POLICY zz_auth ON branches FOR SELECT TO auth_service USING (true)");
+    expect(problems.some((p) => p.startsWith('Policy zz_auth on branches applies to "auth_service"'))).toBe(true);
+  });
+
+  it.each(["accounts", "sessions", "verifications", "security_events", "rate_limits"])(
+    "catches app_user getting any right on login secrets: %s",
+    async (table) => {
+      const grant = {
+        accounts: "GRANT SELECT ON accounts TO app_user",
+        sessions: "GRANT SELECT ON sessions TO app_user",
+        verifications: "GRANT SELECT ON verifications TO app_user",
+        security_events: "GRANT SELECT ON security_events TO app_user",
+        rate_limits: "GRANT SELECT ON rate_limits TO app_user",
+      }[table];
+      expect(await problemsAfter(grant ?? "")).toContain(
+        `Role app_user has a privilege on ${table}, which holds login secrets; it must have none.`,
+      );
+    },
+  );
 
   it("catches a SECURITY DEFINER function", async () => {
     const problems = await problemsAfter(

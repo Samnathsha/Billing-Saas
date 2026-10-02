@@ -83,28 +83,40 @@ A business using the app. Its `id` is the tenant id.
   A business can only be created "as itself" (its new id set as the current
   tenant). No DELETE: a business is closed, not deleted.
 
-### users: Built (Phase 2; login fields in Phase 3)
+### users: Built (Phase 2; Better Auth fields in Phase 3)
 A person who can log in. Global: one person may belong to several
-businesses (V1 screens: one).
+businesses (V1 screens: one). Also Better Auth's user table (ADR 0003).
 - Columns: `email` (unique ignoring case), `display_name`,
-  `email_verified_at`, `status` (`active` | `disabled`).
-- Access: yourself plus people in the current business; only your own
-  account can be changed. Login by email and staff invitations are designed
-  in Phase 3 (they need a narrow, reviewed path, since the user is not known
-  yet).
-- Phase 3 decides with the auth library: password hash (Argon2id), and
-  whether login data lives here or in the library's own tables.
+  `email_verified` (true/false), `image`, `status` (`active` | `disabled`).
+- Access: created only by the login library (`auth_service`). The app
+  (`app_user`) sees yourself plus people in the current business and can
+  change only your own account. The password is not here (see `accounts`).
 
-### sessions: Planned (Phase 3)
-A signed-in browser or till.
-- Columns: `token_hash` (the cookie value is never stored, only its hash),
-  `user_id`, `tenant_id` (the active business, set only after a membership
-  check), `device_id`, `created_at`, `last_seen_at`, `idle_expires_at`,
-  `absolute_expires_at`, `revoked_at`, `ip`, `user_agent`.
-- Rules: rotated on login and role change; "log out everywhere" and
-  deactivating a user revoke all sessions at once.
-- Email-verification and password-reset tokens: single-use, short-lived,
-  stored hashed (table names follow the Phase 3 auth library).
+### sessions: Built (Phase 3)
+A signed-in browser or till (Better Auth).
+- Columns: `token`, `user_id`, `expires_at`, `ip_address`, `user_agent`,
+  `active_tenant_id` (the business chosen after login; re-checked against
+  memberships on every request, ADR 0003).
+- The token is stored as Better Auth stores it (not hashed): changing that
+  would mean hand-written session code. Only `auth_service` can read this
+  table; `app_user` has no access (enforced by `check-rls`).
+- Revoking = deleting the row; with the cookie cache off it stops working at
+  once. Rotated on login and role change; idle and absolute timeouts.
+
+### accounts: Built (Phase 3)
+How a user logs in. For email/password: `provider_id = 'credential'` and
+`password` holds the Argon2id hash. Only `auth_service` can reach it.
+
+### verifications: Built (Phase 3)
+Single-use, expiring tokens for email verification and password reset.
+Identifiers stored hashed (`storeIdentifier: "hashed"`). Only
+`auth_service` can reach it.
+
+### security_events: Built (Phase 3), append-only
+Security events before a business is known (failed logins, resets).
+Columns: `event`, `user_id`, `email_hash` (SHA-256 of an unknown email, not
+the address), `ip`, `user_agent`, `details`. `auth_service` may only add
+rows; nobody can change or delete them (review question R6).
 
 ### plans: Planned (Phase 12)
 Subscription plans you sell. Global, read-only for the app.
@@ -195,9 +207,9 @@ instead of running twice (online and offline).
 - `flagged` = accepted but needs a manager (e.g. an offline sale into
   negative stock, or the same IMEI sold on two tills).
 
-### rate_limits: Built (Phase 2; used in Phase 3)
-Counters for login and password-reset limits. No business data; keys will
-be hashes, not raw emails or IP addresses (Phase 3).
+### rate_limits: Built (reshaped in Phase 3)
+Login and reset rate-limit counters in Better Auth's format (`key`,
+`count`, `last_request`). Only `auth_service` can reach it.
 
 ### files: Planned (Phase 5)
 Uploaded images (product photos, logo, expense receipts).

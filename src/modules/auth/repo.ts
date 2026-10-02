@@ -147,6 +147,46 @@ export async function deleteSession(sessionToken: string): Promise<void> {
   await getAuthDb().$client.query("DELETE FROM sessions WHERE token = $1", [sessionToken]);
 }
 
+// The user's unexpired sessions (devices), newest use first. Never the token.
+export async function listUserSessions(userId: string): Promise<
+  { id: string; createdAt: Date; updatedAt: Date; ipAddress: string | null; userAgent: string | null }[]
+> {
+  const result = await getAuthDb().$client.query<{
+    id: string;
+    created_at: Date;
+    updated_at: Date;
+    ip_address: string | null;
+    user_agent: string | null;
+  }>(
+    `SELECT id, created_at, updated_at, ip_address, user_agent FROM sessions
+     WHERE user_id = $1 AND expires_at > now() ORDER BY updated_at DESC, id`,
+    [userId],
+  );
+  return result.rows.map((r) => ({
+    id: r.id,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    ipAddress: r.ip_address,
+    userAgent: r.user_agent,
+  }));
+}
+
+// Ends one of the user's own sessions. The user_id condition means one user
+// can never end another user's session, whatever id is sent.
+export async function deleteUserSession(userId: string, sessionId: string): Promise<boolean> {
+  const result = await getAuthDb().$client.query("DELETE FROM sessions WHERE id = $1 AND user_id = $2", [
+    sessionId,
+    userId,
+  ]);
+  return (result.rowCount ?? 0) > 0;
+}
+
+// Ends every session of the user ("log out everywhere").
+export async function deleteAllUserSessions(userId: string): Promise<number> {
+  const result = await getAuthDb().$client.query("DELETE FROM sessions WHERE user_id = $1", [userId]);
+  return result.rowCount ?? 0;
+}
+
 // Is this user account still allowed to log in? (Read by the login library's
 // role, before any business is known.)
 export async function isUserActive(userId: string): Promise<boolean> {

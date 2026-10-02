@@ -10,4 +10,12 @@ export const authRouteHandlers = toNextJsHandler(auth);
 export { createBusiness, createBusinessInput, OnboardingError, type OnboardingErrorCode } from "./onboarding";
 export { getRequestContext, type RequestContext } from "./request-context";
 export { PermissionDeniedError, requirePermission } from "./permissions";
+export {
+  endMySession,
+  endSessionInput,
+  listMySessions,
+  logOutEverywhere,
+  NotLoggedInError,
+  type SessionDto,
+} from "./my-sessions";
 export { DEFAULT_ROLES, OWNER_ROLE, PERMISSIONS, type Permission } from "./default-roles";

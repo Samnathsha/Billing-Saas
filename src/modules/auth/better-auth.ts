@@ -9,6 +9,7 @@ import { env } from "@/lib/env";
 import { accounts, rateLimits, sessions, users, verifications } from "./schema";
 import { accountLockout } from "./account-lockout";
 import { sendEmail } from "./mailer";
+import { originGuard } from "./origin-guard";
 import { isUserActive } from "./repo";
 import { secureCookiesFor, SESSION_POLICY } from "./session-policy";
 
@@ -105,6 +106,12 @@ export const auth = betterAuth({
     },
   },
 
+  // These two send session tokens to the browser (list) or take one from it
+  // (revoke), which would let a page script copy a login. The app's own
+  // listMySessions / endMySession (my-sessions.ts) replace them over HTTP;
+  // they answer 404.
+  disabledPaths: ["/list-sessions", "/revoke-session"],
+
   // Per-IP limits (Better Auth's limiter, stored in rate_limits), on in every
   // environment. Per-account limits: the account-lockout plugin below.
   rateLimit: {
@@ -133,6 +140,8 @@ export const auth = betterAuth({
   },
 
   plugins: [
+    // Refuses every state-changing request whose Origin is not this app.
+    originGuard(env.authUrl),
     // Refuses passwords found in known data breaches on sign-up, change and
     // reset. Only the first 5 characters of the password's SHA-1 hash leave
     // the server (k-anonymity, padded replies). If the service cannot be

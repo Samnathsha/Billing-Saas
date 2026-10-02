@@ -22,19 +22,40 @@ export type RequestContext =
       permissions: readonly string[];
     };
 
-export async function getRequestContext(headers: Headers): Promise<RequestContext> {
-  const session = await auth.api.getSession({ headers });
-  if (session === null) return { kind: "anonymous" };
-  const { user } = session;
-  if (!user.emailVerified || user.status !== "active") return { kind: "anonymous" };
+export interface ActiveSession {
+  userId: string;
+  sessionId: string;
+  token: string;
+  activeTenantId: string | null;
+}
 
-  const token = session.session.token;
-  // Absolute timeout (12 hours from login): end the session for good.
+// The request's session, if it may be used at all: it exists and has not
+// expired, the user is active and verified, and it is under the 12-hour
+// absolute timeout (past it, the session is ended for good). Auth module
+// only; other code uses getRequestContext.
+export async function getActiveSession(headers: Headers): Promise<ActiveSession | undefined> {
+  const session = await auth.api.getSession({ headers });
+  if (session === null) return undefined;
+  const { user } = session;
+  if (!user.emailVerified || user.status !== "active") return undefined;
   if (isPastAbsoluteTimeout(session.session.createdAt)) {
-    await repo.deleteSession(token);
-    return { kind: "anonymous" };
+    await repo.deleteSession(session.session.token);
+    return undefined;
   }
-  const requested = session.session.activeTenantId ?? null;
+  return {
+    userId: user.id,
+    sessionId: session.session.id,
+    token: session.session.token,
+    activeTenantId: session.session.activeTenantId ?? null,
+  };
+}
+
+export async function getRequestContext(headers: Headers): Promise<RequestContext> {
+  const session = await getActiveSession(headers);
+  if (session === undefined) return { kind: "anonymous" };
+  const user = { id: session.userId };
+  const token = session.token;
+  const requested = session.activeTenantId;
 
   const membership = await withUserTransaction(user.id, async (tx) => {
     if (requested !== null) {

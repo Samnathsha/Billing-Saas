@@ -73,6 +73,29 @@ browser only hides buttons.
 - Refusals are not logged yet; that comes with the security log for staff
   actions (later).
 
+## Your devices (sessions)
+
+`src/modules/auth/my-sessions.ts`, for the logged-in user only:
+
+- `listMySessions(headers)`: own unexpired sessions as `SessionDto` (id,
+  signed-in time, last activity, IP, browser text, `current`). Never a token.
+- `endMySession(headers, { sessionId })`: ends one own session; another
+  user's id changes nothing and answers `{ ended: false }`, like an unknown
+  id. Logged as `auth.session_ended`.
+- `logOutEverywhere(headers)`: ends every own session, this one included.
+  Logged as `auth.logged_out_everywhere`.
+- Not logged in: `NotLoggedInError` (`NOT_LOGGED_IN`).
+- Every login creates a new session with a new token (no reuse).
+- Better Auth's `/list-sessions` and `/revoke-session` are switched off over
+  HTTP (`disabledPaths`): they would hand session tokens to page scripts.
+
+## CSRF (blueprint 5.2)
+
+SameSite=Lax cookies, plus an Origin check on every state-changing request
+in `src/proxy.ts` and inside Better Auth (`origin-guard.ts`). The second one
+exists because a test showed Better Auth's own check let a cross-site
+`POST /sign-out` through. See `docs/endpoints.md`.
+
 ## Security settings (all explicit in the config)
 
 - Passwords: 12–128 characters, Argon2id (19 MiB, 2 passes).
@@ -168,3 +191,11 @@ browser only hides buttons.
 - `tests/lint/rules.test.ts`: the service-function rule refuses a missing,
   late, un-awaited, look-alike or wrong-context check and every export form
   that would dodge it. Verified to fail if the first-line rule is removed.
+- `tests/integration/my-sessions.test.ts`: list without tokens, own
+  sessions only, new token per login, ending another device at once,
+  cannot end someone else's session, strict input, log out everywhere,
+  token endpoints off, cross-site logout refused. Verified to fail if the
+  origin guard, the owner condition or `disabledPaths` is removed.
+- `src/lib/origin-check.test.ts` and `tests/e2e/origin-check.spec.ts`: the
+  Origin rule and the proxy on a real server. Verified to fail if the proxy
+  check is removed.

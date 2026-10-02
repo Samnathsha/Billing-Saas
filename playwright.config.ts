@@ -16,6 +16,9 @@ export default defineConfig({
   webServer: {
     command: `npm run build && npx next start -p ${String(PORT)}`,
     url: `http://localhost:${String(PORT)}`,
+    // The app's own address must match the test server, or the Origin check
+    // (src/proxy.ts) would refuse the app's own requests. CI sets the same.
+    env: { BETTER_AUTH_URL: `http://localhost:${String(PORT)}` },
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },

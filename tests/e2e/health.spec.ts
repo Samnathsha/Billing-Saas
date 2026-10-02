@@ -13,9 +13,10 @@ test("GET /api/health returns only the status", async ({ request }) => {
   expect(headers["x-powered-by"]).toBeUndefined();
 });
 
-test("other methods are refused", async ({ request }) => {
+test("other methods are refused", async ({ request, baseURL }) => {
   for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
-    const response = await request.fetch("/api/health", { method });
+    // From our own origin: the route itself refuses the method.
+    const response = await request.fetch("/api/health", { method, headers: { Origin: baseURL ?? "" } });
     expect(response.status(), method).toBe(405);
   }
 });

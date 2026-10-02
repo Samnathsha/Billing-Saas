@@ -172,3 +172,12 @@ Each question has the default the app will use until answered.
     and CGST/SGST vs IGST depends on that branch's state. DEFAULT, accountant
     to confirm: V1 supports branches in the business's registered state only;
     GSTIN and state stay business settings, not branch settings.
+24. **Average cost precision:** stock bought at ₹100 for 3 pieces costs
+    ₹33.333 each. Is weighted average cost kept in whole paise, or with
+    extra decimals and rounded only on reports? DEFAULT, accountant to
+    confirm: extra precision for average cost only; invoice and ledger
+    amounts stay whole paise. (docs/schema.md, R3)
+25. **MRP:** must products carry an MRP (maximum retail price), and must it
+    appear on the bill or tag for our clients' goods? DEFAULT, accountant to
+    confirm: optional MRP field per variant, not printed until confirmed.
+    (docs/schema.md, R4)

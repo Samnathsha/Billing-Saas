@@ -1,25 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import pg from "pg";
 import { LOCAL_AUTH_DB_URL } from "./local-db";
+import { confirmedAccount, formAlert, logIn, PASSWORD as OLD } from "./helpers";
 import { lastLinkTo } from "./mailbox";
 
-const OLD = "a long flow passphrase 2026";
 const NEW = "a brand new flow passphrase 9";
-const formAlert = "p[role=alert]";
-
-async function confirmedAccount(page: Page): Promise<string> {
-  const email = `reset-${randomUUID()}@test.invalid`;
-  await page.goto("/register");
-  await page.getByLabel("Your name").fill("Reset Person");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel(/Password/).fill(OLD);
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page.getByRole("status")).toContainText("Check your email");
-  await page.goto(await lastLinkTo(email, "verify-email"));
-  await expect(page.getByRole("heading", { name: "Email confirmed" })).toBeVisible();
-  return email;
-}
 
 async function sessionCount(email: string): Promise<number> {
   const client = new pg.Client({ connectionString: LOCAL_AUTH_DB_URL });
@@ -35,15 +21,8 @@ async function sessionCount(email: string): Promise<number> {
   }
 }
 
-async function logIn(page: Page, email: string, password: string): Promise<void> {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Log in" }).click();
-}
-
 test("forgot password: link by email, new password works, old one does not, link works once", async ({ page, browser }) => {
-  const email = await confirmedAccount(page);
+  const email = await confirmedAccount(page, "reset");
 
   // Another device is logged in with the old password.
   const phone = await browser.newContext();

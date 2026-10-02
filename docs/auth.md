@@ -38,6 +38,9 @@ Library: Better Auth (ADR 0002), on its own database role `auth_service`
 | `/verify-email` | Where the confirmation link lands: "confirmed", or "link did not work" with "send the link again". |
 | `/login` | Email, password. Unconfirmed email: offers "send the link again". Link to "forgot password". |
 | `/forgot-password` | Email. Always answers "if this address has an account, we sent a link" (valid 1 hour). |
+| `/` | Sends you on: not logged in, to `/login`; no business yet, to `/setup`; otherwise to `/dashboard`. |
+| `/setup` | "Set up your business": name and shop type (Server Action calling `createBusiness`; business and owner come from the session, never the form). |
+| `/dashboard` and every page under `src/app/(app)` | The app frame checks `getRequestContext` on the server for every request (not logged in: `/login`; no business: `/setup`), shows the role and a "Log out" button. Pages and services still check their own permissions. |
 | `/reset-password` | Where the reset link lands. New password; on success every device is logged out. Expired, used or refused (e.g. breached password, which still uses up the link): "send a new link" right there. The token is removed from the address bar once the page has it. |
 
 - The forms run in the browser and call `/api/auth/*` through Better
@@ -255,3 +258,8 @@ exists because a test showed Better Auth's own check let a cross-site
   works and the old one not, another device is logged out, the link works
   once, token leaves the address bar, same answer for unknown emails.
   Verified to fail if the token stays in the URL or sessions survive.
+  Business setup (`business-setup.spec.ts`): first login goes to setup,
+  then dashboard with role "Owner"; setup and `/` lead to the dashboard
+  afterwards; logout leaves the app; without a login every app page leads
+  to `/login`; a blank business name is refused. Verified to fail if the
+  app frame's login check is removed.

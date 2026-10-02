@@ -29,6 +29,13 @@
       "when": 1790916976949,
       "tag": "0003_append_only_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790917791189,
+      "tag": "0004_login_only_cross_tenant_reads",
+      "breakpoints": true
     }
   ]
 }

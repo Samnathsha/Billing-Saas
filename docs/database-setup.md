@@ -62,6 +62,13 @@ descriptions: `docs/schema.md` (Phase 2 step 8).
 - `users`: yourself plus members of the current business; you can change
   only your own account. Login by email and invitations: Phase 3.
 - `memberships`: also your own memberships in any business, read-only.
+- Migration 0004: those two "across businesses" reads (own memberships, and
+  the businesses they belong to) apply **only while no business is set**,
+  i.e. at login. Inside a business, nothing of another business shows, even
+  if the context mixes business A with a user of business B.
+- RLS trusts the context it is given: it limits rows to `app.tenant_id`, but
+  does not check that `app.user_id` is a member. That check belongs to the
+  session code (Phase 3), the only caller of `createTenantContext`.
 - `permissions`: read-only. `rate_limits`: no business data, open to the app.
 - `app_user` privileges are granted table by table in the same migration as
   its policy. No DELETE except `roles`, `role_permissions`, `rate_limits`.
@@ -79,6 +86,20 @@ backdated. Mistakes are fixed by adding a correcting entry.
 
 New ledger tables (stock movements, party ledger, Phase 6+) call
 `SELECT app_make_append_only('table');` in their migration.
+
+## Isolation tests (`tests/isolation`)
+
+Each run creates two full businesses (a row in every tenant table) as
+`app_user`. Business A then attacks Business B in every tenant table: read,
+read by exact id, count, update, delete, move its own row into B, and insert
+a forged row with B's `tenant_id`. Every attack must be refused or affect
+zero rows, and B's rows must be unchanged. It also checks: nothing is
+visible without a business; businesses and users stay separate; a mixed
+context reveals nothing of B; login sees only the user's own businesses.
+
+The list of tenant tables is checked against the database, so a new tenant
+table fails the suite until it is added (with a fixture row in
+`tests/helpers/business.ts`).
 
 ## Using the database in code (`src/db`)
 

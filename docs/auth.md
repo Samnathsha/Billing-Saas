@@ -36,7 +36,9 @@ Library: Better Auth (ADR 0002), on its own database role `auth_service`
 |---|---|
 | `/register` | Name, email, password. Always answers "check your email". |
 | `/verify-email` | Where the confirmation link lands: "confirmed", or "link did not work" with "send the link again". |
-| `/login` | Email, password. Unconfirmed email: offers "send the link again". |
+| `/login` | Email, password. Unconfirmed email: offers "send the link again". Link to "forgot password". |
+| `/forgot-password` | Email. Always answers "if this address has an account, we sent a link" (valid 1 hour). |
+| `/reset-password` | Where the reset link lands. New password; on success every device is logged out. Expired, used or refused (e.g. breached password, which still uses up the link): "send a new link" right there. The token is removed from the address bar once the page has it. |
 
 - The forms run in the browser and call `/api/auth/*` through Better
   Auth's browser client (`src/lib/auth-client.ts`), so the per-IP limits,
@@ -249,3 +251,7 @@ exists because a test showed Better Auth's own check let a cross-site
   a new one. Real browser, own dev server on port 3200, LOCAL throwaway
   database only, emails to `.dev-mailbox/`. Not in CI yet (the CI browser
   job has no database). Verified to fail if `/get-session` is switched on.
+  Password reset (`password-reset.spec.ts`): link by email, new password
+  works and the old one not, another device is logged out, the link works
+  once, token leaves the address bar, same answer for unknown emails.
+  Verified to fail if the token stays in the URL or sessions survive.

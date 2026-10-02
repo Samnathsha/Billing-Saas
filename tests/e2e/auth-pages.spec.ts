@@ -8,6 +8,10 @@ for (const [path, heading, button] of [
   ["/login", "Log in", "Log in"],
   ["/verify-email", "Email confirmed", null],
   ["/verify-email?error=invalid_token", "This link did not work", "Send the link again"],
+  ["/forgot-password", "Forgot your password?", "Send reset link"],
+  ["/reset-password", "This link did not work", "Send a new link"],
+  ["/reset-password?error=INVALID_TOKEN", "This link did not work", "Send a new link"],
+  ["/reset-password?token=made-up-token", "Choose a new password", "Set new password"],
 ] as const) {
   test(`${path} renders`, async ({ page }) => {
     const violations: string[] = [];

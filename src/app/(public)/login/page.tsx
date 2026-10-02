@@ -9,6 +9,7 @@ export default function LoginPage() {
   return (
     <AuthCard title="Log in">
       <LoginForm />
+      <Link href="/forgot-password" className="text-sm underline">Forgot your password?</Link>
       <p className="text-sm text-muted-foreground">
         New here? <Link href="/register" className="underline">Create an account</Link>
       </p>

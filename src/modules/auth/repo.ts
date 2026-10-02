@@ -109,6 +109,30 @@ export async function loadRole(
   return { name: role.name, permissions: rows.map((r) => r.code).sort() };
 }
 
+// Does this user's active membership in this (active) business carry the
+// permission through its role? Read fresh on every call, never cached.
+export async function memberHasPermission(tx: TenantTx, ctx: TenantContext, permission: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ userId: memberships.userId })
+    .from(memberships)
+    .innerJoin(tenants, eq(tenants.id, memberships.tenantId))
+    .innerJoin(
+      rolePermissions,
+      and(eq(rolePermissions.tenantId, memberships.tenantId), eq(rolePermissions.roleId, memberships.roleId)),
+    )
+    .where(
+      and(
+        eq(memberships.tenantId, ctx.tenantId),
+        eq(memberships.userId, ctx.userId),
+        eq(memberships.status, "active"),
+        eq(tenants.status, "active"),
+        eq(rolePermissions.permissionCode, permission),
+      ),
+    )
+    .limit(1);
+  return row !== undefined;
+}
+
 // Sets (or clears) the business a session works in. Only called after a
 // membership check by the service.
 export async function setSessionActiveTenant(sessionToken: string, tenantId: string | null): Promise<void> {

@@ -134,6 +134,48 @@ const bannedSyntax = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Permission checks (blueprint 5.3). Every exported function in a module's
+// service.ts takes `ctx` first and starts with
+//   await requirePermission(ctx, "...");
+// Exports must be plain `export async function` declarations so this can be
+// checked; and index.ts may not hand out repo.ts queries, which would skip
+// the service and its check.
+// ---------------------------------------------------------------------------
+
+const PERMISSION_CHECK =
+  "ExpressionStatement[expression.type='AwaitExpression'][expression.argument.callee.name='requirePermission'][expression.argument.arguments.0.name='ctx']";
+
+const serviceSyntax = [
+  {
+    selector: `ExportNamedDeclaration > FunctionDeclaration > BlockStatement > :first-child:not(${PERMISSION_CHECK})`,
+    message: "A service function must start with: await requirePermission(ctx, \"...\");",
+  },
+  {
+    selector: "ExportNamedDeclaration > FunctionDeclaration > BlockStatement[body.length=0]",
+    message: "A service function must start with: await requirePermission(ctx, \"...\");",
+  },
+  {
+    selector: "ExportNamedDeclaration > FunctionDeclaration:not([params.0.name='ctx'])",
+    message: "A service function takes the TenantContext `ctx` as its first parameter.",
+  },
+  {
+    selector: "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > :matches(ArrowFunctionExpression, FunctionExpression).init",
+    message: "Export service functions as `export async function name(ctx, ...)` so the permission check can be verified.",
+  },
+  {
+    selector: "ExportDefaultDeclaration, ExportAllDeclaration, ExportSpecifier",
+    message: "service.ts declares each export directly (`export async function ...`), so every one is checked.",
+  },
+];
+
+const moduleIndexSyntax = [
+  {
+    selector: "ExportNamedDeclaration[source.value=/(^|\\/)repo$/], ExportAllDeclaration[source.value=/(^|\\/)repo$/]",
+    message: "Do not export repo.ts from index.ts: callers must go through service functions (permission check).",
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -237,6 +279,17 @@ const eslintConfig = defineConfig([
   {
     files: ["src/lib/**"],
     rules: restrictImports(noParentRelative, noModules(), noDb, noApp, noComponents, noDbDriver, noDrizzle),
+  },
+
+  {
+    // ESLint replaces (does not merge) a rule's options per block, so the
+    // general banned syntax is repeated here.
+    files: ["src/modules/*/service.ts"],
+    rules: { "no-restricted-syntax": ["error", ...bannedSyntax, ...serviceSyntax] },
+  },
+  {
+    files: ["src/modules/*/index.ts"],
+    rules: { "no-restricted-syntax": ["error", ...bannedSyntax, ...moduleIndexSyntax] },
   },
 
   {

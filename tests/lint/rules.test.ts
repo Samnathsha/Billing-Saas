@@ -19,6 +19,10 @@ async function guardedRuleHits(code: string, filePath: string): Promise<string[]
     .filter((ruleId) => ruleId === "fatal" || GUARDED_RULES.includes(ruleId));
 }
 
+// A service function written the required way (see "permission checks" below).
+const guarded = (body: string, extraParams = ""): string =>
+  `export async function run(ctx: TenantContext${extraParams}) {\n  await requirePermission(ctx, "sales.create");\n  return ${body};\n}`;
+
 const blocked: [name: string, filePath: string, code: string, rule: string][] = [
   // Module boundaries
   ["page imports module internals", "src/app/page.tsx", 'import { a } from "@/modules/sales/service";', "no-restricted-imports"],
@@ -55,13 +59,13 @@ const blocked: [name: string, filePath: string, code: string, rule: string][] = 
 
 const allowed: [name: string, filePath: string, code: string][] = [
   ["page uses a module's index", "src/app/page.tsx", 'import { a } from "@/modules/sales";\nexport default a;'],
-  ["service uses another module's index and withTenant", "src/modules/sales/service.ts", 'import { b } from "@/modules/catalog";\nimport { withTenant } from "@/db/with-tenant";\nimport type { SQL } from "drizzle-orm";\nexport { b, withTenant };\nexport type { SQL };'],
+  ["service uses another module's index and withTenant", "src/modules/sales/service.ts", `import { b } from "@/modules/catalog";\nimport { requirePermission } from "@/modules/auth";\nimport { withTenant, type TenantContext } from "@/db/with-tenant";\nimport type { SQL } from "drizzle-orm";\n${guarded("withTenant(ctx, () => b(q))", ", q: SQL")}`],
   ["repo uses Drizzle with a parameterised sql tag", "src/modules/sales/repo.ts", 'import { sql } from "drizzle-orm";\nexport const q = (id: string) => sql`SELECT * FROM sales WHERE id = ${id}`;'],
-  ["module imports its own files", "src/modules/sales/service.ts", 'import { r } from "./repo";\nexport { r };'],
+  ["module imports its own files", "src/modules/sales/service.ts", `import { r } from "./repo";\nimport { requirePermission } from "@/modules/auth";\nimport type { TenantContext } from "@/db/with-tenant";\n${guarded("r()")}`],
   ["db opens the connection", "src/db/client.ts", 'import { Pool } from "pg";\nexport const pool = new Pool();'],
   ["db schema gathers module tables", "src/db/schema/index.ts", 'export * from "@/modules/sales/schema";'],
   ["auth module builds the tenant context", "src/modules/auth/request-context.ts", 'import { createTenantContext, withTenant } from "@/db/with-tenant";\nexport { createTenantContext, withTenant };'],
-  ["any module uses withTenant", "src/modules/sales/service.ts", 'import { withTenant, type TenantTx } from "@/db/with-tenant";\nexport { withTenant };\nexport type { TenantTx };'],
+  ["any module uses withTenant", "src/modules/sales/service.ts", `import { withTenant, type TenantContext, type TenantTx } from "@/db/with-tenant";\nimport { requirePermission } from "@/modules/auth";\n${guarded("withTenant(ctx, (tx: TenantTx) => Promise.resolve(tx))")}`],
   ["schema references another module's tables", "src/modules/auth/schema.ts", 'import { tenants } from "@/modules/tenants/schema";\nexport { tenants };'],
   ["component imports a module DTO type", "src/components/pos/cart.tsx", 'import type { SaleDto } from "@/modules/sales";\nexport type { SaleDto };'],
 ];
@@ -75,6 +79,53 @@ describe("lint rules block forbidden code", () => {
 describe("lint rules allow the intended patterns", () => {
   it.each(allowed)("%s", async (_name, filePath, code) => {
     expect(await guardedRuleHits(code, filePath)).toEqual([]);
+  });
+});
+
+describe("permission checks: every service function starts with requirePermission(ctx, ...)", () => {
+  const SERVICE = "src/modules/sales/service.ts";
+  const head = 'import { requirePermission } from "@/modules/auth";\nimport type { TenantContext } from "@/db/with-tenant";\n';
+
+  const refused: [name: string, code: string][] = [
+    ["no check at all", "export async function voidInvoice(ctx: TenantContext) {\n  return ctx.tenantId;\n}"],
+    ["check is not the first line", 'export async function voidInvoice(ctx: TenantContext) {\n  const id = ctx.tenantId;\n  await requirePermission(ctx, "invoices.void");\n  return id;\n}'],
+    ["check not awaited", 'export async function voidInvoice(ctx: TenantContext) {\n  void requirePermission(ctx, "invoices.void");\n}'],
+    ["check on another context", 'export async function voidInvoice(ctx: TenantContext, other: TenantContext) {\n  await requirePermission(other, "invoices.void");\n  return ctx;\n}'],
+    ["a look-alike function", 'export async function voidInvoice(ctx: TenantContext) {\n  await checkPermission(ctx, "invoices.void");\n}\nasync function checkPermission(c: TenantContext, p: string) { return [c, p]; }'],
+    ["empty body", "export async function voidInvoice(ctx: TenantContext) {}"],
+    ["first parameter is not ctx", 'export async function voidInvoice(input: unknown, ctx: TenantContext) {\n  await requirePermission(ctx, "invoices.void");\n  return input;\n}'],
+    ["exported arrow function", 'export const voidInvoice = async (ctx: TenantContext) => {\n  await requirePermission(ctx, "invoices.void");\n};'],
+    ["exported function expression", 'export const voidInvoice = async function (ctx: TenantContext) {\n  await requirePermission(ctx, "invoices.void");\n};'],
+    ["unchecked function exported by name", "async function voidInvoice(ctx: TenantContext) {\n  return ctx;\n}\nexport { voidInvoice };"],
+    ["repo function passed through", 'export { insertSale } from "./repo";'],
+    ["everything from repo passed through", 'export * from "./repo";'],
+    ["default export", "export default async function (ctx: TenantContext) {\n  return ctx;\n}"],
+  ];
+
+  it.each(refused)("refuses: %s", async (_name, code) => {
+    expect(await guardedRuleHits(head + code, SERVICE)).toContain("no-restricted-syntax");
+  });
+
+  it("allows a guarded function, private helpers and exported input schemas", async () => {
+    const code =
+      head +
+      'import { z } from "zod";\n' +
+      "export const voidInvoiceInput = z.strictObject({ invoiceId: z.uuid() });\n" +
+      "const helper = (n: number): number => n + 1;\n" +
+      'export async function voidInvoice(ctx: TenantContext, raw: unknown) {\n  await requirePermission(ctx, "invoices.void");\n  return [voidInvoiceInput.parse(raw), helper(1)];\n}';
+    expect(await guardedRuleHits(code, SERVICE)).toEqual([]);
+  });
+
+  it("the general bans still apply in service.ts", async () => {
+    expect(await guardedRuleHits(head + "export const q = (id: string) => `DELETE FROM sales WHERE id = ${id}`;", SERVICE)).toContain(
+      "no-restricted-syntax",
+    );
+  });
+
+  it("a module's index.ts may not export repo.ts queries", async () => {
+    expect(await guardedRuleHits('export { insertSale } from "./repo";', "src/modules/sales/index.ts")).toContain("no-restricted-syntax");
+    expect(await guardedRuleHits('export * from "./repo";', "src/modules/sales/index.ts")).toContain("no-restricted-syntax");
+    expect(await guardedRuleHits('export { voidInvoice } from "./service";', "src/modules/sales/index.ts")).toEqual([]);
   });
 });
 

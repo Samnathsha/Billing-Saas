@@ -46,6 +46,33 @@ Result: `anonymous`, `no-business` (logged in, no usable business) or
 membership loses access on the very next request. Only the auth module may
 call `createTenantContext` or `withUserTransaction` (lint rule).
 
+## Permissions: `requirePermission(ctx, "...")`
+
+Blueprint 5.3. Every service function starts with
+`await requirePermission(ctx, "invoices.void");`. The server decides; the
+browser only hides buttons.
+
+- The check reads the member's **current** role from the database each time
+  (active membership, active business, role grants the code). Removing a
+  permission, changing a role, disabling a member or suspending the business
+  works at once, even for a `ctx` made earlier in the same request.
+- Refused: `PermissionDeniedError` (`code: "FORBIDDEN"`, message "You do not
+  have permission to do this."). Routes will turn it into HTTP 403.
+- An unknown permission code is a programming error (plain `Error`), never a
+  pass.
+- Lint rule for `src/modules/*/service.ts`: every exported function is an
+  `export async function name(ctx, ...)` whose first line is
+  `await requirePermission(ctx, ...)`. Arrow-function, default, `export { }`
+  and `export * from` exports are refused there, and a module's `index.ts`
+  may not export `repo.ts`, so nothing can skip the check.
+- Exempt by design: `createBusiness` (the user has no business, hence no
+  role, yet; its own checks are the gate) and `getRequestContext`.
+- The check runs in its own short transaction before the service's work.
+  For money and stock writes a later phase may also re-check inside the
+  write's transaction.
+- Refusals are not logged yet; that comes with the security log for staff
+  actions (later).
+
 ## Security settings (all explicit in the config)
 
 - Passwords: 12–128 characters, Argon2id (19 MiB, 2 passes).
@@ -132,3 +159,12 @@ call `createTenantContext` or `withUserTransaction` (lint rule).
   login unaffected. Uses a stand-in for the HIBP service
   (`tests/helpers/hibp.ts`), so tests never need the internet. Verified to
   fail if the plugin is removed.
+- `tests/integration/permissions.test.ts`: all 55 role/permission pairs of
+  blueprint table 5.3 through `requirePermission`, the safe refusal, unknown
+  codes, and that removing a permission, demoting or disabling a member,
+  suspending the business, or pairing a user with another business's id is
+  refused at once. Verified to fail if the check always passes or ignores
+  the membership or business status.
+- `tests/lint/rules.test.ts`: the service-function rule refuses a missing,
+  late, un-awaited, look-alike or wrong-context check and every export form
+  that would dodge it. Verified to fail if the first-line rule is removed.

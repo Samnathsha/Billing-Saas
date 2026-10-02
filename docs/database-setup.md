@@ -69,6 +69,17 @@ descriptions: `docs/schema.md` (Phase 2 step 8).
   `SELECT app_enable_tenant_rls('table');` and grant only the needed
   privileges. `scripts/check-rls.ts` (step 6) fails CI otherwise.
 
+## Append-only tables (migration 0003)
+
+`audit_logs` and `sync_operations` can only grow. Two independent locks:
+`app_user` has no UPDATE/DELETE/TRUNCATE right, and triggers refuse those
+operations for every role, including `migrator` and a superuser. An insert
+trigger sets `created_at` from the database clock, so entries cannot be
+backdated. Mistakes are fixed by adding a correcting entry.
+
+New ledger tables (stock movements, party ledger, Phase 6+) call
+`SELECT app_make_append_only('table');` in their migration.
+
 ## Using the database in code (`src/db`)
 
 ```ts

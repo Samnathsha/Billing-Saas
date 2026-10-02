@@ -4,27 +4,17 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getDb } from "@/db/client";
 import { branches, tenants, users } from "@/db/schema";
 import { createTenantContext, withTenant, type TenantContext } from "@/db/with-tenant";
+import { createTestBusiness, type TestBusiness } from "../helpers/business";
 
 // Runs against the real test database as app_user. Each run creates two new
 // businesses with random ids, so runs never depend on earlier data.
 
-async function createBusiness(name: string): Promise<{ ctx: TenantContext; branchId: string }> {
-  const ctx = createTenantContext({ tenantId: randomUUID(), userId: randomUUID() });
-  const branchId = randomUUID();
-  await withTenant(ctx, async (tx) => {
-    await tx.insert(users).values({ id: ctx.userId, email: `${ctx.userId}@test.invalid`, displayName: name });
-    await tx.insert(tenants).values({ id: ctx.tenantId, name, template: "clothing" });
-    await tx.insert(branches).values({ id: branchId, tenantId: ctx.tenantId, name: `${name} main` });
-  });
-  return { ctx, branchId };
-}
-
-let a: Awaited<ReturnType<typeof createBusiness>>;
-let b: Awaited<ReturnType<typeof createBusiness>>;
+let a: TestBusiness;
+let b: TestBusiness;
 
 beforeAll(async () => {
-  a = await createBusiness("Test shop A");
-  b = await createBusiness("Test shop B");
+  a = await createTestBusiness("Test shop A");
+  b = await createTestBusiness("Test shop B");
 });
 
 afterAll(async () => {

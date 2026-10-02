@@ -71,6 +71,13 @@
       "when": 1790935900117,
       "tag": "0009_security_events_readable",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790963665438,
+      "tag": "0010_business_profile",
+      "breakpoints": true
     }
   ]
 }

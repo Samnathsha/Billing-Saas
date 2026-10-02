@@ -183,11 +183,19 @@ One row per business.
   (`Asia/Kolkata`), `financial_year_start_month` (4 = April),
   `prices_include_tax` (true), `round_off_enabled` (true, open question 5),
   `cashier_discount_limit_bps` (500 = 5%, range 0–10000).
-- Phase 4 adds: `legal_name`, address, `gstin` (format-checked),
-  `registered_state_code`, `gst_registration` (`registered` |
-  `unregistered` | `composition`), `allow_negative_stock_online` (default
-  false, rule 7.1), `offline_window_hours` (default 72), and a threshold
-  above which a stock adjustment needs a second approver.
+- Built in Phase 4 (migration 0010), all empty until the owner fills them:
+  `address_line1`, `address_line2`, `city`, `state_code` (GST state code,
+  e.g. `33`), `pincode` (6 digits), `phone`, `contact_email`,
+  `gst_registration` (`registered` | `composition` | `unregistered`; empty
+  = not set yet, sales will require it), `gstin`.
+- Database checks: GSTIN shape; a GSTIN exactly when registered or
+  composition; its first two digits equal `state_code`; PIN, phone and
+  length formats. The app also checks the GSTIN's check character.
+- Business name stays `tenants.name`. No separate legal name yet (open
+  question 26).
+- Still planned: `allow_negative_stock_online` (default false, rule 7.1,
+  Phase 6), `offline_window_hours` (default 72, Phase 10), and a threshold
+  above which a stock adjustment needs a second approver (Phase 6).
 
 ### audit_logs: Built (Phase 2), append-only
 Who did what, to which record, when.

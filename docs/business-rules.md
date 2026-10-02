@@ -113,6 +113,18 @@ or tax advice; the accountant signs off before launch.
 - After a role change or deactivation, ALL the person's logins end at once
   on every device; they log in again with the new role.
 
+### 11. Phase 4 decisions (owner, 2026-10-02)
+
+- **Logo:** built in Phase 5 together with product photos, on Cloudflare
+  R2 (one storage account for both). No logo upload in Phase 4.
+- **Pilot plan:** every business is on one free plan during the pilot:
+  at most 2 branches, 10 staff (active members, owner included) and 5
+  tills (devices). The numbers live in the `plans` table and can be changed
+  without code. No payment integration yet.
+- **Shop type (clothing / mobile):** can be changed only until the first
+  product exists; after that it is locked. (The switch is built with the
+  catalog in Phase 5, where products exist to check.)
+
 ## OPEN QUESTIONS FOR ACCOUNTANT
 
 Each question has the default the app will use until answered.
@@ -192,3 +204,15 @@ Each question has the default the app will use until answered.
     appear on the bill or tag for our clients' goods? DEFAULT, accountant to
     confirm: optional MRP field per variant, not printed until confirmed.
     (docs/schema.md, R4)
+26. **GST state list and GSTIN check:** the app offers the GST state codes
+    01–24, 26, 27, 29–38 and 97 (not 25, 28 or 99) and checks a GSTIN's
+    shape, state and check character. Is this list right for our clients?
+    DEFAULT, accountant to confirm: yes (src/modules/tax/gst.ts).
+27. **Name on the invoice:** must the invoice show the legal name from the
+    GST registration, or is the shop's trade name enough? DEFAULT,
+    accountant to confirm: the business name from settings; a separate
+    legal-name field can be added.
+28. **Changing "prices include tax" later:** once products have prices,
+    switching this changes what every stored price means. DEFAULT, owner and
+    accountant to confirm: allowed freely until the first product exists,
+    then locked like the shop type (enforced in Phase 5).

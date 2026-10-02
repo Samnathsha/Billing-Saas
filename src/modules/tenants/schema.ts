@@ -91,10 +91,37 @@ export const settings = pgTable(
     roundOffEnabled: boolean("round_off_enabled").notNull().default(true), // rule 3.5; open question 5
     // Basis points: 500 = 5.00%. Integer, never floating point. Rules 8.1, 8.3.
     cashierDiscountLimitBps: integer("cashier_discount_limit_bps").notNull().default(500),
+    // Business profile (printed on invoices). Empty until the owner fills it.
+    addressLine1: text("address_line1"),
+    addressLine2: text("address_line2"),
+    city: text("city"),
+    // GST state code, e.g. '33' (Tamil Nadu). Decides CGST+SGST vs IGST.
+    stateCode: text("state_code"),
+    pincode: text("pincode"),
+    phone: text("phone"),
+    contactEmail: text("contact_email"),
+    // 'registered' | 'composition' | 'unregistered'; null = not set yet
+    // (sales will require it). Owner or accountant to validate. Rule 4.5.
+    gstRegistration: text("gst_registration"),
+    gstin: text("gstin"),
     ...mutableRowColumns(),
   },
   (t) => [
     unique("settings_tenant_key").on(t.tenantId),
+    check("settings_address_lengths", sql`char_length(${t.addressLine1}) <= 200 AND char_length(${t.addressLine2}) <= 200 AND char_length(${t.city}) <= 100`),
+    check("settings_state_code_format", sql`${t.stateCode} ~ '^[0-9]{2}$'`),
+    check("settings_pincode_format", sql`${t.pincode} ~ '^[1-9][0-9]{5}$'`),
+    check("settings_phone_format", sql`${t.phone} ~ '^[+0-9 -]{6,20}$'`),
+    check("settings_contact_email_length", sql`char_length(${t.contactEmail}) <= 254`),
+    check("settings_gst_registration_valid", sql`${t.gstRegistration} in ('registered', 'composition', 'unregistered')`),
+    check("settings_gstin_format", sql`${t.gstin} ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'`),
+    // A GSTIN exactly when registered or composition, and its first two
+    // digits are the business's state.
+    check(
+      "settings_gstin_matches_registration",
+      sql`(${t.gstin} IS NOT NULL) = (${t.gstRegistration} IS NOT NULL AND ${t.gstRegistration} <> 'unregistered')`,
+    ),
+    check("settings_gstin_matches_state", sql`${t.gstin} IS NULL OR (${t.stateCode} IS NOT NULL AND left(${t.gstin}, 2) = ${t.stateCode})`),
     check("settings_country_code_format", sql`${t.countryCode} ~ '^[A-Z]{2}$'`),
     check("settings_currency_code_format", sql`${t.currencyCode} ~ '^[A-Z]{3}$'`),
     check("settings_time_zone_length", sql`char_length(${t.timeZone}) between 1 and 64`),

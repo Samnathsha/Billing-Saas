@@ -1,5 +1,6 @@
 /**
- * Sets new random passwords for app_user and migrator in one database, then
+ * Sets new random passwords for app_user, migrator and auth_service in one
+ * database, then
  * writes the new connection strings into .env.local. Run it after
  * scripts/db-roles.sql:
  *
@@ -10,6 +11,7 @@
  * DATABASE_URL_<ENV> (or OWNER_DATABASE_URL_<ENV> if present), and afterwards:
  *   DATABASE_URL_<ENV>          = app_user, pooled connection (the app)
  *   MIGRATOR_DATABASE_URL_<ENV> = migrator, direct connection (migrations)
+ *   AUTH_DATABASE_URL_<ENV>     = auth_service, pooled (login library only)
  * The owner connection string is removed from .env.local; get it from the
  * Neon console if you ever need it again.
  *
@@ -28,7 +30,7 @@ const ENV_FILE = ".env.local";
 // settings set from query parameters, never as text in the statement.
 const ALTER_PASSWORD_SQL = `DO $$
 BEGIN
-  IF current_setting('app.role_name') NOT IN ('app_user', 'migrator') THEN
+  IF current_setting('app.role_name') NOT IN ('app_user', 'migrator', 'auth_service') THEN
     RAISE EXCEPTION 'unexpected role';
   END IF;
   EXECUTE format('ALTER ROLE %I PASSWORD %L', current_setting('app.role_name'), current_setting('app.new_password'));
@@ -114,6 +116,7 @@ async function main(): Promise<void> {
   const suffix = target.data.toUpperCase();
   const appKey = `DATABASE_URL_${suffix}`;
   const migratorKey = `MIGRATOR_DATABASE_URL_${suffix}`;
+  const authKey = `AUTH_DATABASE_URL_${suffix}`;
   const ownerKey = `OWNER_DATABASE_URL_${suffix}`;
 
   const lines = readEnvFile();
@@ -123,6 +126,7 @@ async function main(): Promise<void> {
   const passwords: Record<RoleName, string> = {
     app_user: randomBytes(32).toString("base64url"),
     migrator: randomBytes(32).toString("base64url"),
+    auth_service: randomBytes(32).toString("base64url"),
   };
 
   await withClient(ownerUrl, async (client) => {
@@ -130,7 +134,7 @@ async function main(): Promise<void> {
       "SELECT current_user AS role, rolcreaterole AS createrole FROM pg_roles WHERE rolname = current_user",
     );
     const me = who.rows[0];
-    if (me === undefined || me.role === "app_user" || me.role === "migrator" || !me.createrole) {
+    if (me === undefined || ["app_user", "migrator", "auth_service"].includes(me.role) || !me.createrole) {
       fail(
         `${appKey} no longer uses the database owner (already switched?).\n` +
           `To set new passwords again, add a line ${ownerKey}=<owner connection string from the Neon console>\n` +
@@ -139,27 +143,34 @@ async function main(): Promise<void> {
     }
 
     const roles = await client.query<{ n: number }>(
-      "SELECT count(*)::int AS n FROM pg_roles WHERE rolname IN ('app_user', 'migrator')",
+      "SELECT count(*)::int AS n FROM pg_roles WHERE rolname IN ('app_user', 'migrator', 'auth_service')",
     );
-    if (roles.rows[0]?.n !== 2) {
-      fail("The app_user and migrator roles do not exist yet. Run scripts/db-roles.sql in the Neon SQL Editor first.");
+    if (roles.rows[0]?.n !== 3) {
+      fail(
+        "The app_user, migrator and auth_service roles do not all exist yet. Run the latest scripts/db-roles.sql in the Neon SQL Editor first.",
+      );
     }
 
     await setPassword(client, "app_user", passwords.app_user);
     await setPassword(client, "migrator", passwords.migrator);
+    await setPassword(client, "auth_service", passwords.auth_service);
   });
 
   const appUrl = connectionUrl(ownerUrl, "app_user", passwords.app_user, true);
   const migratorUrl = connectionUrl(ownerUrl, "migrator", passwords.migrator, false);
   await verify(appUrl, "app_user");
+  const authUrl = connectionUrl(ownerUrl, "auth_service", passwords.auth_service, true);
+  await verify(appUrl, "app_user");
   await verify(migratorUrl, "migrator");
+  await verify(authUrl, "auth_service");
 
-  writeEnvFile(lines, { [appKey]: appUrl, [migratorKey]: migratorUrl }, [ownerKey]);
+  writeEnvFile(lines, { [appKey]: appUrl, [migratorKey]: migratorUrl, [authKey]: authUrl }, [ownerKey]);
 
-  console.log(`\n${target.data}: new passwords set for app_user and migrator.`);
+  console.log(`\n${target.data}: new passwords set for app_user, migrator and auth_service.`);
   console.log(`  ${appKey} now connects as app_user (pooled).`);
   console.log(`  ${migratorKey} now connects as migrator (direct).`);
-  console.log(`  Checked: both log in, neither is a superuser or can bypass row-level security.`);
+  console.log(`  ${authKey} now connects as auth_service (pooled).`);
+  console.log(`  Checked: all three log in; none is a superuser or can bypass row-level security.`);
   console.log(`  ${ENV_FILE} updated; the owner connection string is no longer in it.\n`);
 }
 

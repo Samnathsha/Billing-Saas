@@ -8,6 +8,7 @@ the same two roles:
 | `neondb_owner` | you, in the Neon console only | everything (Neon superuser, bypasses RLS) | never in `.env.local` |
 | `migrator` | drizzle-kit migrations | owns the tables; create/alter tables | direct (no `-pooler`) |
 | `app_user` | the running app and tests | read/write rows its grants allow; RLS always applies | pooled (`-pooler`) |
+| `auth_service` | the login library only (ADR 0003) | the login tables only; no business table | pooled (`-pooler`) |
 
 ## One-time setup (per project: do `billing-test` first, then `billing-dev`)
 
@@ -129,6 +130,15 @@ Deliberate exceptions to blueprint 6.1:
   `users`); `audit_logs` is the authoritative record of who did what.
 - `audit_logs` and `sync_operations` have no `updated_at`/`version`: their
   rows never change.
+
+## Adding auth_service to an existing setup (Phase 3)
+
+1. Run the latest `scripts/db-roles.sql` in each project's SQL Editor
+   (expected: three rows, `app_user`, `auth_service`, `migrator`).
+2. Add `OWNER_DATABASE_URL_TEST=<owner connection string from the Neon
+   console>` to `.env.local` and run `npx tsx scripts/set-db-passwords.ts test`.
+   It sets new passwords for all three roles, adds `AUTH_DATABASE_URL_TEST`
+   and removes the `OWNER_` line. Repeat with `_DEV` / `dev`.
 
 ## Changing passwords later (rotation)
 

@@ -63,6 +63,7 @@ jobs:
     env:
       DATABASE_URL_TEST: postgresql://app_user@localhost:5432/billing_test
       MIGRATOR_DATABASE_URL_TEST: postgresql://migrator@localhost:5432/billing_test
+      AUTH_DATABASE_URL_TEST: postgresql://auth_service@localhost:5432/billing_test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

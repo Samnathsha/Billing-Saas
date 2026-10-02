@@ -17,6 +17,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <nav className="flex items-center gap-4 text-sm">
           <Link href="/dashboard" className="font-semibold">Billing</Link>
           {/* Menu links follow the role for convenience only; each page checks on the server. */}
+          {who.permissions.includes("settings.manage") ? <Link href="/settings/business">Business settings</Link> : null}
           {who.permissions.includes("users.manage") ? <Link href="/settings/staff">Staff</Link> : null}
           <Link href="/settings/devices">Your devices</Link>
         </nav>

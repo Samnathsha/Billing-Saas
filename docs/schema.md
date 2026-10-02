@@ -444,6 +444,6 @@ Phase 6.
 
 | Reviewer | Date | Agreed / changes requested |
 |---|---|---|
-| Owner | | |
+| Owner | 2026-10-01 | Agreed; defaults accepted for R1–R6 |
 | Experienced developer | | |
 | Accountant (sections 4–9) | | |

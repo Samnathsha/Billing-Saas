@@ -153,3 +153,15 @@ Screens:
   GSTIN refused next to the field; old page after someone else saved; a
   cashier has no link and gets "Not allowed". Verified to fail if the menu
   link is shown to everyone.
+
+## Phase 4 sign-off
+
+2026-10-02: the owner ran the Phase 4 hand test on the development database
+and signed off: business details and GST saved (a mistyped GSTIN refused),
+bill prefix with live example, branches (plan limit of 2, last open branch
+kept open, close and reopen), a staff member invited, registered, joined
+through the link, refused on owner pages, moved to Manager (logged out),
+and deactivated. Every change appeared in the audit log. Moved to Phase 5
+by owner decision: logo upload and the shop-type switch. Open point:
+"deactivate" removes the person from the business; blocking a whole account
+(cannot log in at all) is an account-level action not built yet.

@@ -3,6 +3,7 @@ import { hash, verify } from "@node-rs/argon2";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { haveIBeenPwned } from "better-auth/plugins/haveibeenpwned";
 import { getAuthDb } from "@/db/auth-client";
 import { env } from "@/lib/env";
 import { accounts, rateLimits, sessions, users, verifications } from "./schema";
@@ -110,8 +111,18 @@ export const auth = betterAuth({
     cookiePrefix: "billing",
   },
 
-  // nextCookies must stay last: it lets server actions set auth cookies.
-  plugins: [nextCookies()],
+  plugins: [
+    // Refuses passwords found in known data breaches on sign-up, change and
+    // reset. Only the first 5 characters of the password's SHA-1 hash leave
+    // the server (k-anonymity, padded replies). If the service cannot be
+    // reached, the action is refused ("try again later"), never let through.
+    haveIBeenPwned({
+      customPasswordCompromisedMessage:
+        "This password has appeared in a data breach. Please choose a different one.",
+    }),
+    // nextCookies must stay last: it lets server actions set auth cookies.
+    nextCookies(),
+  ],
 });
 
 export type Auth = typeof auth;

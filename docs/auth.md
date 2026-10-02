@@ -48,8 +48,14 @@ call `createTenantContext` or `withUserTransaction` (lint rule).
 
 ## Security settings (all explicit in the config)
 
-- Passwords: 12–128 characters, Argon2id (19 MiB, 2 passes). Breached-
-  password check: Phase 3 step 3.
+- Passwords: 12–128 characters, Argon2id (19 MiB, 2 passes).
+- Breached-password check (Have I Been Pwned plugin) on sign-up, password
+  change and reset: only the first 5 characters of the password's SHA-1
+  hash leave the server, with padded replies. If the service cannot be
+  reached, the action is refused ("try again later"), never let through.
+  Logins do not call it. Note for the reset screen: a reset link is used
+  up even when the new password is refused, so the screen must offer
+  "send a new link".
 - Same error for a wrong password and an unknown email.
 - A disabled account cannot start a session (`databaseHooks`).
 - Sessions in the database; cookie cache **off**, so logout, revoke and
@@ -89,3 +95,8 @@ call `createTenantContext` or `withUserTransaction` (lint rule).
   fail if the lock, the membership re-check or the disabled-account hook is
   removed.
 - `src/modules/auth/default-roles.test.ts` restates blueprint table 5.3.
+- `tests/integration/breached-passwords.test.ts`: breached password refused
+  on sign-up and reset, service-down refuses, only the hash prefix is sent,
+  login unaffected. Uses a stand-in for the HIBP service
+  (`tests/helpers/hibp.ts`), so tests never need the internet. Verified to
+  fail if the plugin is removed.

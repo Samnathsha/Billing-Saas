@@ -283,3 +283,11 @@ DEVELOPMENT database only (`scripts/dev-add-member.ts`, shared code in
 app_user inside the owner's business, so row-level security applies, and
 adds an audit entry (`member.added`). It cannot add an Owner. Replaced by
 staff invitations in Phase 4.
+
+## Phase 3 sign-off
+
+2026-10-02: the owner ran the Phase 3 hand test on the development
+database and signed off: register and confirm, log in, set up the
+business, two devices (ending one logged it out at once), a cashier saw no
+Staff link and got "Not allowed" when typing the address while the owner
+could open it, and log out everywhere.

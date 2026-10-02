@@ -39,3 +39,9 @@ test("the token-revealing session endpoints are switched off", async ({ request 
     expect((await request.get(path)).status(), path).toBe(404);
   }
 });
+
+test("pages use the app's font (Geist), not the browser's default", async ({ page }) => {
+  await page.goto("/login");
+  const font = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
+  expect(font).toMatch(/geist/i);
+});

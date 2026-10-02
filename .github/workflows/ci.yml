@@ -36,6 +36,50 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - name: Migration files are consistent
+        run: npm run db:check
+
+  database:
+    name: Database tests and check-rls
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      # A throwaway PostgreSQL that exists only for this job. Same major
+      # version as Neon. Pinned by digest like the actions above.
+      postgres:
+        image: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+        env:
+          POSTGRES_DB: billing_test
+          # No passwords: the server is reachable only from this job and is
+          # deleted when it ends. Roles and RLS behave exactly as on Neon.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      DATABASE_URL_TEST: postgresql://app_user@localhost:5432/billing_test
+      MIGRATOR_DATABASE_URL_TEST: postgresql://migrator@localhost:5432/billing_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Create roles (scripts/db-roles.sql, as on Neon)
+        run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d billing_test -v ON_ERROR_STOP=1 < scripts/db-roles.sql
+      - name: Run migrations as migrator
+        run: npm run db:migrate:test
+      - name: check-rls
+        run: npm run db:check-rls
+      - name: Database tests (isolation, withTenant, append-only)
+        run: npm run test:db
 
   e2e:
     name: Browser tests

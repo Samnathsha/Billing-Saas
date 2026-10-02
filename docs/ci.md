@@ -2,12 +2,13 @@
 
 ## GitHub Actions: `.github/workflows/ci.yml`
 
-Runs on every push to `main` and every pull request. Four jobs run in
+Runs on every push to `main` and every pull request. Five jobs run in
 parallel; all must be green before merging.
 
 | Job | What it does |
 |---|---|
-| Typecheck, lint, unit tests | `npm ci`, `npm run typecheck`, `npm run lint`, `npm test` |
+| Typecheck, lint, unit tests | `npm ci`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run db:check` |
+| Database tests and check-rls | Starts a throwaway PostgreSQL 18 (pinned image), creates roles with `scripts/db-roles.sql`, runs migrations as `migrator`, then `npm run db:check-rls` and `npm run test:db` |
 | Browser tests | Builds the app and runs Playwright (`npm run test:e2e`). On failure the report is uploaded for 7 days. |
 | npm audit | `npm audit --omit=dev` fails the build; full `npm audit` is a warning only ([ADR 0001](decisions/0001-npm-audit-policy.md)) |
 | Secret scan | gitleaks scans the **whole git history**, so a secret that was committed and later deleted is still caught |
@@ -17,8 +18,15 @@ is pinned to a commit SHA; the gitleaks download is checked against its
 published SHA-256; findings are redacted from logs; `gitleaks:allow` comments
 are ignored, so a finding cannot be silenced from inside the code.
 
-Not yet in CI (added when the database exists): `scripts/check-rls.ts` and
-the tenant isolation tests against a real Postgres.
+## check-rls (`scripts/check-rls.ts`)
+
+Fails if: a table lacks forced RLS; a tenant table lacks the standard
+`tenant_isolation` policy or allows a NULL `tenant_id`; a policy targets any
+role other than `app_user`; a foreign key between tenant tables skips
+`tenant_id`; a view lacks `security_invoker=true`; a `SECURITY DEFINER`
+function is not on the reviewed allow-list; or `app_user` owns objects or has
+superuser/BYPASSRLS/CREATEROLE/CREATEDB. Run it yourself with
+`npm run db:check-rls` (test) or `npm run db:check-rls:dev`.
 
 ## Monthly check: `.github/workflows/monthly-audit.yml`
 

@@ -89,6 +89,20 @@ browser only hides buttons.
 - Better Auth's `/list-sessions` and `/revoke-session` are switched off over
   HTTP (`disabledPaths`): they would hand session tokens to page scripts.
 
+## Staff changes: `src/modules/auth/service.ts`
+
+`changeMemberRole(ctx, { userId, roleId })` and
+`deactivateMember(ctx, { userId })`; rules in docs/business-rules.md
+section 10. Both start with `requirePermission(ctx, "users.manage")`, lock
+the member's row, refuse the Owner (`CANNOT_CHANGE_OWNER`), oneself
+(`CANNOT_CHANGE_SELF`) and giving the Owner role (`CANNOT_ASSIGN_OWNER`),
+write an audit entry (`member.role_changed`, `member.deactivated`) in the
+same transaction, and then end ALL the member's sessions (security log
+`auth.sessions_ended_by_admin`). This is the "rotation on role change": the
+member logs in again and gets a new session. Even before that, every
+request re-reads membership and role. No change (same role, already
+disabled) returns `{ changed: false }`. Invitations and screens: Phase 4.
+
 ## CSRF (blueprint 5.2)
 
 SameSite=Lax cookies, plus an Origin check on every state-changing request
@@ -199,3 +213,8 @@ exists because a test showed Better Auth's own check let a cross-site
 - `src/lib/origin-check.test.ts` and `tests/e2e/origin-check.spec.ts`: the
   Origin rule and the proxy on a real server. Verified to fail if the proxy
   check is removed.
+- `tests/integration/members.test.ts`: role change and deactivation end
+  every session of the member, new login has the new role, audit entries,
+  owner/self/owner-role rules, no "Manage users" refused, other business's
+  members and roles out of reach, strict input. Verified to fail if any of
+  the three rules or either session ending is removed.

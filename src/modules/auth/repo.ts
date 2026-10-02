@@ -133,6 +133,88 @@ export async function memberHasPermission(tx: TenantTx, ctx: TenantContext, perm
   return row !== undefined;
 }
 
+// ---------------------------------------------------------------------------
+// Staff management (service.ts). Row-level security limits every query to
+// the caller's business.
+// ---------------------------------------------------------------------------
+
+export interface MemberRow {
+  membershipId: string;
+  userId: string;
+  roleId: string;
+  roleName: string;
+  roleIsSystem: boolean;
+  status: string;
+  version: number;
+}
+
+// The member's row, locked until the end of the transaction so two changes
+// to the same person cannot cross.
+export async function lockMember(tx: TenantTx, userId: string): Promise<MemberRow | undefined> {
+  const [row] = await tx
+    .select({
+      membershipId: memberships.id,
+      userId: memberships.userId,
+      roleId: memberships.roleId,
+      roleName: roles.name,
+      roleIsSystem: roles.isSystem,
+      status: memberships.status,
+      version: memberships.version,
+    })
+    .from(memberships)
+    .innerJoin(roles, and(eq(roles.tenantId, memberships.tenantId), eq(roles.id, memberships.roleId)))
+    .where(eq(memberships.userId, userId))
+    .for("update", { of: memberships });
+  return row;
+}
+
+export async function memberRoleName(tx: TenantTx, userId: string): Promise<string | undefined> {
+  const [row] = await tx
+    .select({ name: roles.name })
+    .from(memberships)
+    .innerJoin(roles, and(eq(roles.tenantId, memberships.tenantId), eq(roles.id, memberships.roleId)))
+    .where(eq(memberships.userId, userId));
+  return row?.name;
+}
+
+export async function findRoleById(
+  tx: TenantTx,
+  roleId: string,
+): Promise<{ id: string; name: string; isSystem: boolean } | undefined> {
+  const [row] = await tx
+    .select({ id: roles.id, name: roles.name, isSystem: roles.isSystem })
+    .from(roles)
+    .where(eq(roles.id, roleId));
+  return row;
+}
+
+export async function setMemberRole(tx: TenantTx, member: MemberRow, roleId: string): Promise<void> {
+  await tx
+    .update(memberships)
+    .set({ roleId, version: member.version + 1 })
+    .where(eq(memberships.id, member.membershipId));
+}
+
+export async function disableMember(tx: TenantTx, member: MemberRow): Promise<void> {
+  await tx
+    .update(memberships)
+    .set({ status: "disabled", version: member.version + 1 })
+    .where(eq(memberships.id, member.membershipId));
+}
+
+export interface AuditEntry {
+  actorRole: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+}
+
+export async function addAuditEntry(tx: TenantTx, ctx: TenantContext, entry: AuditEntry): Promise<void> {
+  await tx.insert(auditLogs).values({ tenantId: ctx.tenantId, actorUserId: ctx.userId, ...entry });
+}
+
 // Sets (or clears) the business a session works in. Only called after a
 // membership check by the service.
 export async function setSessionActiveTenant(sessionToken: string, tenantId: string | null): Promise<void> {

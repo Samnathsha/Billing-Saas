@@ -102,6 +102,17 @@ or tax advice; the accountant signs off before launch.
     their UUID on the device, every write takes a `client_op_id` and is
     idempotent, and the server never trusts client money figures.
 
+### 10. Staff access (owner decision 2026-10-02)
+
+- Changing a staff member's role or deactivating them needs "Manage users"
+  (Owner and Admin by default). Admins may manage other Admins.
+- Nobody can change or deactivate the Owner, and nobody can change or
+  deactivate themselves.
+- Any role except Owner can be given. Making someone Owner is "transfer
+  ownership", a separate Owner-only action (later).
+- After a role change or deactivation, ALL the person's logins end at once
+  on every device; they log in again with the new role.
+
 ## OPEN QUESTIONS FOR ACCOUNTANT
 
 Each question has the default the app will use until answered.

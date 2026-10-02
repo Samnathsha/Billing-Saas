@@ -19,3 +19,11 @@ export {
   type SessionDto,
 } from "./my-sessions";
 export { DEFAULT_ROLES, OWNER_ROLE, PERMISSIONS, type Permission } from "./default-roles";
+export {
+  changeMemberRole,
+  changeMemberRoleInput,
+  deactivateMember,
+  deactivateMemberInput,
+  MemberError,
+  type MemberErrorCode,
+} from "./service";

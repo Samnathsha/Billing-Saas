@@ -67,6 +67,13 @@ membership and audit entry in ONE app_user transaction, for the logged-in,
 verified user only. This also stops unverified sign-ups from creating
 businesses.
 
+## Amendment 2 (2026-10-02): auth_service may read the security log
+
+`auth_service` may now SELECT `security_events` (migration 0009), still never
+UPDATE or DELETE it. It already holds every login secret, so this adds no
+new exposure; it lets tests and a future "security activity" screen read
+the log.
+
 ## Consequences
 
 - A compromise of Better Auth or its connection exposes login data, never

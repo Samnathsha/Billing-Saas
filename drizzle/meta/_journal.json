@@ -64,6 +64,13 @@
       "when": 1790935162408,
       "tag": "0008_session_absolute_timeout",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790935900117,
+      "tag": "0009_security_events_readable",
+      "breakpoints": true
     }
   ]
 }

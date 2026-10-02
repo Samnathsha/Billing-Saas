@@ -132,3 +132,52 @@ export async function isUserActive(userId: string): Promise<boolean> {
   );
   return result.rows[0]?.ok === true;
 }
+
+// ---------------------------------------------------------------------------
+// Per-account login limit and security log (auth_service connection).
+// ---------------------------------------------------------------------------
+
+export async function getLoginFailures(key: string): Promise<{ count: number; lastRequest: number } | undefined> {
+  const result = await getAuthDb().$client.query<{ count: number; last_request: string }>(
+    "SELECT count, last_request FROM rate_limits WHERE key = $1",
+    [key],
+  );
+  const row = result.rows[0];
+  return row === undefined ? undefined : { count: row.count, lastRequest: Number(row.last_request) };
+}
+
+// Adds one failure atomically (safe under parallel attempts) and returns the
+// new count. A counter older than forgetAfterSeconds starts again at 1.
+export async function recordLoginFailure(key: string, forgetAfterSeconds: number): Promise<number> {
+  const now = Date.now();
+  const result = await getAuthDb().$client.query<{ count: number }>(
+    `INSERT INTO rate_limits (key, count, last_request) VALUES ($1, 1, $2)
+     ON CONFLICT (key) DO UPDATE SET
+       count = CASE WHEN $2 - rate_limits.last_request >= $3 THEN 1 ELSE rate_limits.count + 1 END,
+       last_request = $2
+     RETURNING count`,
+    [key, now, forgetAfterSeconds * 1000],
+  );
+  return result.rows[0]?.count ?? 1;
+}
+
+export async function clearLoginFailures(key: string): Promise<void> {
+  await getAuthDb().$client.query("DELETE FROM rate_limits WHERE key = $1", [key]);
+}
+
+export interface SecurityEvent {
+  event: string;
+  userId?: string;
+  emailHash?: string;
+  ip: string | null;
+  userAgent: string | null;
+  details: Record<string, unknown> | null;
+}
+
+export async function addSecurityEvent(e: SecurityEvent): Promise<void> {
+  await getAuthDb().$client.query(
+    `INSERT INTO security_events (event, user_id, email_hash, ip, user_agent, details)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [e.event, e.userId ?? null, e.emailHash ?? null, e.ip, e.userAgent?.slice(0, 500) ?? null, e.details],
+  );
+}

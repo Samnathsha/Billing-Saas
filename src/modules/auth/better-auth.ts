@@ -7,6 +7,7 @@ import { haveIBeenPwned } from "better-auth/plugins/haveibeenpwned";
 import { getAuthDb } from "@/db/auth-client";
 import { env } from "@/lib/env";
 import { accounts, rateLimits, sessions, users, verifications } from "./schema";
+import { accountLockout } from "./account-lockout";
 import { sendEmail } from "./mailer";
 import { isUserActive } from "./repo";
 import { secureCookiesFor, SESSION_POLICY } from "./session-policy";
@@ -104,11 +105,22 @@ export const auth = betterAuth({
     },
   },
 
+  // Per-IP limits (Better Auth's limiter, stored in rate_limits), on in every
+  // environment. Per-account limits: the account-lockout plugin below.
   rateLimit: {
-    // On in every environment (Better Auth turns it off in development by
-    // default). Tuned per route in Phase 3 step 5.
     enabled: true,
     storage: "database",
+    // Everything else under /api/auth: 100 requests per minute per IP.
+    window: 60,
+    max: 100,
+    customRules: {
+      "/sign-in/email": { window: 60, max: 10 },
+      "/sign-up/email": { window: 60 * 60, max: 10 },
+      "/request-password-reset": { window: 60 * 60, max: 5 },
+      "/reset-password": { window: 60 * 60, max: 10 },
+      "/send-verification-email": { window: 60 * 60, max: 5 },
+      "/change-password": { window: 60 * 60, max: 10 },
+    },
   },
 
   advanced: {
@@ -125,6 +137,8 @@ export const auth = betterAuth({
     // reset. Only the first 5 characters of the password's SHA-1 hash leave
     // the server (k-anonymity, padded replies). If the service cannot be
     // reached, the action is refused ("try again later"), never let through.
+    // Per-account login limit with growing delay, and the login security log.
+    accountLockout(),
     haveIBeenPwned({
       customPasswordCompromisedMessage:
         "This password has appeared in a data breach. Please choose a different one.",

@@ -71,8 +71,23 @@ call `createTenantContext` or `withUserTransaction` (lint rule).
   30 minutes, and Secure whenever the app runs on https:// (production).
 - Verification and reset tokens stored hashed; reset link valid 1 hour,
   single use; a reset logs the account out everywhere.
-- Rate limiting on in every environment, stored in the database (tuned in
-  Phase 3 step 5). IDs are UUIDs.
+- **Per-IP limits** (Better Auth's limiter, in `rate_limits`, on in every
+  environment): sign-in 10/min, sign-up 10/h, password-reset requests 5/h,
+  reset 10/h, verification emails 5/h, change password 10/h, everything
+  else 100/min. Requests without a usable IP share one bucket (never
+  unlimited). Deployment note: set the correct client-IP header for the host
+  (e.g. `cf-connecting-ip` on Cloudflare) in `advanced.ipAddress`, or an
+  attacker could fake their IP.
+- **Per-account limit** (`account-lockout.ts`, `lockout-policy.ts`): 5 free
+  wrong passwords per email; then each attempt waits 1, 2, 4, 8, up to 15
+  minutes after the last failure, even with the right password. Cleared by a
+  successful login, forgotten 1 hour after the last failure. Counted for
+  unknown emails exactly as for real ones, with the same "Too many
+  requests" message as the IP limiter, so nothing reveals which emails
+  exist.
+- **Security log** (`security_events`): `auth.login_failed`,
+  `auth.login_locked` (email stored only as a SHA-256 hash) and
+  `auth.login_succeeded` (user id), with IP and browser. IDs are UUIDs.
 
 ## Emails
 
@@ -103,6 +118,11 @@ call `createTenantContext` or `withUserTransaction` (lint rule).
   fail if the lock, the membership re-check or the disabled-account hook is
   removed.
 - `src/modules/auth/default-roles.test.ts` restates blueprint table 5.3.
+- `tests/integration/rate-limits.test.ts`: lockout even with the right
+  password, identical behaviour for unknown emails, growing wait, clearing,
+  forgetting, parallel attempts, security log without plain emails, per-IP
+  limits over HTTP. Verified to fail if the plugin or the IP rules are
+  removed.
 - `tests/integration/sessions.test.ts`: cookie attributes from a real
   sign-in response, idle expiry and extension, 12-hour cut-off (also for
   Better Auth's own endpoints and change-password). Verified to fail if the

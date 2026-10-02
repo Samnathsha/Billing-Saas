@@ -105,8 +105,8 @@ describe("auth_service can do its job on the login tables", () => {
     expect((await auth.query("DELETE FROM sessions WHERE token = $1", [token])).rowCount).toBe(1);
   });
 
-  it("can add to the security log but never read, change or delete it", async () => {
-    expect(await failure(auth.query("SELECT count(*) FROM security_events"))).toContain("permission denied");
+  it("can add to and read the security log, but never change or delete it", async () => {
+    expect(await failure(auth.query("SELECT count(*) FROM security_events"))).toBe("no error");
     expect(await failure(auth.query("UPDATE security_events SET event = 'x.y'"))).toContain("permission denied");
     expect(await failure(auth.query("DELETE FROM security_events"))).toContain("permission denied");
   });

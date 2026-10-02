@@ -20,6 +20,10 @@ export interface ProfileRow {
   gstRegistration: string | null;
   gstin: string | null;
   pricesIncludeTax: boolean;
+  invoicePrefix: string;
+  creditNotePrefix: string;
+  timeZone: string;
+  financialYearStartMonth: number;
   version: number;
 }
 
@@ -36,6 +40,10 @@ const profileColumns = {
   gstRegistration: settings.gstRegistration,
   gstin: settings.gstin,
   pricesIncludeTax: settings.pricesIncludeTax,
+  invoicePrefix: settings.invoicePrefix,
+  creditNotePrefix: settings.creditNotePrefix,
+  timeZone: settings.timeZone,
+  financialYearStartMonth: settings.financialYearStartMonth,
   version: settings.version,
 };
 
@@ -60,7 +68,7 @@ export async function lockProfile(tx: TenantTx, ctx: TenantContext): Promise<Pro
   return row;
 }
 
-export type ProfileValues = Omit<ProfileRow, "template" | "version">;
+export type ProfileValues = Omit<ProfileRow, "template" | "version" | "timeZone" | "financialYearStartMonth">;
 
 export async function saveProfile(tx: TenantTx, ctx: TenantContext, values: ProfileValues, version: number): Promise<void> {
   const { businessName, ...rest } = values;

@@ -29,6 +29,8 @@ export async function saveBusinessProfile(_previous: ProfileFormState, form: For
       gstRegistration: text("gstRegistration") === "" ? null : text("gstRegistration"),
       gstin: text("gstin"),
       pricesIncludeTax: form.get("pricesIncludeTax") === "on",
+      invoicePrefix: text("invoicePrefix"),
+      creditNotePrefix: text("creditNotePrefix"),
       version: Number(text("version")),
     });
     return {

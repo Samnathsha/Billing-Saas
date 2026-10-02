@@ -20,6 +20,11 @@ a convenience only.
 | GSTIN | Required when registered or composition, empty otherwise. Shape, state and check character are checked; it must belong to the chosen state. Typed spaces and lower case are cleaned up. |
 | Selling prices include GST | Default on. Owner or accountant to validate (open question 28). |
 
+| Bill prefix, credit note prefix | 1-4 letters or digits (typed lower case is made upper case), different from each other. Default `INV` and `CN`. The screen shows the first number of this year, e.g. `INV/26-27/00001`. Owner or accountant to validate. |
+
+- Bill numbers: `PREFIX/YY-YY/NNNNN` (business rules section 12),
+  `src/modules/sales/numbering.ts`. Locking a prefix after the year's first
+  bill comes in Phase 7.
 - Service: `getBusinessProfile(ctx)` and `updateBusinessProfile(ctx, input)`
   in `src/modules/tenants/service.ts`, both starting with
   `requirePermission(ctx, "settings.manage")`.
@@ -35,12 +40,16 @@ a convenience only.
 
 - `src/modules/tax/gst.test.ts`: GSTIN check (published sample accepted;
   every single-character typo and neighbouring swap caught), state list.
+- `src/modules/sales/numbering.test.ts`: number format, the 16-character
+  limit, financial year at the India-time midnight boundary.
 - `tests/integration/business-profile.test.ts`: defaults, saving and
   clean-up, audit of changed fields only, no-change saves, version guard,
   15 validation cases, Admin allowed and Manager/Cashier/Accountant refused,
   isolation between businesses, database checks. Verified to fail without
   the version guard, the right permission, the audit entry, or the
-  GSTIN-state rule in the app or in the database.
+  GSTIN-state rule in the app or in the database. Prefixes: defaults,
+  clean-up, audit, 5 refusals, database checks; verified to fail without
+  the "different prefixes" rule or the clean-up.
 - `tests/flows/business-settings.spec.ts`: fill in and reload; mistyped
   GSTIN refused next to the field; old page after someone else saved; a
   cashier has no link and gets "Not allowed". Verified to fail if the menu

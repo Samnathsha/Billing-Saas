@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useState, type ReactNode } from "react";
 import type { BusinessProfileDto } from "@/modules/tenants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,10 @@ export function BusinessProfileForm(props: {
   const { profile } = props;
   const [state, action, pending] = useActionState(props.save, { status: "idle", message: null, fieldErrors: {} });
   const errors = state.fieldErrors;
+  const [invoicePrefix, setInvoicePrefix] = useState(profile.invoicePrefix);
+  const [creditNotePrefix, setCreditNotePrefix] = useState(profile.creditNotePrefix);
+  // Example only; the server checks the prefix and makes the real numbers.
+  const example = (prefix: string): string => `${prefix.trim().toUpperCase() || "?"}/${profile.financialYear}/00001`;
 
   return (
     <form action={action} className="flex max-w-xl flex-col gap-6">
@@ -130,6 +134,41 @@ export function BusinessProfileForm(props: {
           </Label>
           <p className="text-xs text-muted-foreground">Usual for shops. {VALIDATE}</p>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold">Bill numbers</h2>
+        <p className="text-sm text-muted-foreground">
+          Numbers look like PREFIX/{profile.financialYear}/00001 and start again at 00001 every 1 April. Once the
+          year&apos;s first bill is made, a new prefix only applies from the next 1 April. Owner or accountant to validate.
+        </p>
+        {(
+          [
+            ["invoicePrefix", "Bill prefix", invoicePrefix, setInvoicePrefix],
+            ["creditNotePrefix", "Credit note prefix", creditNotePrefix, setCreditNotePrefix],
+          ] as const
+        ).map(([name, label, value, setValue]) => (
+          <div key={name} className="flex flex-col gap-1.5">
+            <Label htmlFor={name}>{label}</Label>
+            <Input
+              id={name}
+              name={name}
+              value={value}
+              onChange={(e) => {
+                setValue(e.target.value);
+              }}
+              maxLength={4}
+              required
+              className="max-w-32 uppercase"
+              aria-invalid={errors[name] !== undefined}
+              aria-describedby={`${name}-example`}
+            />
+            <p id={`${name}-example`} className="text-xs text-muted-foreground">
+              First number this year: {example(value)}
+            </p>
+            {errors[name] !== undefined ? <p className="text-sm text-destructive">{errors[name]}</p> : null}
+          </div>
+        ))}
       </section>
 
       <FormMessage kind={state.status === "error" ? "error" : "info"} text={state.message} />

@@ -104,6 +104,10 @@ export const settings = pgTable(
     // (sales will require it). Owner or accountant to validate. Rule 4.5.
     gstRegistration: text("gst_registration"),
     gstin: text("gstin"),
+    // Bill and credit-note prefixes: PREFIX/YY-YY/NNNNN (business rules
+    // section 12). Locked after the year's first bill (enforced in Phase 7).
+    invoicePrefix: text("invoice_prefix").notNull().default("INV"),
+    creditNotePrefix: text("credit_note_prefix").notNull().default("CN"),
     ...mutableRowColumns(),
   },
   (t) => [
@@ -121,6 +125,10 @@ export const settings = pgTable(
       "settings_gstin_matches_registration",
       sql`(${t.gstin} IS NOT NULL) = (${t.gstRegistration} IS NOT NULL AND ${t.gstRegistration} <> 'unregistered')`,
     ),
+    check("settings_invoice_prefix_format", sql`${t.invoicePrefix} ~ '^[A-Z0-9]{1,4}$'`),
+    check("settings_credit_note_prefix_format", sql`${t.creditNotePrefix} ~ '^[A-Z0-9]{1,4}$'`),
+    // Two series with the same prefix would produce clashing numbers.
+    check("settings_prefixes_differ", sql`${t.invoicePrefix} <> ${t.creditNotePrefix}`),
     check("settings_gstin_matches_state", sql`${t.gstin} IS NULL OR (${t.stateCode} IS NOT NULL AND left(${t.gstin}, 2) = ${t.stateCode})`),
     check("settings_country_code_format", sql`${t.countryCode} ~ '^[A-Z]{2}$'`),
     check("settings_currency_code_format", sql`${t.currencyCode} ~ '^[A-Z]{3}$'`),

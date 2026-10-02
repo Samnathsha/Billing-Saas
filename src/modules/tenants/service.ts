@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { withTenant, type TenantContext } from "@/db/with-tenant";
 import { requirePermission } from "@/modules/auth";
+import { financialYearLabel, financialYearStart, PREFIX_PATTERN } from "@/modules/sales";
 import { GST_REGISTRATIONS, GST_STATES, gstinProblem, isGstStateCode, needsGstin, normaliseGstin } from "@/modules/tax";
 import * as repo from "./repo";
 
@@ -36,8 +37,18 @@ export interface BusinessProfileDto {
   gstRegistration: "registered" | "composition" | "unregistered" | null;
   gstin: string | null;
   pricesIncludeTax: boolean;
+  invoicePrefix: string;
+  creditNotePrefix: string;
+  // The current financial year as printed in numbers, e.g. "26-27".
+  financialYear: string;
   version: number;
 }
+
+// "inv " -> "INV". Prefixes are 1-4 capital letters or digits.
+const prefix = z.preprocess(
+  (v) => (typeof v === "string" ? v.trim().toUpperCase() : v),
+  z.string().regex(PREFIX_PATTERN, { error: "Use 1 to 4 letters or digits, e.g. INV." }),
+);
 
 // Blank text fields mean "not given".
 const optionalText = (max: number) =>
@@ -59,9 +70,14 @@ export const businessProfileInput = z
     gstRegistration: z.enum(GST_REGISTRATIONS, { error: "Choose how the business is registered for GST." }),
     gstin: z.preprocess((v) => (typeof v === "string" ? normaliseGstin(v) || null : v), z.string().max(15).nullable()),
     pricesIncludeTax: z.boolean(),
+    invoicePrefix: prefix,
+    creditNotePrefix: prefix,
     version: z.int().positive(),
   })
   .superRefine((input, issue) => {
+    if (input.invoicePrefix === input.creditNotePrefix) {
+      issue.addIssue({ code: "custom", path: ["creditNotePrefix"], message: "Use a different prefix from the bills." });
+    }
     if (!needsGstin(input.gstRegistration)) {
       if (input.gstin !== null) issue.addIssue({ code: "custom", path: ["gstin"], message: "An unregistered business has no GSTIN. Clear this field." });
       return;
@@ -97,6 +113,12 @@ function toDto(row: repo.ProfileRow): BusinessProfileDto {
     gstRegistration: GST_REGISTRATIONS.find((r) => r === row.gstRegistration) ?? null,
     gstin: row.gstin,
     pricesIncludeTax: row.pricesIncludeTax,
+    invoicePrefix: row.invoicePrefix,
+    creditNotePrefix: row.creditNotePrefix,
+    financialYear: financialYearLabel(
+      financialYearStart(new Date(), row.timeZone, row.financialYearStartMonth),
+      row.financialYearStartMonth,
+    ),
     version: row.version,
   };
 }
@@ -120,6 +142,8 @@ const EDITABLE = [
   "gstRegistration",
   "gstin",
   "pricesIncludeTax",
+  "invoicePrefix",
+  "creditNotePrefix",
 ] as const;
 
 export async function updateBusinessProfile(
@@ -159,6 +183,8 @@ export async function updateBusinessProfile(
       gstRegistration: input.gstRegistration,
       gstin: input.gstin,
       pricesIncludeTax: input.pricesIncludeTax,
+      invoicePrefix: input.invoicePrefix,
+      creditNotePrefix: input.creditNotePrefix,
     };
     await repo.saveProfile(tx, ctx, values, version);
     await repo.addAuditEntry(tx, ctx, {

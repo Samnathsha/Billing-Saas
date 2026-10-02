@@ -6,6 +6,7 @@ import { getDb } from "@/db/client";
 import { auditLogs, memberships, roles, settings } from "@/db/schema";
 import { withTenant, type TenantContext } from "@/db/with-tenant";
 import { createBusiness, getRequestContext, PermissionDeniedError } from "@/modules/auth";
+import { financialYearStart } from "@/modules/sales";
 import { gstinCheckChar } from "@/modules/tax/gst";
 import { getBusinessProfile, SettingsError, updateBusinessProfile } from "@/modules/tenants";
 import { registerVerifiedUser } from "../helpers/auth";
@@ -57,6 +58,8 @@ function fullProfile(version: number, overrides: Record<string, unknown> = {}): 
     gstRegistration: "registered",
     gstin: TN_GSTIN,
     pricesIncludeTax: true,
+    invoicePrefix: "INV",
+    creditNotePrefix: "CN",
     version,
     ...overrides,
   };
@@ -173,6 +176,42 @@ describe("validation (nothing is saved)", () => {
   });
 });
 
+describe("bill and credit-note prefixes", () => {
+  let ctx: TenantContext;
+  beforeAll(async () => {
+    ctx = await newShop("Prefix");
+  });
+
+  it("start as INV and CN, with the current financial year for the example", async () => {
+    const profile = await getBusinessProfile(ctx);
+    expect(profile).toMatchObject({ invoicePrefix: "INV", creditNotePrefix: "CN" });
+    expect(profile.financialYear).toMatch(/^[0-9]{2}-[0-9]{2}$/);
+    const fyStart = financialYearStart(new Date(), "Asia/Kolkata", 4);
+    expect(profile.financialYear).toBe(`${String(fyStart % 100).padStart(2, "0")}-${String((fyStart + 1) % 100).padStart(2, "0")}`);
+  });
+
+  it("are cleaned up (spaces, lower case), saved and audited", async () => {
+    expect(await codeOf(updateBusinessProfile(ctx, fullProfile(1, { invoicePrefix: " shp ", creditNotePrefix: "cr1" })))).toBe("ok");
+    expect(await getBusinessProfile(ctx)).toMatchObject({ invoicePrefix: "SHP", creditNotePrefix: "CR1" });
+    const last = (await auditRows(ctx)).at(-1);
+    expect(last?.before).toMatchObject({ invoicePrefix: "INV", creditNotePrefix: "CN" });
+    expect(last?.after).toMatchObject({ invoicePrefix: "SHP", creditNotePrefix: "CR1" });
+  });
+
+  it.each([
+    ["5 characters", { invoicePrefix: "SHOPS" }, "invoicePrefix"],
+    ["a slash", { invoicePrefix: "IN/V" }, "invoicePrefix"],
+    ["a hyphen", { creditNotePrefix: "C-N" }, "creditNotePrefix"],
+    ["empty", { invoicePrefix: "  " }, "invoicePrefix"],
+    ["the same for bills and credit notes", { invoicePrefix: "INV", creditNotePrefix: "inv" }, "creditNotePrefix"],
+  ])("refuse %s", async (_name, overrides, path) => {
+    const before = await getBusinessProfile(ctx);
+    const code = await codeOf(updateBusinessProfile(ctx, fullProfile(before.version, overrides)));
+    expect(code.split(":")[1]?.split(",")).toContain(path);
+    expect((await getBusinessProfile(ctx)).version).toBe(before.version);
+  });
+});
+
 describe("who may see and change settings", () => {
   let ownerCtx: TenantContext;
   beforeAll(async () => {
@@ -214,6 +253,9 @@ describe("the database refuses bad combinations on its own", () => {
     ["a lower-case GSTIN", { gstRegistration: "registered", gstin: TN_GSTIN.toLowerCase(), stateCode: "33" }],
     ["an unknown registration type", { gstRegistration: "maybe" }],
     ["a 5-digit PIN code", { pincode: "60001" }],
+    ["the same prefix for bills and credit notes", { invoicePrefix: "INV", creditNotePrefix: "INV" }],
+    ["a lower-case prefix", { invoicePrefix: "inv" }],
+    ["a 5-character prefix", { creditNotePrefix: "CREDI" }],
   ])("%s", async (_name, values) => {
     const ctx = await newShop("Constraint");
     await expect(withTenant(ctx, (tx) => tx.update(settings).set(values).where(eq(settings.tenantId, ctx.tenantId)))).rejects.toThrow();

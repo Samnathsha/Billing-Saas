@@ -187,7 +187,9 @@ One row per business.
   `address_line1`, `address_line2`, `city`, `state_code` (GST state code,
   e.g. `33`), `pincode` (6 digits), `phone`, `contact_email`,
   `gst_registration` (`registered` | `composition` | `unregistered`; empty
-  = not set yet, sales will require it), `gstin`.
+  = not set yet, sales will require it), `gstin`. Migration 0011:
+  `invoice_prefix` (default `INV`), `credit_note_prefix` (default `CN`),
+  each 1-4 capital letters or digits, never equal.
 - Database checks: GSTIN shape; a GSTIN exactly when registered or
   composition; its first two digits equal `state_code`; PIN, phone and
   length formats. The app also checks the GSTIN's check character.
@@ -302,7 +304,7 @@ The counter behind invoice and credit-note numbers.
 
 ### invoices: Planned; posted invoices are never edited
 - Columns: `branch_id`, `device_id`, `client_op_id`, `series`, `number`,
-  `invoice_number` (formatted, e.g. `INV-2026-27-000001`), `status`
+  `invoice_number` (formatted, e.g. `INV/26-27/00001`, business rules section 12), `status`
   (`posted` | `voided`), `customer_id` (optional), `place_of_supply_state`,
   `issued_at` (server time), `device_time`, `prices_include_tax` (snapshot),
   `subtotal_paise`, `discount_paise`, `taxable_paise`, `cgst_paise`,

@@ -62,13 +62,13 @@ or tax advice; the accountant signs off before launch.
 ### 5. Invoice numbering
 
 5.1 One series per business per financial year, for example
-    `INV-2026-27-000001`.
+    `INV/26-27/00001` (format: section 12).
 5.2 Each till or device gets its own prefix, so numbers never clash between
     tills (needed for offline later).
 5.3 The counter (`invoice_sequences`) is incremented inside the sale
     transaction with a row lock. A rolled-back sale does not use up a number.
 5.4 Credit notes (returns) have their own series, for example
-    `CN-2026-27-000001`.
+    `CN/26-27/00001`.
 
 ### 6. Posted invoices
 
@@ -125,6 +125,21 @@ or tax advice; the accountant signs off before launch.
   product exists; after that it is locked. (The switch is built with the
   catalog in Phase 5, where products exist to check.)
 
+### 12. Bill numbers (owner decision 2026-10-02; replaces the example in 5.1)
+
+- Format `PREFIX/YY-YY/NNNNN`, e.g. `INV/26-27/00001`; credit notes the
+  same with their own prefix, e.g. `CN/26-27/00001`. The blueprint's
+  `INV-2026-27-000001` was 18 characters, over the 16-character GST limit.
+- Prefix: 1-4 capital letters or digits; bills and credit notes must use
+  different prefixes. Defaults `INV` and `CN`. A till's own prefix (Phase
+  10) follows the same rule.
+- Financial year label from the business's financial year in its time zone
+  (1 April, India time). Numbers restart at 00001 each year (open question
+  20); at most 99,999 per series per year.
+- A prefix can be changed freely until the first bill of the financial year;
+  after that, a change only applies from the next 1 April (enforced in Phase
+  7, when bills exist).
+
 ## OPEN QUESTIONS FOR ACCOUNTANT
 
 Each question has the default the app will use until answered.
@@ -137,9 +152,9 @@ Each question has the default the app will use until answered.
 3. **Parallel series:** are several invoice series running at once (one per
    till) acceptable for GST? DEFAULT, accountant to confirm: yes, one prefix
    per till.
-4. **Series format:** is `INV-2026-27-000001` within the GST length and
-   character limits for invoice numbers? DEFAULT, accountant to confirm: yes,
-   letters, digits and hyphens only, 16 characters or fewer.
+4. **Series format:** is `INV/26-27/00001` (at most 16 characters: letters,
+   digits, `/` and `-`) acceptable for GST invoice numbers? DEFAULT,
+   accountant to confirm: yes (section 12).
 5. **Round-off:** should the round-off line be on by default, and is it
    shown as "Round off" outside taxable value? DEFAULT, accountant to
    confirm: on, nearest rupee, not taxed.

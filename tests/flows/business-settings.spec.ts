@@ -27,6 +27,10 @@ test("the owner fills in the business and GST details; they are saved and shown 
   await page.getByLabel("Registered (regular)").check();
   // Typed the way people do: lower case with spaces.
   await page.getByLabel("GSTIN").fill("33abcde 1234f1z7");
+  // The example number follows what is typed.
+  await expect(page.getByText(/First number this year: INV\/\d{2}-\d{2}\/00001/)).toBeVisible();
+  await page.getByLabel("Bill prefix").fill("shp");
+  await expect(page.getByText(/First number this year: SHP\/\d{2}-\d{2}\/00001/)).toBeVisible();
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("status")).toHaveText("Saved.");
 
@@ -35,6 +39,7 @@ test("the owner fills in the business and GST details; they are saved and shown 
   await expect(page.getByLabel("State")).toHaveValue("33");
   await expect(page.getByLabel("GSTIN")).toHaveValue(GSTIN);
   await expect(page.getByLabel("Registered (regular)")).toBeChecked();
+  await expect(page.getByLabel("Bill prefix")).toHaveValue("SHP");
 });
 
 test("a mistyped GSTIN is refused next to the field, and nothing is saved", async ({ page }) => {

@@ -1,0 +1,16 @@
+{
+  "$comment": "Known runtime-audit findings accepted on purpose. Read by scripts/audit-runtime.ts. Every entry expires; renew only after re-checking (ADR 0001). Any finding not listed here, or found at another location, fails CI.",
+  "entries": [
+    {
+      "advisory": "GHSA-67mh-4wv8-2f99",
+      "reason": "esbuild dev-server flaw inside drizzle-kit (a migration tool that never runs in the app). Counted as runtime only because better-auth declares drizzle-kit as an optional peer. See docs/decisions/0001-npm-audit-policy.md.",
+      "expires": "2026-11-01",
+      "packages": {
+        "esbuild": ["node_modules/@esbuild-kit/core-utils/node_modules/esbuild"],
+        "@esbuild-kit/core-utils": ["node_modules/@esbuild-kit/core-utils"],
+        "@esbuild-kit/esm-loader": ["node_modules/@esbuild-kit/esm-loader"],
+        "drizzle-kit": ["node_modules/drizzle-kit"]
+      }
+    }
+  ]
+}

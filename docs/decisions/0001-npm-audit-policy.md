@@ -33,6 +33,22 @@ npm override could break the migration tool.
    `.github/workflows/monthly-audit.yml` runs the full audit on the 1st of
    each month and turns red while any warning remains, as a reminder.
 
+## Amendment 1 (2026-10-01): expiring allow-list
+
+Installing `better-auth` (ADR 0002) made npm count `drizzle-kit` as a
+runtime package, because better-auth declares it as an optional peer (for
+its schema-generator command, which we do not use). The same esbuild
+advisory therefore appeared in `npm audit --omit=dev` and would fail CI.
+`--omit=peer` does not help (npm counts optional peers too).
+
+Decided by the owner: CI runs `npm run audit:runtime`
+(`scripts/audit-runtime.ts`) instead of `npm audit --omit=dev`. It fails on
+every runtime finding except entries in `audit-allowlist.json`, and only
+when the package is at the exact listed location with the exact listed
+advisory. Each entry has an expiry date; an expired entry fails CI until it
+is re-checked and renewed or removed on purpose. The current entry expires
+on 2026-11-01, the same day as the monthly re-check.
+
 ## Consequences
 
 - A vulnerable runtime package always blocks a merge.
@@ -44,3 +60,4 @@ npm override could break the migration tool.
 | Date | drizzle-kit version | Warning still present? | Action |
 |---|---|---|---|
 | 2026-10-01 | 0.31.11 | Yes (4 moderate) | Decision recorded |
+| 2026-10-01 | 0.31.11 | Yes; now also "runtime" via better-auth's optional peer | Amendment 1: allow-list entry, expires 2026-11-01 |

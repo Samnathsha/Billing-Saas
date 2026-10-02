@@ -122,8 +122,10 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Packages the live app uses (fails the build)
-        run: npm audit --omit=dev
+          cache: npm
+      - run: npm ci
+      - name: Packages the live app uses (fails the build, except reviewed allow-list entries)
+        run: npm run audit:runtime
       - name: Developer tools (report only)
         run: |
           if ! npm audit; then

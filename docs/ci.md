@@ -10,7 +10,7 @@ parallel; all must be green before merging.
 | Typecheck, lint, unit tests | `npm ci`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run db:check` |
 | Database tests and check-rls | Starts a throwaway PostgreSQL 18 (pinned image), creates roles with `scripts/db-roles.sql`, runs migrations as `migrator`, then `npm run db:check-rls` and `npm run test:db` |
 | Browser tests | Builds the app and runs Playwright (`npm run test:e2e`). On failure the report is uploaded for 7 days. |
-| npm audit | `npm audit --omit=dev` fails the build; full `npm audit` is a warning only ([ADR 0001](decisions/0001-npm-audit-policy.md)) |
+| npm audit | `npm run audit:runtime` fails the build on any runtime vulnerability not in the expiring allow-list (`audit-allowlist.json`); full `npm audit` is a warning only ([ADR 0001](decisions/0001-npm-audit-policy.md)) |
 | Secret scan | gitleaks scans the **whole git history**, so a secret that was committed and later deleted is still caught |
 
 Hardening: jobs only have read access to the code; every third-party action

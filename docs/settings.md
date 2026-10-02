@@ -68,7 +68,7 @@ allowed" and no menu link.
 - Later rules: stock in a closed branch (Phase 6); staff limited to one
   branch (`memberships.branch_id`) when staff screens need it.
 
-## Staff invitations (backend; screens in step 4.5b)
+## Staff: `/settings/staff` and invitations
 
 Rules: business rules section 10 (who may change whom) and these:
 
@@ -89,6 +89,21 @@ Rules: business rules section 10 (who may change whom) and these:
 - Open, unexpired invitations count against the staff limit, so invitations
   cannot exceed the plan.
 - The invite answer never says whether the address has an account.
+
+Screens:
+
+- `/settings/staff` ("Manage users" only; others "Not allowed"): invite by
+  email and role; the team with "Change role" and "Deactivate" (not for the
+  Owner or yourself; the server refuses those anyway); open invitations
+  with "Withdraw". A role change or deactivation logs the person out
+  everywhere (business rules section 10).
+- `/invite?token=...` (the emailed link): not logged in, it explains the
+  steps and "Log in to accept" returns here after login; logged in, "Join
+  the business". The token is removed from the address bar once the page
+  has it.
+- The login page's "come back" link (`?next=`) accepts only an invitation
+  link on this site (`src/lib/safe-next.ts`), so it cannot be used to send
+  people to another site.
 
 ## Tests
 
@@ -124,6 +139,13 @@ Rules: business rules section 10 (who may change whom) and these:
   permissions, other business's invitation. Verified to fail if expiry is
   not checked, the "own email" database rule is loosened, open invitations
   are not counted, or existing members can be invited.
+- `src/lib/safe-next.test.ts`: only invitation links are accepted as the
+  login return address (other sites, tricks and extra parameters refused).
+- `tests/flows/staff.spec.ts`: invite, register with that email, open the
+  link, log in and come back, join as Cashier; owner sees them, changes the
+  role (they are logged out), deactivates; withdrawn link refused; owner and
+  "you" cannot be changed. Verified to fail if login ignores the return
+  link.
 - `tests/isolation/*`: `subscriptions` and `invitations` attacked like
   every tenant table; `subscriptions` is attacked like every tenant table;
   `plans` and `subscriptions` are out of the login role's reach.

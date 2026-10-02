@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FormMessage, formText } from "./form-parts";
 import { ResendVerificationForm } from "./resend-verification-form";
 
-export function LoginForm(): ReactNode {
+export function LoginForm({ next = null }: { next?: string | null }): ReactNode {
   const router = useRouter();
   const [error, setError] = useState<{ code?: string; text: string } | null>(null);
   const [pending, setPending] = useState(false);
@@ -27,7 +27,7 @@ export function LoginForm(): ReactNode {
     }
     // The server reads the new session cookie on the next request and
     // sends the user to the right place.
-    router.replace("/");
+    router.replace(next ?? "/");
     router.refresh();
   }
 

@@ -7,8 +7,7 @@ export const PASSWORD = "a long flow passphrase 2026";
 export const formAlert = "p[role=alert]";
 
 // Registers through the screens and confirms the email with the emailed link.
-export async function confirmedAccount(page: Page, label = "flow"): Promise<string> {
-  const email = `${label}-${randomUUID()}@test.invalid`;
+export async function confirmedAccount(page: Page, label = "flow", email = `${label}-${randomUUID()}@test.invalid`): Promise<string> {
   await page.goto("/register");
   await page.getByLabel("Your name").fill("Flow Person");
   await page.getByLabel("Email").fill(email);

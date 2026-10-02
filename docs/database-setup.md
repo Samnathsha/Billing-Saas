@@ -69,6 +69,27 @@ descriptions: `docs/schema.md` (Phase 2 step 8).
   `SELECT app_enable_tenant_rls('table');` and grant only the needed
   privileges. `scripts/check-rls.ts` (step 6) fails CI otherwise.
 
+## Using the database in code (`src/db`)
+
+```ts
+// In a module's service.ts (ctx comes from the session, Phase 3):
+return withTenant(ctx, (tx) => repo.listBranches(tx));
+// In repo.ts: queries take the transaction handle, never the raw database.
+export function listBranches(tx: TenantTx) { return tx.select().from(branches); }
+```
+
+- `TenantContext` can only be made by `createTenantContext()` (validated
+  UUIDs, no extra fields). Only the session code calls it.
+- `TenantTx` exists only inside `withTenant`, so repositories cannot run
+  outside a business.
+- `src/db/client.ts` (the pool) may be imported only by `src/db` (lint).
+- At startup the app checks it is connected as a restricted `app_user`
+  and refuses to start otherwise. An unreachable database only logs a note.
+- Tests: `npm test` (no database) and `npm run test:db` (test database,
+  `DATABASE_URL_TEST`). Database tests create businesses with random ids;
+  the app cannot delete businesses, so these rows build up in the test
+  database. That is harmless; the test database can be reset at any time.
+
 Deliberate exceptions to blueprint 6.1:
 - `memberships_user_idx` does not start with `tenant_id`: login must find a
   user's businesses before a business is chosen.

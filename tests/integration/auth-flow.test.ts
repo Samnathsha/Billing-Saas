@@ -56,8 +56,14 @@ async function signIn(password = PASSWORD): Promise<Headers> {
 
 describe("sign up and email verification", () => {
   it("creates the account without logging in, and sends a verification email", async () => {
-    const result = await auth.api.signUpEmail({ body: { name: "Flow Owner", email, password: PASSWORD } });
-    expect(result.token).toBeNull();
+    const result: unknown = await auth.api.signUpEmail({ body: { name: "Flow Owner", email, password: PASSWORD } });
+    // The fixed answer (uniform-sign-up.ts): no token, no user data.
+    expect(result).toEqual({ status: "check-your-email" });
+    const { rows } = await inspector.query(
+      "SELECT 1 FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.email = $1",
+      [email],
+    );
+    expect(rows).toHaveLength(0);
     expect(lastLinkTo(email).pathname).toContain("verify-email");
   });
 

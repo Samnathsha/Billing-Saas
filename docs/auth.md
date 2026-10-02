@@ -15,7 +15,9 @@ Library: Better Auth (ADR 0002), on its own database role `auth_service`
 ## Flow
 
 1. **Sign up** (`POST /api/auth/sign-up/email`): creates the user and the
-   password record. No login yet; a verification email is sent.
+   password record. No login yet; a verification email is sent. The answer
+   is always `{"status":"check-your-email"}`, also for an email that is
+   already registered (`uniform-sign-up.ts`), so it reveals nothing.
 2. **Verify** the email with the link (valid 24 hours).
 3. **Log in** (`POST /api/auth/sign-in/email`). Refused until verified.
 4. **Set up your business** (`createBusiness` in
@@ -218,3 +220,9 @@ exists because a test showed Better Auth's own check let a cross-site
   owner/self/owner-role rules, no "Manage users" refused, other business's
   members and roles out of reach, strict input. Verified to fail if any of
   the three rules or either session ending is removed.
+- `tests/integration/enumeration.test.ts`: sign-up, login, reset request
+  and resend-verification answer identically for unknown, verified and
+  unverified emails; signing up again cannot take over an account. Failed
+  before the uniform sign-up answer was added (the extra `status` field
+  gave existing emails away). Summary of all attack tests:
+  docs/security-tests.md.

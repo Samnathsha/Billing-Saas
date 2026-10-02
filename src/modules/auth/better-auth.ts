@@ -10,6 +10,7 @@ import { accounts, rateLimits, sessions, users, verifications } from "./schema";
 import { accountLockout } from "./account-lockout";
 import { sendEmail } from "./mailer";
 import { originGuard } from "./origin-guard";
+import { uniformSignUp } from "./uniform-sign-up";
 import { isUserActive } from "./repo";
 import { secureCookiesFor, SESSION_POLICY } from "./session-policy";
 
@@ -142,6 +143,8 @@ export const auth = betterAuth({
   plugins: [
     // Refuses every state-changing request whose Origin is not this app.
     originGuard(env.authUrl),
+    // Sign-up answers the same for new and already-registered emails.
+    uniformSignUp(),
     // Refuses passwords found in known data breaches on sign-up, change and
     // reset. Only the first 5 characters of the password's SHA-1 hash leave
     // the server (k-anonymity, padded replies). If the service cannot be

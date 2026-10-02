@@ -49,3 +49,6 @@ next-env.d.ts
 
 # development emails (login links); never commit
 /.dev-mailbox/
+
+# Personal Claude Code settings (permissions on this computer only)
+/.claude/settings.local.json

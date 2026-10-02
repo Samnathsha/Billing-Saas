@@ -15,6 +15,7 @@ const TENANT_TABLES = [
   "audit_logs",
   "branches",
   "devices",
+  "invitations",
   "memberships",
   "role_permissions",
   "roles",

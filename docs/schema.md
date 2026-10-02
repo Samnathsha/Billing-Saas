@@ -141,6 +141,17 @@ Money a business pays you. Append-only.
 - Columns: `tenant_id`, `subscription_id`, `amount_paise`, `paid_at`,
   `method`, `reference`.
 
+### invitations: Built (Phase 4, migration 0013)
+An invitation to join a business with a role.
+- Columns: `email` (lower case), `role_id` (composite key to `roles`),
+  `token_hash` (SHA-256 of the emailed secret; the secret is never stored),
+  `expires_at` (7 days), `status` (`pending` | `accepted` | `revoked`),
+  `invited_by`, `accepted_by`, `accepted_at`.
+- One open invitation per address per business. Never deleted.
+- Access: tenant isolation, plus `own_invitations`: before a business is
+  chosen, a user may read invitations addressed to their own email (so
+  accepting finds the business from the row, never from the link).
+
 ### memberships: Built (Phase 2)
 Links a user to a business with one role, optionally limited to one branch.
 - Columns: `user_id`, `role_id`, `branch_id` (empty = all branches),

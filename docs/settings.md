@@ -68,6 +68,28 @@ allowed" and no menu link.
 - Later rules: stock in a closed branch (Phase 6); staff limited to one
   branch (`memberships.branch_id`) when staff screens need it.
 
+## Staff invitations (backend; screens in step 4.5b)
+
+Rules: business rules section 10 (who may change whom) and these:
+
+- "Manage users" (Owner, Admin) invites by email with a role (never Owner).
+  Not allowed for someone already in the business (active or deactivated).
+- The emailed link holds a random secret; only its SHA-256 hash is stored.
+  It works once, for 7 days, and only for an account with exactly the
+  invited email (confirmed). Inviting the same address again replaces the
+  old link. An invitation can be withdrawn while open.
+- Accepting (`acceptInvitation`, `src/modules/auth/onboarding.ts`): the
+  business comes from the invitation row the database shows this user
+  (policy `own_invitations`: only invitations addressed to their own email,
+  only before a business is chosen), never from the link. One transaction:
+  per-user lock, still open and not expired, no business yet (one per
+  account in V1), invitation locked and marked accepted, staff limit
+  checked, membership created, audited (`member.invited`, `member.joined`,
+  `member.invitation_revoked`).
+- Open, unexpired invitations count against the staff limit, so invitations
+  cannot exceed the plan.
+- The invite answer never says whether the address has an account.
+
 ## Tests
 
 - `src/modules/tax/gst.test.ts`: GSTIN check (published sample accepted;
@@ -94,7 +116,16 @@ allowed" and no menu link.
   plan check on adding or reopening.
 - `tests/flows/branches.spec.ts`: the whole screen in a real browser, and a
   cashier refused.
-- `tests/isolation/*`: `subscriptions` is attacked like every tenant table;
+- `tests/integration/invitations.test.ts`: invite and join, link works
+  once, email text, only a hash stored, double click joins once, wrong
+  account / no login / made-up / expired / withdrawn / replaced links
+  refused, someone with a business refused, owner role / other business's
+  role / existing member refused, invitations count against the limit,
+  permissions, other business's invitation. Verified to fail if expiry is
+  not checked, the "own email" database rule is loosened, open invitations
+  are not counted, or existing members can be invited.
+- `tests/isolation/*`: `subscriptions` and `invitations` attacked like
+  every tenant table; `subscriptions` is attacked like every tenant table;
   `plans` and `subscriptions` are out of the login role's reach.
 - `tests/flows/business-settings.spec.ts`: fill in and reload; mistyped
   GSTIN refused next to the field; old page after someone else saved; a

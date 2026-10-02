@@ -7,7 +7,15 @@ import { auth } from "./better-auth";
 // reset password...), served by Better Auth.
 export const authRouteHandlers = toNextJsHandler(auth);
 
-export { createBusiness, createBusinessInput, OnboardingError, type OnboardingErrorCode } from "./onboarding";
+export {
+  acceptInvitation,
+  AcceptInvitationError,
+  createBusiness,
+  createBusinessInput,
+  OnboardingError,
+  type AcceptInvitationErrorCode,
+  type OnboardingErrorCode,
+} from "./onboarding";
 export { getRequestContext, type RequestContext } from "./request-context";
 export { PermissionDeniedError, requirePermission } from "./permissions";
 export {
@@ -24,6 +32,14 @@ export {
   changeMemberRoleInput,
   deactivateMember,
   deactivateMemberInput,
+  INVITATION_DAYS,
+  InvitationError,
+  inviteStaff,
+  inviteStaffInput,
+  listStaff,
   MemberError,
+  revokeInvitation,
+  type InvitationErrorCode,
   type MemberErrorCode,
+  type StaffDto,
 } from "./service";

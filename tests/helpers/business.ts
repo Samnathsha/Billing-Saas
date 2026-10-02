@@ -4,6 +4,7 @@ import {
   auditLogs,
   branches,
   devices,
+  invitations,
   memberships,
   rolePermissions,
   roles,
@@ -74,6 +75,7 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     audit_logs: randomUUID(),
     sync_operations: randomUUID(),
     subscriptions: randomUUID(),
+    invitations: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -92,6 +94,15 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     await tx
       .insert(memberships)
       .values({ id: id("memberships"), tenantId, userId: ctx.userId, roleId: id("roles") });
+    await tx.insert(invitations).values({
+      id: id("invitations"),
+      tenantId,
+      email: `invitee-${tenantId}@test.invalid`,
+      roleId: id("roles"),
+      tokenHash: "0".repeat(64),
+      expiresAt: new Date(Date.now() + 86_400_000),
+      invitedBy: ctx.userId,
+    });
     await tx.insert(auditLogs).values({
       id: id("audit_logs"),
       tenantId,

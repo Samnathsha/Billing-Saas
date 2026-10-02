@@ -1,8 +1,20 @@
 import "server-only";
-import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { getAuthDb } from "@/db/auth-client";
 import type { TenantContext, TenantTx, UserTx } from "@/db/with-tenant";
-import { auditLogs, branches, memberships, plans, rolePermissions, roles, settings, subscriptions, tenants } from "@/db/schema";
+import {
+  auditLogs,
+  branches,
+  invitations,
+  memberships,
+  plans,
+  rolePermissions,
+  roles,
+  settings,
+  subscriptions,
+  tenants,
+  users,
+} from "@/db/schema";
 import { DEFAULT_ROLES, OWNER_ROLE } from "./default-roles";
 
 // Database queries of the auth module. Everything runs inside a transaction
@@ -217,6 +229,121 @@ export interface AuditEntry {
 
 export async function addAuditEntry(tx: TenantTx, ctx: TenantContext, entry: AuditEntry): Promise<void> {
   await tx.insert(auditLogs).values({ tenantId: ctx.tenantId, actorUserId: ctx.userId, ...entry });
+}
+
+// ---------------------------------------------------------------------------
+// Staff list and invitations (service.ts, onboarding.ts).
+// ---------------------------------------------------------------------------
+
+export async function listMembers(tx: TenantTx) {
+  return tx
+    .select({
+      userId: memberships.userId,
+      name: users.displayName,
+      email: users.email,
+      roleId: memberships.roleId,
+      roleName: roles.name,
+      roleIsSystem: roles.isSystem,
+      status: memberships.status,
+    })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .innerJoin(roles, and(eq(roles.tenantId, memberships.tenantId), eq(roles.id, memberships.roleId)))
+    .orderBy(asc(memberships.createdAt));
+}
+
+export async function listPendingInvitations(tx: TenantTx) {
+  return tx
+    .select({ id: invitations.id, email: invitations.email, roleName: roles.name, expiresAt: invitations.expiresAt })
+    .from(invitations)
+    .innerJoin(roles, and(eq(roles.tenantId, invitations.tenantId), eq(roles.id, invitations.roleId)))
+    .where(eq(invitations.status, "pending"))
+    .orderBy(asc(invitations.createdAt));
+}
+
+export async function listRoles(tx: TenantTx) {
+  return tx.select({ id: roles.id, name: roles.name, isSystem: roles.isSystem }).from(roles).orderBy(asc(roles.createdAt));
+}
+
+export async function businessName(tx: TenantTx): Promise<string> {
+  const [row] = await tx.select({ name: tenants.name }).from(tenants);
+  return row?.name ?? "";
+}
+
+// Is anyone with this email already in this business (active or not)?
+export async function emailIsMember(tx: TenantTx, email: string): Promise<boolean> {
+  const rows = await tx
+    .select({ id: memberships.id })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .where(sql`lower(${users.email}) = ${email}`);
+  return rows.length > 0;
+}
+
+// Revokes an open invitation to this address (before sending a new one).
+export async function revokePendingFor(tx: TenantTx, email: string): Promise<string[]> {
+  const rows = await tx
+    .update(invitations)
+    .set({ status: "revoked" })
+    .where(and(eq(invitations.email, email), eq(invitations.status, "pending")))
+    .returning({ id: invitations.id });
+  return rows.map((r) => r.id);
+}
+
+export async function insertInvitation(
+  tx: TenantTx,
+  ctx: TenantContext,
+  values: { email: string; roleId: string; tokenHash: string; expiresAt: Date },
+): Promise<string> {
+  const [row] = await tx
+    .insert(invitations)
+    .values({ tenantId: ctx.tenantId, invitedBy: ctx.userId, createdBy: ctx.userId, ...values })
+    .returning({ id: invitations.id });
+  if (row === undefined) throw new Error("invitation insert returned nothing");
+  return row.id;
+}
+
+export interface InvitationRow {
+  id: string;
+  tenantId: string;
+  email: string;
+  roleId: string;
+  status: string;
+  expiresAt: Date;
+}
+
+const invitationColumns = {
+  id: invitations.id,
+  tenantId: invitations.tenantId,
+  email: invitations.email,
+  roleId: invitations.roleId,
+  status: invitations.status,
+  expiresAt: invitations.expiresAt,
+};
+
+export async function lockInvitation(tx: TenantTx, id: string): Promise<InvitationRow | undefined> {
+  const [row] = await tx.select(invitationColumns).from(invitations).where(eq(invitations.id, id)).for("update");
+  return row;
+}
+
+// Login view (no business yet): only invitations addressed to the user's own
+// email are visible (policy own_invitations), so a link for someone else
+// finds nothing.
+export async function findInvitationForUser(tx: UserTx, tokenHash: string): Promise<InvitationRow | undefined> {
+  const [row] = await tx.select(invitationColumns).from(invitations).where(eq(invitations.tokenHash, tokenHash));
+  return row;
+}
+
+export async function setInvitationStatus(
+  tx: TenantTx,
+  id: string,
+  values: { status: "accepted"; acceptedBy: string; acceptedAt: Date } | { status: "revoked" },
+): Promise<void> {
+  await tx.update(invitations).set(values).where(eq(invitations.id, id));
+}
+
+export async function addMembership(tx: TenantTx, ctx: TenantContext, roleId: string): Promise<void> {
+  await tx.insert(memberships).values({ tenantId: ctx.tenantId, userId: ctx.userId, roleId, createdBy: ctx.userId });
 }
 
 // Sets (or clears) the business a session works in. Only called after a

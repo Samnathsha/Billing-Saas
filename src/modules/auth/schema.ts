@@ -125,6 +125,44 @@ export const memberships = pgTable(
   ],
 );
 
+// An invitation to join a business with a role (Phase 4). The emailed link
+// carries a random secret; only its SHA-256 hash is stored. Valid once, for
+// 7 days, and only for the invited email address (checked on accept).
+export const invitations = pgTable(
+  "invitations",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    // Lower case; the accepting account must have exactly this email.
+    email: text("email").notNull(),
+    roleId: uuid("role_id").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    // 'pending' | 'accepted' | 'revoked'. An expired pending one is shown as
+    // expired and cannot be accepted.
+    status: text("status").notNull().default("pending"),
+    invitedBy: uuid("invited_by").notNull(),
+    acceptedBy: uuid("accepted_by"),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    ...mutableRowColumns(),
+  },
+  (t) => [
+    unique("invitations_tenant_id_id_key").on(t.tenantId, t.id),
+    unique("invitations_tenant_token_key").on(t.tenantId, t.tokenHash),
+    // One open invitation per address per business.
+    uniqueIndex("invitations_tenant_email_pending_key").on(t.tenantId, t.email).where(sql`${t.status} = 'pending'`),
+    foreignKey({
+      name: "invitations_role_fk",
+      columns: [t.tenantId, t.roleId],
+      foreignColumns: [roles.tenantId, roles.id],
+    }).onDelete("restrict"),
+    check("invitations_email_lower", sql`${t.email} = lower(${t.email}) AND char_length(${t.email}) between 3 and 254 AND ${t.email} like '%_@_%'`),
+    check("invitations_token_hash_format", sql`${t.tokenHash} ~ '^[0-9a-f]{64}$'`),
+    check("invitations_status_valid", sql`${t.status} in ('pending', 'accepted', 'revoked')`),
+    check("invitations_accepted_fields", sql`(${t.status} = 'accepted') = (${t.acceptedBy} IS NOT NULL AND ${t.acceptedAt} IS NOT NULL)`),
+  ],
+);
+
 // ---------------------------------------------------------------------------
 // Login tables (Better Auth, ADR 0002/0003). Only auth_service can reach
 // them; app_user has no access at all. Column names follow Better Auth.

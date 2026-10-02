@@ -273,3 +273,13 @@ exists because a test showed Better Auth's own check let a cross-site
   each extra device) sends its own X-Forwarded-For address, as separate
   visitors would; sharing one address, the suite rightly hit the per-IP
   login limit.
+
+## Development tool: add a staff member (until Phase 4)
+
+`npm run dev:add-member -- <owner email> <staff email> <Admin|Manager|Cashier|Accountant>`
+adds an existing, confirmed account to the owner's business, on the
+DEVELOPMENT database only (`scripts/dev-add-member.ts`, shared code in
+`scripts/lib/add-member.ts`, also used by the flow tests). It writes as
+app_user inside the owner's business, so row-level security applies, and
+adds an audit entry (`member.added`). It cannot add an Owner. Replaced by
+staff invitations in Phase 4.

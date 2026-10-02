@@ -10,6 +10,7 @@ Library: Better Auth (ADR 0002), on its own database role `auth_service`
 | `AUTH_DATABASE_URL_DEV` / `_TEST` | auth_service connection | `npx tsx scripts/set-db-passwords.ts dev` / `test` |
 | `BETTER_AUTH_SECRET` | signing key (32+ chars) | `npm run auth:secret` (never printed). `-- --rotate` replaces it and logs everyone out |
 | `BETTER_AUTH_URL` | the app's address | `npm run auth:secret` sets `http://localhost:3000` |
+| `RESEND_API_KEY`, `EMAIL_FROM` | real email sending | you, in `.env.local` (sending-only key from Resend) |
 
 ## Flow
 
@@ -59,12 +60,23 @@ call `createTenantContext` or `withUserTransaction` (lint rule).
 - Rate limiting on in every environment, stored in the database (tuned in
   Phase 3 step 5). IDs are UUIDs.
 
-## Emails in development
+## Emails
 
-Until an email provider is added (part 3.2d), development emails are saved
-as files in `.dev-mailbox/` (git-ignored): open the newest file to click
-the link. Tests keep emails in memory. Production refuses to send without a
-real provider.
+| Where | What happens |
+|---|---|
+| Tests | Kept in memory; never sent |
+| Development with `RESEND_API_KEY` + `EMAIL_FROM` | Sent through Resend |
+| Development without them | Saved as files in `.dev-mailbox/` (git-ignored) |
+| Production | Sent through Resend; the app refuses to start without both settings |
+
+- `src/modules/auth/resend.ts`: one HTTPS call to Resend's API (no extra
+  package), 10-second timeout, a fresh `Idempotency-Key` per email. Errors
+  say only the status code; never the key or the link.
+- Use a **sending-only** ("restricted") Resend key: it can send but cannot
+  read or change the account.
+- `EMAIL_FROM=onboarding@resend.dev` is Resend's test sender: it delivers
+  only to the email address of your own Resend account. Before launch,
+  verify your domain in Resend and use e.g. `Shop <noreply@yourdomain.in>`.
 
 ## Tests
 

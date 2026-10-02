@@ -9,6 +9,7 @@ const SECRET = "0123456789abcdef0123456789abcdef-made-up";
 const URL_ = "http://localhost:3000";
 
 const shared = { BETTER_AUTH_SECRET: SECRET, BETTER_AUTH_URL: URL_ };
+const RESEND = { RESEND_API_KEY: "re_made_up_test_key_42", EMAIL_FROM: "Shop <noreply@example.com>" };
 const devEnv = { NODE_ENV: "development", DATABASE_URL_DEV: DEV, AUTH_DATABASE_URL_DEV: AUTH_DEV, ...shared };
 const testEnv = { NODE_ENV: "test", DATABASE_URL_TEST: TEST, AUTH_DATABASE_URL_TEST: AUTH_TEST, ...shared };
 
@@ -30,7 +31,21 @@ describe("parseEnv: valid settings", () => {
       authDatabaseUrl: AUTH_DEV,
       authSecret: SECRET,
       authUrl: URL_,
+      email: null,
     });
+  });
+
+  it("development with Resend settings sends real email", () => {
+    expect(parseEnv({ ...devEnv, ...RESEND }).email).toEqual({ resendApiKey: RESEND.RESEND_API_KEY, from: RESEND.EMAIL_FROM });
+  });
+
+  it("tests never send real email, even if Resend settings are present", () => {
+    expect(parseEnv({ ...testEnv, ...RESEND }).email).toBeNull();
+  });
+
+  it("production requires Resend settings", () => {
+    expect(parseEnv({ ...devEnv, ...RESEND, NODE_ENV: "production" }).email).not.toBeNull();
+    expect(problemsOf({ ...devEnv, NODE_ENV: "production" })).toEqual(["RESEND_API_KEY is missing", "EMAIL_FROM is missing"]);
   });
 
   it("missing NODE_ENV means development", () => {
@@ -44,7 +59,7 @@ describe("parseEnv: valid settings", () => {
   });
 
   it("a local production build uses the _DEV databases for now", () => {
-    expect(parseEnv({ ...devEnv, NODE_ENV: "production" }).databaseUrl).toBe(DEV);
+    expect(parseEnv({ ...devEnv, ...RESEND, NODE_ENV: "production" }).databaseUrl).toBe(DEV);
   });
 
   it("ignores unrelated variables", () => {
@@ -113,6 +128,22 @@ describe("parseEnv: stops on bad settings", () => {
     ]);
   });
 
+  it("email settings: both or neither, and well-formed", () => {
+    expect(problemsOf({ ...devEnv, RESEND_API_KEY: RESEND.RESEND_API_KEY })).toEqual([
+      "RESEND_API_KEY and EMAIL_FROM must be set together",
+    ]);
+    expect(problemsOf({ ...devEnv, ...RESEND, RESEND_API_KEY: "not-a-resend-key" })).toEqual([
+      "RESEND_API_KEY does not look like a Resend API key (it starts with re_)",
+    ]);
+    expect(problemsOf({ ...devEnv, ...RESEND, EMAIL_FROM: "not an address" })).toEqual([
+      'EMAIL_FROM must be an email address, e.g. "Shop <noreply@yourdomain.com>"',
+    ]);
+  });
+
+  it.each(["onboarding@resend.dev", "Sharma Textiles <noreply@sharma.in>"])("accepts the sender %s", (from) => {
+    expect(parseEnv({ ...devEnv, ...RESEND, EMAIL_FROM: from }).email?.from).toBe(from);
+  });
+
   it("unknown NODE_ENV", () => {
     expect(problemsOf({ ...devEnv, NODE_ENV: "staging" })).toEqual(["NODE_ENV must be development, test or production"]);
   });
@@ -125,6 +156,7 @@ describe("parseEnv: never reveals values", () => {
     { ...devEnv, DATABASE_URL_DEV: `https://localhost/${marker}` },
     { ...devEnv, DATABASE_URL_DEV: `${marker} not a url` },
     { ...devEnv, BETTER_AUTH_SECRET: marker },
+    { ...devEnv, ...RESEND, RESEND_API_KEY: `${marker}-not-resend` },
     { ...testEnv, DATABASE_URL_DEV: `postgres://localhost/${marker}`, DATABASE_URL_TEST: `postgres://localhost/${marker}` },
   ])("error message hides the value (%#)", (source) => {
     let message = "";

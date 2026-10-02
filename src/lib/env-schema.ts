@@ -15,6 +15,9 @@ export interface Env {
   // Better Auth signing/encryption key and the app's own address.
   authSecret: string;
   authUrl: string;
+  // Real email sending (Resend). Optional in development (emails then go to
+  // .dev-mailbox/), required in production, never used by tests.
+  email: { resendApiKey: string; from: string } | null;
 }
 
 export class EnvError extends Error {
@@ -52,7 +55,29 @@ const appUrl = z.preprocess(
   }),
 );
 
-const shared = { BETTER_AUTH_SECRET: authSecret, BETTER_AUTH_URL: appUrl };
+const resendApiKey = z.preprocess(
+  emptyIsMissing,
+  z
+    .string({ error: "is missing" })
+    .regex(/^re_[A-Za-z0-9_-]{8,}$/, { error: "does not look like a Resend API key (it starts with re_)" }),
+);
+
+// "noreply@shop.in" or "Shop Name <noreply@shop.in>".
+const emailFrom = z.preprocess(
+  emptyIsMissing,
+  z
+    .string({ error: "is missing" })
+    .regex(/^(?:[^<>@\n]{1,80} <)?[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>?$/, {
+      error: 'must be an email address, e.g. "Shop <noreply@yourdomain.com>"',
+    }),
+);
+
+const shared = {
+  BETTER_AUTH_SECRET: authSecret,
+  BETTER_AUTH_URL: appUrl,
+  RESEND_API_KEY: resendApiKey.optional(),
+  EMAIL_FROM: emailFrom.optional(),
+};
 
 // Each mode requires its own databases. The other mode's URLs are optional,
 // but if both are set they must differ, so tests can never run against the
@@ -74,7 +99,7 @@ const schemas = {
   // Until deployment is set up, a local production build (`npm run build &&
   // npm start`) uses the development database. The deployment phase replaces
   // this with separate production variables.
-  production: z.object({ ...devDatabases, ...shared }),
+  production: z.object({ ...devDatabases, ...shared, RESEND_API_KEY: resendApiKey, EMAIL_FROM: emailFrom }),
 } as const;
 
 function readMode(nodeEnv: string | undefined): AppMode {
@@ -109,11 +134,17 @@ export function parseEnv(source: Readonly<Record<string, string | undefined>>): 
     throw new EnvError([`DATABASE_URL_${suffix} and AUTH_DATABASE_URL_${suffix} must use different roles`]);
   }
 
+  const { RESEND_API_KEY: apiKey, EMAIL_FROM: from } = result.data;
+  if ((apiKey === undefined) !== (from === undefined)) {
+    throw new EnvError(["RESEND_API_KEY and EMAIL_FROM must be set together"]);
+  }
+
   return {
     mode,
     databaseUrl,
     authDatabaseUrl,
     authSecret: result.data.BETTER_AUTH_SECRET,
     authUrl: result.data.BETTER_AUTH_URL,
+    email: apiKey !== undefined && from !== undefined && mode !== "test" ? { resendApiKey: apiKey, from } : null,
   };
 }

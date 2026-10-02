@@ -98,6 +98,9 @@ jobs:
       DATABASE_URL_DEV: postgres://localhost:5432/ci_placeholder
       AUTH_DATABASE_URL_DEV: postgres://localhost:5432/ci_placeholder_auth
       BETTER_AUTH_URL: http://localhost:3100
+      # Production mode requires email settings; browser tests send no email.
+      RESEND_API_KEY: re_ci_placeholder_never_used
+      EMAIL_FROM: ci@example.invalid
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -3,8 +3,11 @@
 export {
   businessProfileInput,
   getBusinessProfile,
+  getPlanUsage,
   SettingsError,
   updateBusinessProfile,
   type BusinessProfileDto,
+  type PlanUsageDto,
   type SettingsErrorCode,
 } from "./service";
+export { PlanLimitError, requireCapacity, type PlanLimitErrorCode, type PlanResource } from "./entitlements";

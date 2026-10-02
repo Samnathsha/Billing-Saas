@@ -18,6 +18,11 @@ test("the owner fills in the business and GST details; they are saved and shown 
   await ownerWithBusiness(page);
   await page.getByRole("link", { name: "Business settings" }).click();
   await expect(page.getByRole("heading", { name: "Business settings" })).toBeVisible();
+  const plan = page.getByRole("region", { name: "Your plan" });
+  await expect(plan).toContainText("Your plan: Pilot");
+  await expect(plan).toContainText("Branches1 of 2");
+  await expect(plan).toContainText("Staff (owner included)1 of 10");
+  await expect(plan).toContainText("Tills0 of 5");
 
   await page.getByLabel("Business name").fill("Sharma Textiles");
   await page.getByLabel("Address", { exact: true }).fill("12 Market Road");

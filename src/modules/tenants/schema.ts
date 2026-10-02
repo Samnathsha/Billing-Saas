@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   foreignKey,
@@ -135,5 +136,56 @@ export const settings = pgTable(
     check("settings_time_zone_length", sql`char_length(${t.timeZone}) between 1 and 64`),
     check("settings_fy_start_month_range", sql`${t.financialYearStartMonth} between 1 and 12`),
     check("settings_cashier_discount_range", sql`${t.cashierDiscountLimitBps} between 0 and 10000`),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Plans and subscriptions (blueprint Phase 4; owner decision 2026-10-02,
+// business rules section 11). No payments yet.
+// ---------------------------------------------------------------------------
+
+// What a plan allows. Platform table (no tenant): the app may only read it.
+export const plans = pgTable(
+  "plans",
+  {
+    code: text("code").primaryKey(),
+    name: text("name").notNull(),
+    // Integer paise, never floating point (rule 1.2). 0 during the pilot.
+    priceMonthlyPaise: bigint("price_monthly_paise", { mode: "number" }).notNull().default(0),
+    maxBranches: integer("max_branches").notNull(),
+    // Active members of the business, owner included.
+    maxUsers: integer("max_users").notNull(),
+    maxDevices: integer("max_devices").notNull(),
+    // The plan a business is on when it has no subscription row.
+    isDefault: boolean("is_default").notNull().default(false),
+    ...mutableRowColumns(),
+  },
+  (t) => [
+    check("plans_code_format", sql`${t.code} ~ '^[a-z0-9_]{1,30}$'`),
+    check("plans_name_length", sql`char_length(${t.name}) between 1 and 100`),
+    check("plans_price_not_negative", sql`${t.priceMonthlyPaise} >= 0`),
+    check("plans_limits_positive", sql`${t.maxBranches} >= 1 AND ${t.maxUsers} >= 1 AND ${t.maxDevices} >= 0`),
+    uniqueIndex("plans_one_default").on(t.isDefault).where(sql`${t.isDefault}`),
+  ],
+);
+
+// Which plan a business is on. One row per business; the app may create it
+// with the business, changes come from the platform (not from shop staff).
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    planCode: text("plan_code")
+      .notNull()
+      .references(() => plans.code, { onDelete: "restrict" }),
+    status: text("status").notNull().default("active"),
+    currentPeriodStart: timestamp("current_period_start", { withTimezone: true }),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    ...mutableRowColumns(),
+  },
+  (t) => [
+    unique("subscriptions_tenant_key").on(t.tenantId),
+    check("subscriptions_status_valid", sql`${t.status} in ('trialing', 'active', 'past_due', 'cancelled')`),
   ],
 );

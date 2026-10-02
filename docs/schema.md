@@ -118,17 +118,23 @@ Columns: `event`, `user_id`, `email_hash` (SHA-256 of an unknown email, not
 the address), `ip`, `user_agent`, `details`. `auth_service` may only add
 rows; nobody can change or delete them (review question R6).
 
-### plans: Planned (Phase 12)
-Subscription plans you sell. Global, read-only for the app.
-- Columns: `code`, `name`, `price_paise_per_month`, limits (`max_branches`,
-  `max_devices`, `max_users`).
+### plans: Built (Phase 4, migration 0012)
+Subscription plans. Global; the app may only read them.
+- Columns: `code` (key, e.g. `pilot`), `name`, `price_monthly_paise`
+  (integer paise, 0 in the pilot), `max_branches`, `max_users` (active
+  members, owner included), `max_devices`, `is_default` (exactly one).
+- Seeded: `pilot`: 2 branches, 10 staff, 5 tills, free (owner decision
+  2026-10-02). Change the numbers with a migration.
 
-### subscriptions: Planned (Phase 12)
-Which plan a business is on. Kept apart from the business's own invoices.
-- Columns: `tenant_id`, `plan_code`, `status` (`trialing` | `active` |
-  `past_due` | `cancelled`), `current_period_start`, `current_period_end`.
-- Access: a business can read its own; changes come from the platform's
-  billing process, not from shop staff.
+### subscriptions: Built (Phase 4, migration 0012)
+Which plan a business is on. One row per business, created with the
+business (default plan). Existing businesses were given `pilot` by the
+migration (temporary policies, dropped in the same migration).
+- Columns: `tenant_id` (unique), `plan_code`, `status` (`trialing` |
+  `active` | `past_due` | `cancelled`), `current_period_start`,
+  `current_period_end`.
+- Access: the app reads its own and inserts it with a new business; it can
+  never change or delete it (no grant). Changes come from the platform.
 
 ### subscription_payments: Planned (Phase 12)
 Money a business pays you. Append-only.

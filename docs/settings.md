@@ -36,6 +36,21 @@ a convenience only.
   exactly when registered or composition, and its state equal to the
   business state.
 
+## Plans and limits
+
+- Pilot plan for every business: 2 branches, 10 staff (owner included), 5
+  tills (business rules section 11; tables `plans`, `subscriptions`).
+- `requireCapacity(tx, ctx, "branches" | "users" | "devices")`
+  (`src/modules/tenants/entitlements.ts`): call it inside the same
+  transaction that adds, after the permission check. It takes a per-business
+  lock (so two simultaneous additions cannot both pass), counts open
+  branches / active members / active tills, and refuses with
+  `PlanLimitError` ("Your plan allows 2 branches...") when full. No active
+  plan: refuses everything (fails closed).
+- Used by branches (4.4), staff invitations (4.5) and tills (Phase 10).
+  `npm run dev:add-member` (a development tool) does not check it.
+- "Your plan" on Business settings: plan name and "used of limit" for each.
+
 ## Tests
 
 - `src/modules/tax/gst.test.ts`: GSTIN check (published sample accepted;
@@ -50,6 +65,13 @@ a convenience only.
   GSTIN-state rule in the app or in the database. Prefixes: defaults,
   clean-up, audit, 5 refusals, database checks; verified to fail without
   the "different prefixes" rule or the clean-up.
+- `tests/integration/plans.test.ts`: pilot numbers, new business counted,
+  each limit reached and freed again, three simultaneous additions with
+  only one fitting, no plan = nothing added, a shop cannot change plans or
+  its subscription. Verified to fail without the lock, with an off-by-one
+  limit, or without failing closed.
+- `tests/isolation/*`: `subscriptions` is attacked like every tenant table;
+  `plans` and `subscriptions` are out of the login role's reach.
 - `tests/flows/business-settings.spec.ts`: fill in and reload; mistyped
   GSTIN refused next to the field; old page after someone else saved; a
   cashier has no link and gets "Not allowed". Verified to fail if the menu

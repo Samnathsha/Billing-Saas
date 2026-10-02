@@ -85,6 +85,13 @@
       "when": 1790966468045,
       "tag": "0011_document_prefixes",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790967426529,
+      "tag": "0012_plans_subscriptions",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,7 @@ const TENANT_TABLES = [
   "role_permissions",
   "roles",
   "settings",
+  "subscriptions",
   "sync_operations",
 ] as const;
 type TenantTable = (typeof TENANT_TABLES)[number];

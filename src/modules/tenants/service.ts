@@ -4,6 +4,7 @@ import { withTenant, type TenantContext } from "@/db/with-tenant";
 import { requirePermission } from "@/modules/auth";
 import { financialYearLabel, financialYearStart, PREFIX_PATTERN } from "@/modules/sales";
 import { GST_REGISTRATIONS, GST_STATES, gstinProblem, isGstStateCode, needsGstin, normaliseGstin } from "@/modules/tax";
+import { limitOf } from "./entitlements";
 import * as repo from "./repo";
 
 // Business profile and GST settings (blueprint Phase 4, rules 1.x and 4.5).
@@ -196,5 +197,30 @@ export async function updateBusinessProfile(
       after,
     });
     return { changed: true, version };
+  });
+}
+
+export interface PlanUsageDto {
+  planName: string;
+  status: string;
+  usage: { resource: "branches" | "users" | "devices"; used: number; limit: number }[];
+}
+
+// "Your plan" on the settings page: limits and what is used.
+export async function getPlanUsage(ctx: TenantContext): Promise<PlanUsageDto | null> {
+  await requirePermission(ctx, "settings.manage");
+  return withTenant(ctx, async (tx) => {
+    const plan = await repo.currentPlan(tx, ctx);
+    if (plan === undefined) return null;
+    const used = await repo.countUsage(tx, ctx);
+    return {
+      planName: plan.name,
+      status: plan.status,
+      usage: (["branches", "users", "devices"] as const).map((resource) => ({
+        resource,
+        used: used[resource],
+        limit: limitOf(plan, resource),
+      })),
+    };
   });
 }

@@ -8,6 +8,7 @@ import {
   rolePermissions,
   roles,
   settings,
+  subscriptions,
   syncOperations,
   tenants,
 } from "@/db/schema";
@@ -72,6 +73,7 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     memberships: randomUUID(),
     audit_logs: randomUUID(),
     sync_operations: randomUUID(),
+    subscriptions: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -82,6 +84,7 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
   await withTenant(ctx, async (tx) => {
     await tx.insert(devices).values({ id: id("devices"), tenantId, branchId, name: "Till 1" });
     await tx.insert(settings).values({ id: id("settings"), tenantId });
+    await tx.insert(subscriptions).values({ id: id("subscriptions"), tenantId, planCode: "pilot" });
     await tx.insert(roles).values({ id: id("roles"), tenantId, name: "Owner", isSystem: true });
     await tx
       .insert(rolePermissions)

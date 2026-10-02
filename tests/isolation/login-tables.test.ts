@@ -20,6 +20,8 @@ const BUSINESS_TABLES = [
   "audit_logs",
   "sync_operations",
   "permissions",
+  "plans",
+  "subscriptions",
 ] as const;
 const LOGIN_SECRET_TABLES = ["sessions", "accounts", "verifications", "rate_limits", "security_events"] as const;
 
@@ -70,6 +72,8 @@ const SELECT_SQL: Record<string, string> = {
   audit_logs: "SELECT count(*) FROM audit_logs",
   sync_operations: "SELECT count(*) FROM sync_operations",
   permissions: "SELECT count(*) FROM permissions",
+  plans: "SELECT count(*) FROM plans",
+  subscriptions: "SELECT count(*) FROM subscriptions",
 };
 
 describe("auth_service cannot reach business data", () => {

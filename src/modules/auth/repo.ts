@@ -2,7 +2,7 @@ import "server-only";
 import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { getAuthDb } from "@/db/auth-client";
 import type { TenantContext, TenantTx, UserTx } from "@/db/with-tenant";
-import { auditLogs, branches, memberships, rolePermissions, roles, settings, tenants } from "@/db/schema";
+import { auditLogs, branches, memberships, plans, rolePermissions, roles, settings, subscriptions, tenants } from "@/db/schema";
 import { DEFAULT_ROLES, OWNER_ROLE } from "./default-roles";
 
 // Database queries of the auth module. Everything runs inside a transaction
@@ -28,12 +28,16 @@ export interface NewBusiness {
   template: "clothing" | "mobile";
 }
 
-// Business, settings, first branch, default roles and permissions, the owner
+// Business, settings, plan, first branch, default roles and permissions, the owner
 // membership and the audit entry. Runs in the caller's single transaction.
 export async function insertBusiness(tx: TenantTx, ctx: TenantContext, input: NewBusiness): Promise<void> {
   const { tenantId, userId } = ctx;
   await tx.insert(tenants).values({ id: tenantId, name: input.businessName, template: input.template, createdBy: userId });
   await tx.insert(settings).values({ tenantId, createdBy: userId });
+  // Every business starts on the default plan (business rules section 11).
+  const [plan] = await tx.select({ code: plans.code }).from(plans).where(eq(plans.isDefault, true));
+  if (plan === undefined) throw new Error("no default plan");
+  await tx.insert(subscriptions).values({ tenantId, planCode: plan.code, status: "active", createdBy: userId });
   await tx.insert(branches).values({ tenantId, name: "Main branch", createdBy: userId });
 
   const roleIds = new Map<string, string>();

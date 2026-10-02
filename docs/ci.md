@@ -18,6 +18,12 @@ is pinned to a commit SHA; the gitleaks download is checked against its
 published SHA-256; findings are redacted from logs; `gitleaks:allow` comments
 are ignored, so a finding cannot be silenced from inside the code.
 
+Not in CI yet: `npm run test:flows` (full login flows in a real browser).
+It needs a database, which the CI browser job does not have; run it locally
+with the throwaway database running (docs/database-setup.md) and no other
+`next dev` server in this folder. Adding a database to the browser job is
+planned with the remaining Phase 3 screens.
+
 ## check-rls (`scripts/check-rls.ts`)
 
 Fails if: a table lacks forced RLS; a tenant table lacks the standard

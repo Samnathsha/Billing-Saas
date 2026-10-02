@@ -31,14 +31,16 @@ export class EnvError extends Error {
 // as missing.
 const emptyIsMissing = (value: unknown): unknown => (value === "" ? undefined : value);
 
-const postgresUrl = z.preprocess(
-  emptyIsMissing,
-  z.url({
-    protocol: /^postgres(ql)?$/,
-    error: (issue) =>
-      issue.input === undefined ? "is missing" : "must be a postgres:// or postgresql:// connection string",
-  }),
-);
+// For optional settings the empty check must run BEFORE ".optional()", or an
+// empty value would be checked as a real one (found by env-schema.test.ts).
+const optional = <T extends z.ZodType>(inner: T) => z.preprocess(emptyIsMissing, inner.optional());
+
+const postgresUrlValue = z.url({
+  protocol: /^postgres(ql)?$/,
+  error: (issue) =>
+    issue.input === undefined ? "is missing" : "must be a postgres:// or postgresql:// connection string",
+});
+const postgresUrl = z.preprocess(emptyIsMissing, postgresUrlValue);
 
 // At least 32 characters: `npm run auth:secret` writes a random 43-character
 // one into .env.local.
@@ -55,28 +57,24 @@ const appUrl = z.preprocess(
   }),
 );
 
-const resendApiKey = z.preprocess(
-  emptyIsMissing,
-  z
-    .string({ error: "is missing" })
-    .regex(/^re_[A-Za-z0-9_-]{8,}$/, { error: "does not look like a Resend API key (it starts with re_)" }),
-);
+const resendApiKeyValue = z
+  .string({ error: "is missing" })
+  .regex(/^re_[A-Za-z0-9_-]{8,}$/, { error: "does not look like a Resend API key (it starts with re_)" });
+const resendApiKey = z.preprocess(emptyIsMissing, resendApiKeyValue);
 
 // "noreply@shop.in" or "Shop Name <noreply@shop.in>".
-const emailFrom = z.preprocess(
-  emptyIsMissing,
-  z
-    .string({ error: "is missing" })
-    .regex(/^(?:[^<>@\n]{1,80} <)?[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>?$/, {
-      error: 'must be an email address, e.g. "Shop <noreply@yourdomain.com>"',
-    }),
-);
+const emailFromValue = z
+  .string({ error: "is missing" })
+  .regex(/^(?:[^<>@\n]{1,80} <)?[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>?$/, {
+    error: 'must be an email address, e.g. "Shop <noreply@yourdomain.com>"',
+  });
+const emailFrom = z.preprocess(emptyIsMissing, emailFromValue);
 
 const shared = {
   BETTER_AUTH_SECRET: authSecret,
   BETTER_AUTH_URL: appUrl,
-  RESEND_API_KEY: resendApiKey.optional(),
-  EMAIL_FROM: emailFrom.optional(),
+  RESEND_API_KEY: optional(resendApiKeyValue),
+  EMAIL_FROM: optional(emailFromValue),
 };
 
 // Each mode requires its own databases. The other mode's URLs are optional,
@@ -86,14 +84,14 @@ const shared = {
 const devDatabases = {
   DATABASE_URL_DEV: postgresUrl,
   AUTH_DATABASE_URL_DEV: postgresUrl,
-  DATABASE_URL_TEST: postgresUrl.optional(),
+  DATABASE_URL_TEST: optional(postgresUrlValue),
 };
 const schemas = {
   development: z.object({ ...devDatabases, ...shared }),
   test: z.object({
     DATABASE_URL_TEST: postgresUrl,
     AUTH_DATABASE_URL_TEST: postgresUrl,
-    DATABASE_URL_DEV: postgresUrl.optional(),
+    DATABASE_URL_DEV: optional(postgresUrlValue),
     ...shared,
   }),
   // Until deployment is set up, a local production build (`npm run build &&

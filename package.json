@@ -11,6 +11,7 @@
     "test": "vitest run --project unit",
     "test:watch": "vitest --project unit",
     "test:e2e": "playwright test",
+    "test:flows": "playwright test --config playwright.flows.config.ts",
     "prepare": "git config core.hooksPath .githooks || true",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

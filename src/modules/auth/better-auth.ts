@@ -107,11 +107,12 @@ export const auth = betterAuth({
     },
   },
 
-  // These two send session tokens to the browser (list) or take one from it
-  // (revoke), which would let a page script copy a login. The app's own
-  // listMySessions / endMySession (my-sessions.ts) replace them over HTTP;
-  // they answer 404.
-  disabledPaths: ["/list-sessions", "/revoke-session"],
+  // These send session tokens to the browser (get/list) or take one from it
+  // (revoke), which would let a page script copy a login. Pages read the
+  // session on the server (getRequestContext); the app's own listMySessions
+  // / endMySession (my-sessions.ts) replace the rest. Over HTTP they answer
+  // 404; server code can still use auth.api.getSession.
+  disabledPaths: ["/get-session", "/list-sessions", "/revoke-session"],
 
   // Per-IP limits (Better Auth's limiter, stored in rate_limits), on in every
   // environment. Per-account limits: the account-lockout plugin below.

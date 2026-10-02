@@ -30,6 +30,23 @@ Library: Better Auth (ADR 0002), on its own database role `auth_service`
    rejected. V1: one business per user.
 5. **Log out** (`POST /api/auth/sign-out`) ends the session at once.
 
+## Screens (step 3.9)
+
+| Page | What it does |
+|---|---|
+| `/register` | Name, email, password. Always answers "check your email". |
+| `/verify-email` | Where the confirmation link lands: "confirmed", or "link did not work" with "send the link again". |
+| `/login` | Email, password. Unconfirmed email: offers "send the link again". |
+
+- The forms run in the browser and call `/api/auth/*` through Better
+  Auth's browser client (`src/lib/auth-client.ts`), so the per-IP limits,
+  Origin check, lockout and uniform answers all apply. (Calling `auth.api`
+  from server code would skip the per-IP limiter.)
+- Messages are our own fixed texts chosen by error code
+  (`src/lib/auth-messages.ts`); the server's wording is never shown.
+- `/get-session` is switched off over HTTP too, so page scripts never see a
+  session token; pages read the session on the server.
+
 ## Every request: `getRequestContext(headers)`
 
 `src/modules/auth/request-context.ts` is the only place a request gets a
@@ -226,3 +243,9 @@ exists because a test showed Better Auth's own check let a cross-site
   before the uniform sign-up answer was added (the extra `status` field
   gave existing emails away). Summary of all attack tests:
   docs/security-tests.md.
+- `tests/flows/` (`npm run test:flows`): register, confirm by the emailed
+  link, log in, cookie HttpOnly and invisible to scripts, `/get-session`
+  off, same message for wrong password and unknown email, bad link offers
+  a new one. Real browser, own dev server on port 3200, LOCAL throwaway
+  database only, emails to `.dev-mailbox/`. Not in CI yet (the CI browser
+  job has no database). Verified to fail if `/get-session` is switched on.

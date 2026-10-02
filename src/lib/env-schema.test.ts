@@ -39,6 +39,11 @@ describe("parseEnv: valid settings", () => {
     expect(parseEnv({ ...devEnv, ...RESEND }).email).toEqual({ resendApiKey: RESEND.RESEND_API_KEY, from: RESEND.EMAIL_FROM });
   });
 
+  it("empty optional settings count as not set (development without email)", () => {
+    expect(parseEnv({ ...devEnv, RESEND_API_KEY: "", EMAIL_FROM: "" }).email).toBeNull();
+    expect(parseEnv({ ...devEnv, DATABASE_URL_TEST: "" }).databaseUrl).toBe(DEV);
+  });
+
   it("tests never send real email, even if Resend settings are present", () => {
     expect(parseEnv({ ...testEnv, ...RESEND }).email).toBeNull();
   });

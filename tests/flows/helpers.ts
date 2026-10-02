@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
-import { expect, type Page } from "@playwright/test";
+import { randomInt, randomUUID } from "node:crypto";
+import { test as base, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { lastLinkTo } from "./mailbox";
 
 export const PASSWORD = "a long flow passphrase 2026";
@@ -25,4 +25,20 @@ export async function logIn(page: Page, email: string, password = PASSWORD): Pro
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Log in" }).click();
+}
+
+// Each test (and each extra "device") is its own visitor with its own IP
+// address, as real users are. Otherwise all tests share one address and the
+// per-IP login limit (10 per minute) rightly stops them.
+const randomIp = (): string => `10.${String(randomInt(256))}.${String(randomInt(256))}.${String(randomInt(1, 255))}`;
+
+export const test = base.extend({
+  // (Playwright's fixture callback, named so it is not taken for React's use.)
+  extraHTTPHeaders: async ({}, provide) => {
+    await provide({ "X-Forwarded-For": randomIp() });
+  },
+});
+
+export function newDevice(browser: Browser): Promise<BrowserContext> {
+  return browser.newContext({ extraHTTPHeaders: { "X-Forwarded-For": randomIp() } });
 }

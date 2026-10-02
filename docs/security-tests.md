@@ -16,8 +16,12 @@ test file in docs/auth.md).
 | Account takeover by signing up again | Existing account keeps its password and verification. | `enumeration.test.ts` |
 
 Not yet covered (comes with its feature):
-- Owner-only **routes and pages** (403 / "not allowed" screen): with the
-  screens (step 3.9 and Phase 4). The service check underneath is tested.
+- Owner-only **pages**: `/settings/staff` shows "Not allowed" to a cashier
+  (`tests/flows/devices-and-roles.spec.ts`). The page still answers HTTP
+  200 with that text: Next.js's `forbidden()` (a real 403) is experimental
+  in this version. Owner-only **API calls** (for the browser's network tab)
+  arrive with staff management in Phase 4; the service check underneath is
+  tested.
 - Response **timing** for known vs unknown emails is not measured (too
   noisy for automated tests). Sign-up for an existing email may answer at a
   slightly different speed; the per-IP limits make measuring it slow.

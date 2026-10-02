@@ -41,6 +41,8 @@ Library: Better Auth (ADR 0002), on its own database role `auth_service`
 | `/` | Sends you on: not logged in, to `/login`; no business yet, to `/setup`; otherwise to `/dashboard`. |
 | `/setup` | "Set up your business": name and shop type (Server Action calling `createBusiness`; business and owner come from the session, never the form). |
 | `/dashboard` and every page under `src/app/(app)` | The app frame checks `getRequestContext` on the server for every request (not logged in: `/login`; no business: `/setup`), shows the role and a "Log out" button. Pages and services still check their own permissions. |
+| `/settings/devices` | "Your devices": own logins (this device, others; time, IP, browser). "End" another device (it is logged out at once), "Log out" this one, "Log out everywhere". Server Actions calling `endMySession` / `logOutEverywhere`. |
+| `/settings/staff` | Owner/Admin ("Manage users") only; placeholder until Phase 4. Anyone else sees "Not allowed", also when typing the address; the menu link is hidden for them as a convenience only. |
 | `/reset-password` | Where the reset link lands. New password; on success every device is logged out. Expired, used or refused (e.g. breached password, which still uses up the link): "send a new link" right there. The token is removed from the address bar once the page has it. |
 
 - The forms run in the browser and call `/api/auth/*` through Better
@@ -263,3 +265,11 @@ exists because a test showed Better Auth's own check let a cross-site
   afterwards; logout leaves the app; without a login every app page leads
   to `/login`; a blank business name is refused. Verified to fail if the
   app frame's login check is removed.
+  Devices and roles (`devices-and-roles.spec.ts`): two devices listed,
+  ending the other logs it out at once, log out everywhere ends both, a
+  cashier (added through the database as staff invitations will) sees no
+  Staff link and gets "Not allowed" on `/settings/staff`. Verified to fail
+  if the staff page's permission check is removed. Each flow test (and
+  each extra device) sends its own X-Forwarded-For address, as separate
+  visitors would; sharing one address, the suite rightly hit the per-IP
+  login limit.

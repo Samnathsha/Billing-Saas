@@ -14,7 +14,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <header className="flex items-center justify-between gap-4 border-b px-4 py-3">
-        <Link href="/dashboard" className="font-semibold">Billing</Link>
+        <nav className="flex items-center gap-4 text-sm">
+          <Link href="/dashboard" className="font-semibold">Billing</Link>
+          {/* Menu links follow the role for convenience only; each page checks on the server. */}
+          {who.permissions.includes("users.manage") ? <Link href="/settings/staff">Staff</Link> : null}
+          <Link href="/settings/devices">Your devices</Link>
+        </nav>
         <div className="flex items-center gap-3 text-sm">
           <span className="text-muted-foreground">{who.roleName}</span>
           <LogoutButton />

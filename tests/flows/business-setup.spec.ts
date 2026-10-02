@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { confirmedAccount, logIn } from "./helpers";
+import { expect } from "@playwright/test";
+import { confirmedAccount, logIn, test } from "./helpers";
 
 test("first login leads to business setup, then the dashboard; logout leaves the app", async ({ page }) => {
   const email = await confirmedAccount(page, "setup");

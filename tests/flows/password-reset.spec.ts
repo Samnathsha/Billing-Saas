@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 import pg from "pg";
 import { LOCAL_AUTH_DB_URL } from "./local-db";
-import { confirmedAccount, formAlert, logIn, PASSWORD as OLD } from "./helpers";
+import { confirmedAccount, formAlert, logIn, newDevice, PASSWORD as OLD, test } from "./helpers";
 import { lastLinkTo } from "./mailbox";
 
 const NEW = "a brand new flow passphrase 9";
@@ -25,7 +25,7 @@ test("forgot password: link by email, new password works, old one does not, link
   const email = await confirmedAccount(page, "reset");
 
   // Another device is logged in with the old password.
-  const phone = await browser.newContext();
+  const phone = await newDevice(browser);
   await logIn(await phone.newPage(), email, OLD);
   await expect.poll(() => sessionCount(email)).toBe(1);
 
@@ -51,7 +51,7 @@ test("forgot password: link by email, new password works, old one does not, link
   await logIn(page, email, OLD);
   await expect(page.locator(formAlert)).toHaveText("Wrong email or password.");
   await logIn(page, email, NEW);
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/setup$/); // logged in; no business yet
 
   // The same link a second time: refused, with a way to get a new one.
   await page.goto(link);

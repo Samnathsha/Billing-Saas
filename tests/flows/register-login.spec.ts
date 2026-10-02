@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "./helpers";
 import { lastLinkTo } from "./mailbox";
 
 const PASSWORD = "a long flow passphrase 2026";
@@ -31,7 +32,7 @@ test("register, confirm the email, log in; scripts cannot see the session", asyn
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/setup$/); // logged in; no business yet
 
   const cookie = (await context.cookies()).find((c) => c.name === "billing.session_token");
   expect(cookie?.httpOnly).toBe(true);

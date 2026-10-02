@@ -118,6 +118,11 @@ export async function setSessionActiveTenant(sessionToken: string, tenantId: str
   ]);
 }
 
+// Ends one session (e.g. past the absolute timeout).
+export async function deleteSession(sessionToken: string): Promise<void> {
+  await getAuthDb().$client.query("DELETE FROM sessions WHERE token = $1", [sessionToken]);
+}
+
 // Is this user account still allowed to log in? (Read by the login library's
 // role, before any business is known.)
 export async function isUserActive(userId: string): Promise<boolean> {

@@ -9,6 +9,7 @@ import { env } from "@/lib/env";
 import { accounts, rateLimits, sessions, users, verifications } from "./schema";
 import { sendEmail } from "./mailer";
 import { isUserActive } from "./repo";
+import { secureCookiesFor, SESSION_POLICY } from "./session-policy";
 
 // Better Auth (ADR 0002), running on its own restricted database role
 // (auth_service, ADR 0003). Every security choice is set explicitly here.
@@ -86,10 +87,14 @@ export const auth = betterAuth({
   verification: { storeIdentifier: "hashed" },
 
   session: {
-    // Absolute limit 7 days; refreshed at most once a day while in use.
-    // Idle and absolute timeouts are finalised in Phase 3 step 4.
-    expiresIn: 7 * DAY,
-    updateAge: DAY,
+    // Idle timeout: the session expires 30 minutes after last use; use
+    // extends it (at most every 5 minutes). See session-policy.ts.
+    expiresIn: SESSION_POLICY.idleTimeoutSeconds,
+    updateAge: SESSION_POLICY.refreshEverySeconds,
+    // The 12-hour absolute timeout is enforced by the database (migration
+    // 0008 caps expires_at) and again by getRequestContext. freshAge only
+    // affects the few Better Auth endpoints that use it.
+    freshAge: SESSION_POLICY.absoluteTimeoutSeconds,
     // Off: every request checks the database, so revoking a session stops it
     // at once (ADR 0002).
     cookieCache: { enabled: false },
@@ -109,6 +114,10 @@ export const auth = betterAuth({
   advanced: {
     database: { generateId: "uuid" },
     cookiePrefix: "billing",
+    // HttpOnly: page scripts cannot read the cookie. SameSite=Lax: other
+    // sites cannot send it with their requests. Secure on https://.
+    useSecureCookies: secureCookiesFor(env.authUrl),
+    defaultCookieAttributes: { httpOnly: true, sameSite: "lax", path: "/" },
   },
 
   plugins: [

@@ -2,6 +2,7 @@ import "server-only";
 import { createTenantContext, withTenant, withUserTransaction, type TenantContext } from "@/db/with-tenant";
 import { auth } from "./better-auth";
 import * as repo from "./repo";
+import { isPastAbsoluteTimeout } from "./session-policy";
 
 // Turns a request's session cookie into who is acting and in which business
 // (ADR 0003, point 5). The ONLY place a TenantContext is made for a request,
@@ -28,6 +29,11 @@ export async function getRequestContext(headers: Headers): Promise<RequestContex
   if (!user.emailVerified || user.status !== "active") return { kind: "anonymous" };
 
   const token = session.session.token;
+  // Absolute timeout (12 hours from login): end the session for good.
+  if (isPastAbsoluteTimeout(session.session.createdAt)) {
+    await repo.deleteSession(token);
+    return { kind: "anonymous" };
+  }
   const requested = session.session.activeTenantId ?? null;
 
   const membership = await withUserTransaction(user.id, async (tx) => {

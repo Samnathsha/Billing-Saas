@@ -59,8 +59,16 @@ call `createTenantContext` or `withUserTransaction` (lint rule).
 - Same error for a wrong password and an unknown email.
 - A disabled account cannot start a session (`databaseHooks`).
 - Sessions in the database; cookie cache **off**, so logout, revoke and
-  password reset take effect on the very next request. 7-day absolute
-  limit, refreshed daily (timeouts finalised in Phase 3 step 4).
+  password reset take effect on the very next request.
+- Timeouts (owner decision 2026-10-02, `session-policy.ts`):
+  - **Idle 30 minutes**: a session expires 30 minutes after last use; use
+    extends it at most every 5 minutes (so the cut-off is 25–30 minutes).
+  - **Absolute 12 hours** from login, even if active. Enforced by the
+    database (migration 0008 caps `expires_at` at `created_at + 12 h`, so
+    every Better Auth endpoint refuses the session too) and again by
+    `getRequestContext`, which deletes it.
+- Cookie `billing.session_token`: HttpOnly, SameSite=Lax, Path=/, Max-Age
+  30 minutes, and Secure whenever the app runs on https:// (production).
 - Verification and reset tokens stored hashed; reset link valid 1 hour,
   single use; a reset logs the account out everywhere.
 - Rate limiting on in every environment, stored in the database (tuned in
@@ -95,6 +103,10 @@ call `createTenantContext` or `withUserTransaction` (lint rule).
   fail if the lock, the membership re-check or the disabled-account hook is
   removed.
 - `src/modules/auth/default-roles.test.ts` restates blueprint table 5.3.
+- `tests/integration/sessions.test.ts`: cookie attributes from a real
+  sign-in response, idle expiry and extension, 12-hour cut-off (also for
+  Better Auth's own endpoints and change-password). Verified to fail if the
+  database cap is removed.
 - `tests/integration/breached-passwords.test.ts`: breached password refused
   on sign-up and reset, service-down refuses, only the hash prefix is sent,
   login unaffected. Uses a stand-in for the HIBP service

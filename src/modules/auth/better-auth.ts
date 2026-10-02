@@ -7,6 +7,7 @@ import { getAuthDb } from "@/db/auth-client";
 import { env } from "@/lib/env";
 import { accounts, rateLimits, sessions, users, verifications } from "./schema";
 import { sendEmail } from "./mailer";
+import { isUserActive } from "./repo";
 
 // Better Auth (ADR 0002), running on its own restricted database role
 // (auth_service, ADR 0003). Every security choice is set explicitly here.
@@ -27,6 +28,22 @@ export const auth = betterAuth({
   user: {
     // Our users table calls Better Auth's "name" display_name.
     fields: { name: "displayName" },
+    additionalFields: {
+      // 'active' | 'disabled'; changed only by our server code.
+      status: { type: "string", required: false, input: false },
+    },
+  },
+
+  databaseHooks: {
+    session: {
+      create: {
+        // A disabled account cannot start a session (blueprint 5.2).
+        before: async (session) => {
+          if (!(await isUserActive(session.userId))) return false;
+          return undefined;
+        },
+      },
+    },
   },
 
   emailAndPassword: {

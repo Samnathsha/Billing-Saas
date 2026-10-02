@@ -6,3 +6,7 @@ import { auth } from "./better-auth";
 // Route handlers for /api/auth/* (sign up, sign in, sign out, verify email,
 // reset password...), served by Better Auth.
 export const authRouteHandlers = toNextJsHandler(auth);
+
+export { createBusiness, createBusinessInput, OnboardingError, type OnboardingErrorCode } from "./onboarding";
+export { getRequestContext, type RequestContext } from "./request-context";
+export { DEFAULT_ROLES, OWNER_ROLE, PERMISSIONS, type Permission } from "./default-roles";

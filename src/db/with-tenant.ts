@@ -14,8 +14,8 @@ declare const tenantTxBrand: unique symbol;
 
 // Who is acting, and for which business. "Sealed": TypeScript only accepts a
 // value made by createTenantContext(), never a hand-written object, so the
-// tenant cannot come from request data by accident. Only the session code
-// (Phase 3) calls createTenantContext, after checking the membership.
+// tenant cannot come from request data by accident. Only the auth module
+// calls createTenantContext, after checking the membership (lint rule).
 export interface TenantContext {
   readonly tenantId: string;
   readonly userId: string;
@@ -36,6 +36,39 @@ const contextInput = z.strictObject({
 export function createTenantContext(input: { tenantId: string; userId: string }): TenantContext {
   const parsed = contextInput.parse(input);
   return Object.freeze(parsed) as TenantContext;
+}
+
+declare const userTxBrand: unique symbol;
+
+// A transaction that knows only the user, not yet a business: the "login
+// view" (own memberships and their businesses, read-only; no business data).
+export type UserTx = Transaction & { readonly [userTxBrand]: true };
+
+export interface UserScope {
+  // Switches this same transaction into a business (e.g. one being created
+  // right now). From then on, row-level security limits it to that business.
+  enterTenant(tenantId: string): Promise<{ ctx: TenantContext; tx: TenantTx }>;
+}
+
+// Auth module only (lint rule), like createTenantContext. Used where a step
+// must check the user's memberships and then act in a business inside ONE
+// transaction (creating a business: no race between check and create).
+export async function withUserTransaction<T>(
+  userId: string,
+  fn: (tx: UserTx, scope: UserScope) => Promise<T>,
+): Promise<T> {
+  const id = z.uuid().parse(userId);
+  return getDb().transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('app.user_id', ${id}, true)`);
+    const scope: UserScope = {
+      enterTenant: async (tenantId) => {
+        const ctx = createTenantContext({ tenantId, userId: id });
+        await tx.execute(sql`SELECT set_config('app.tenant_id', ${ctx.tenantId}, true)`);
+        return { ctx, tx: tx as TenantTx };
+      },
+    };
+    return fn(tx as UserTx, scope);
+  });
 }
 
 export async function withTenant<T>(ctx: TenantContext, fn: (tx: TenantTx) => Promise<T>): Promise<T> {

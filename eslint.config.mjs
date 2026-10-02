@@ -61,7 +61,19 @@ const noAuthDbClient = {
   message: "Only the auth module may use the login library's database connection (ADR 0003).",
 };
 
+// Building a business context or a user-only transaction is reserved for the
+// auth module, which checks the membership first (ADR 0003).
+const sessionOnlyApis = {
+  name: "@/db/with-tenant",
+  importNames: ["createTenantContext", "withUserTransaction"],
+  message: "Only the auth module may create a TenantContext or a user transaction (it checks the membership first).",
+};
+
 const restrictImports = (...patterns) => ({
+  "no-restricted-imports": ["error", { paths: [sessionOnlyApis], patterns }],
+});
+// For src/db (defines them) and src/modules/auth (the only caller).
+const restrictImportsAllowSessionApis = (...patterns) => ({
   "no-restricted-imports": ["error", { patterns }],
 });
 
@@ -181,11 +193,25 @@ const eslintConfig = defineConfig([
   {
     // The auth module runs Better Auth on its own connection (ADR 0003).
     files: ["src/modules/auth/**"],
-    rules: restrictImports(noParentRelative, noDeepModuleImport, noApp, noComponents, noDbDriver, noDrizzleValues, noDbClient),
+    rules: restrictImportsAllowSessionApis(
+      noParentRelative,
+      noDeepModuleImport,
+      noApp,
+      noComponents,
+      noDbDriver,
+      noDrizzleValues,
+      noDbClient,
+    ),
   },
   {
     files: ["src/modules/**/repo.ts"],
     rules: restrictImports(noParentRelative, noDeepModuleImport, noApp, noComponents, noDbDriver, noDbClient, noAuthDbClient),
+  },
+  {
+    // The auth module's queries: may use the login library's connection
+    // (sessions) and the user/tenant transaction helpers.
+    files: ["src/modules/auth/repo.ts"],
+    rules: restrictImportsAllowSessionApis(noParentRelative, noDeepModuleImport, noApp, noComponents, noDbDriver, noDbClient),
   },
   {
     // Tables reference other modules' tables (e.g. memberships -> tenants),
@@ -198,12 +224,12 @@ const eslintConfig = defineConfig([
   },
   {
     files: ["src/db/**"],
-    rules: restrictImports(noParentRelative, noModules(), noApp, noComponents),
+    rules: restrictImportsAllowSessionApis(noParentRelative, noModules(), noApp, noComponents),
   },
   {
     // db/schema/index.ts gathers every module's tables for Drizzle.
     files: ["src/db/schema/**"],
-    rules: restrictImports(noParentRelative, noApp, noComponents, {
+    rules: restrictImportsAllowSessionApis(noParentRelative, noApp, noComponents, {
       regex: "^@/modules(?!/[^/]+/schema$)(/.*)?$",
       message: "db/schema may import only '@/modules/<name>/schema'.",
     }),

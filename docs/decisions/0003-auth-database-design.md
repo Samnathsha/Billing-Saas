@@ -53,6 +53,20 @@ that for `app_user`, by design. Rejected alternatives:
    user finishes "Set up your business" after logging in. Login requires a
    verified email.
 
+## Amendment 1 (2026-10-01): business created after verification
+
+Point 6 created the business during sign-up. Better Auth deliberately
+answers sign-up the same way whether or not the email already exists (so
+nobody can probe which emails have accounts). Our code therefore cannot
+reliably tell a new account from someone else's existing one at that
+moment, and creating a business then could attach it to the wrong account.
+
+Now: sign up (Better Auth) → verify email → log in → "Set up your business",
+which creates the business, settings, default roles and permissions, owner
+membership and audit entry in ONE app_user transaction, for the logged-in,
+verified user only. This also stops unverified sign-ups from creating
+businesses.
+
 ## Consequences
 
 - A compromise of Better Auth or its connection exposes login data, never

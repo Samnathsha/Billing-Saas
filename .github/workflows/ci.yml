@@ -64,6 +64,7 @@ jobs:
       DATABASE_URL_TEST: postgresql://app_user@localhost:5432/billing_test
       MIGRATOR_DATABASE_URL_TEST: postgresql://migrator@localhost:5432/billing_test
       AUTH_DATABASE_URL_TEST: postgresql://auth_service@localhost:5432/billing_test
+      BETTER_AUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -73,6 +74,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
+      - name: Random auth secret for this run (masked)
+        run: |
+          secret="$(openssl rand -base64 32)"
+          echo "::add-mask::$secret"
+          echo "BETTER_AUTH_SECRET=$secret" >> "$GITHUB_ENV"
       - name: Create roles (scripts/db-roles.sql, as on Neon)
         run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d billing_test -v ON_ERROR_STOP=1 < scripts/db-roles.sql
       - name: Run migrations as migrator
@@ -90,6 +96,8 @@ jobs:
       # Placeholder so the startup settings check passes. Not a secret: no
       # password, and no test here touches a database yet.
       DATABASE_URL_DEV: postgres://localhost:5432/ci_placeholder
+      AUTH_DATABASE_URL_DEV: postgres://localhost:5432/ci_placeholder_auth
+      BETTER_AUTH_URL: http://localhost:3100
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -99,6 +107,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
+      - name: Random auth secret for this run (masked)
+        run: |
+          secret="$(openssl rand -base64 32)"
+          echo "::add-mask::$secret"
+          echo "BETTER_AUTH_SECRET=$secret" >> "$GITHUB_ENV"
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - name: Upload report on failure

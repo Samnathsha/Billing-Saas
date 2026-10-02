@@ -56,6 +56,10 @@ const noDbClient = {
   group: ["@/db/client"],
   message: "Use withTenant() from '@/db/with-tenant'; never the raw client.",
 };
+const noAuthDbClient = {
+  group: ["@/db/auth-client"],
+  message: "Only the auth module may use the login library's database connection (ADR 0003).",
+};
 
 const restrictImports = (...patterns) => ({
   "no-restricted-imports": ["error", { patterns }],
@@ -163,11 +167,25 @@ const eslintConfig = defineConfig([
   },
   {
     files: ["src/modules/**"],
+    rules: restrictImports(
+      noParentRelative,
+      noDeepModuleImport,
+      noApp,
+      noComponents,
+      noDbDriver,
+      noDrizzleValues,
+      noDbClient,
+      noAuthDbClient,
+    ),
+  },
+  {
+    // The auth module runs Better Auth on its own connection (ADR 0003).
+    files: ["src/modules/auth/**"],
     rules: restrictImports(noParentRelative, noDeepModuleImport, noApp, noComponents, noDbDriver, noDrizzleValues, noDbClient),
   },
   {
     files: ["src/modules/**/repo.ts"],
-    rules: restrictImports(noParentRelative, noDeepModuleImport, noApp, noComponents, noDbDriver, noDbClient),
+    rules: restrictImports(noParentRelative, noDeepModuleImport, noApp, noComponents, noDbDriver, noDbClient, noAuthDbClient),
   },
   {
     // Tables reference other modules' tables (e.g. memberships -> tenants),

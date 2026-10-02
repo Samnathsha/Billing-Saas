@@ -45,3 +45,14 @@ export async function requireCapacity(tx: TenantTx, ctx: TenantContext, resource
   const used = (await repo.countUsage(tx, ctx))[resource];
   if (used >= limit) throw new PlanLimitError("LIMIT_REACHED", resource, limit);
 }
+
+// Plan and usage for display ("Your plan"). Inside the caller's transaction;
+// the caller checks its own permission.
+export async function readPlanUsage(
+  tx: TenantTx,
+  ctx: TenantContext,
+): Promise<{ plan: repo.PlanRow; used: Record<repo.PlanResource, number> } | undefined> {
+  const plan = await repo.currentPlan(tx, ctx);
+  if (plan === undefined) return undefined;
+  return { plan, used: await repo.countUsage(tx, ctx) };
+}

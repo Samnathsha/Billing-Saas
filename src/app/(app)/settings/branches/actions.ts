@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import type { BranchFormState } from "@/components/forms/branch-forms";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
-import { BranchError, closeBranch, createBranch, PlanLimitError, renameBranch, reopenBranch } from "@/modules/tenants";
+import { PlanLimitError } from "@/modules/plans";
+import { BranchError, closeBranch, createBranch, renameBranch, reopenBranch } from "@/modules/tenants";
 
 // Branch changes. Who and which business come from the session; the form
 // carries only the branch id and name, which the service checks.

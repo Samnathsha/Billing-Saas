@@ -11,10 +11,10 @@ import {
   closeBranch,
   createBranch,
   listBranches,
-  PlanLimitError,
   renameBranch,
   reopenBranch,
 } from "@/modules/tenants";
+import { PlanLimitError } from "@/modules/plans";
 import { registerVerifiedUser } from "../helpers/auth";
 
 // Branches: add, rename, close, reopen; plan limit (pilot: 2), the last open

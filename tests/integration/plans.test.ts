@@ -6,7 +6,8 @@ import { getDb } from "@/db/client";
 import { branches, devices, memberships, roles, subscriptions } from "@/db/schema";
 import { withTenant, type TenantContext } from "@/db/with-tenant";
 import { createBusiness, getRequestContext, PermissionDeniedError } from "@/modules/auth";
-import { getPlanUsage, PlanLimitError, requireCapacity, type PlanResource } from "@/modules/tenants";
+import { PlanLimitError, requireCapacity, type PlanResource } from "@/modules/plans";
+import { getPlanUsage } from "@/modules/tenants";
 import { createTestBusiness, createTestUser } from "../helpers/business";
 import { registerVerifiedUser } from "../helpers/auth";
 

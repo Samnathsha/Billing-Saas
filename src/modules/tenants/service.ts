@@ -2,9 +2,9 @@ import "server-only";
 import { z } from "zod";
 import { withTenant, type TenantContext, type TenantTx } from "@/db/with-tenant";
 import { requirePermission } from "@/modules/auth";
+import { limitOf, readPlanUsage, requireCapacity } from "@/modules/plans";
 import { financialYearLabel, financialYearStart, PREFIX_PATTERN } from "@/modules/sales";
 import { GST_REGISTRATIONS, GST_STATES, gstinProblem, isGstStateCode, needsGstin, normaliseGstin } from "@/modules/tax";
-import { limitOf, requireCapacity } from "./entitlements";
 import * as repo from "./repo";
 
 // Business profile and GST settings (blueprint Phase 4, rules 1.x and 4.5).
@@ -210,9 +210,9 @@ export interface PlanUsageDto {
 export async function getPlanUsage(ctx: TenantContext): Promise<PlanUsageDto | null> {
   await requirePermission(ctx, "settings.manage");
   return withTenant(ctx, async (tx) => {
-    const plan = await repo.currentPlan(tx, ctx);
-    if (plan === undefined) return null;
-    const used = await repo.countUsage(tx, ctx);
+    const found = await readPlanUsage(tx, ctx);
+    if (found === undefined) return null;
+    const { plan, used } = found;
     return {
       planName: plan.name,
       status: plan.status,
@@ -325,7 +325,7 @@ export async function closeBranch(ctx: TenantContext, rawInput: unknown): Promis
     const branch = await repo.lockBranch(tx, branchId);
     if (branch === undefined) throw new BranchError("NOT_FOUND");
     if (branch.archivedAt !== null) throw new BranchError("ALREADY_CLOSED");
-    if ((await repo.countUsage(tx, ctx)).branches <= 1) throw new BranchError("LAST_OPEN_BRANCH");
+    if ((await repo.countOpenBranches(tx, ctx)) <= 1) throw new BranchError("LAST_OPEN_BRANCH");
     await repo.updateBranch(tx, branch, { archivedAt: new Date() });
     await audit(tx, ctx, "branch.closed", branch.id, { open: true }, { open: false });
     return { ...branchDto(branch), open: false };

@@ -18,4 +18,3 @@ export {
   type PlanUsageDto,
   type SettingsErrorCode,
 } from "./service";
-export { PlanLimitError, requireCapacity, type PlanLimitErrorCode, type PlanResource } from "./entitlements";

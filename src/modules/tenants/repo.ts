@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
 import { auditLogs, branches, devices, memberships, plans, roles, settings, subscriptions, tenants } from "@/db/schema";
 
@@ -149,4 +149,62 @@ export async function countUsage(tx: TenantTx, ctx: TenantContext): Promise<Reco
     .from(devices)
     .where(and(eq(devices.tenantId, ctx.tenantId), eq(devices.status, "active")));
   return { branches: b?.n ?? 0, users: u?.n ?? 0, devices: d?.n ?? 0 };
+}
+
+// ---------------------------------------------------------------------------
+// Branches.
+// ---------------------------------------------------------------------------
+
+export interface BranchRow {
+  id: string;
+  name: string;
+  archivedAt: Date | null;
+  version: number;
+}
+
+const branchColumns = { id: branches.id, name: branches.name, archivedAt: branches.archivedAt, version: branches.version };
+
+export async function listBranches(tx: TenantTx): Promise<BranchRow[]> {
+  return tx.select(branchColumns).from(branches).orderBy(asc(branches.createdAt), asc(branches.name));
+}
+
+// Locks the branch row until the end of the transaction.
+export async function lockBranch(tx: TenantTx, branchId: string): Promise<BranchRow | undefined> {
+  const [row] = await tx.select(branchColumns).from(branches).where(eq(branches.id, branchId)).for("update");
+  return row;
+}
+
+// Any branch (open or closed) already using this name, ignoring case.
+export async function branchNameTaken(tx: TenantTx, name: string, exceptId: string | null): Promise<boolean> {
+  const rows = await tx
+    .select({ id: branches.id })
+    .from(branches)
+    .where(sql`lower(${branches.name}) = lower(${name})`);
+  return rows.some((r) => r.id !== exceptId);
+}
+
+export async function insertBranch(tx: TenantTx, ctx: TenantContext, name: string): Promise<string> {
+  const [row] = await tx
+    .insert(branches)
+    .values({ tenantId: ctx.tenantId, name, createdBy: ctx.userId })
+    .returning({ id: branches.id });
+  if (row === undefined) throw new Error("branch insert returned nothing");
+  return row.id;
+}
+
+export async function updateBranch(
+  tx: TenantTx,
+  branch: BranchRow,
+  values: { name?: string; archivedAt?: Date | null },
+): Promise<void> {
+  await tx
+    .update(branches)
+    .set({ ...values, version: branch.version + 1 })
+    .where(eq(branches.id, branch.id));
+}
+
+// Serialises closing branches per business, so two people cannot close the
+// last two open branches at the same moment.
+export async function lockBranchClosing(tx: TenantTx, ctx: TenantContext): Promise<void> {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended('branch-close:' || ${ctx.tenantId}, 0))`);
 }

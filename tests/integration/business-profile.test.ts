@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ZodError } from "zod";
 import { getAuthDb } from "@/db/auth-client";
@@ -78,7 +78,7 @@ async function codeOf(work: Promise<unknown>): Promise<string> {
 
 async function auditRows(ctx: TenantContext) {
   return withTenant(ctx, (tx) =>
-    tx.select({ action: auditLogs.action, before: auditLogs.before, after: auditLogs.after, role: auditLogs.actorRole }).from(auditLogs).where(eq(auditLogs.action, "settings.profile_updated")),
+    tx.select({ action: auditLogs.action, before: auditLogs.before, after: auditLogs.after, role: auditLogs.actorRole }).from(auditLogs).where(eq(auditLogs.action, "settings.profile_updated")).orderBy(asc(auditLogs.occurredAt), asc(auditLogs.id)),
   );
 }
 

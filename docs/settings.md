@@ -51,6 +51,23 @@ a convenience only.
   `npm run dev:add-member` (a development tool) does not check it.
 - "Your plan" on Business settings: plan name and "used of limit" for each.
 
+## Branches: `/settings/branches`
+
+Owner and Admin only ("Business and tax settings"); others see "Not
+allowed" and no menu link.
+
+- Add (within the plan: pilot = 2 open branches), rename, close, reopen.
+  Names: 1-100 characters, unique in the business ignoring capitals, also
+  against closed branches (a closed branch keeps its name).
+- Closing keeps the branch and its history (`archived_at`); it never
+  deletes. The last open branch cannot be closed; a lock stops two people
+  closing the last two at the same moment.
+- Reopening counts against the plan like adding.
+- Every change is audited: `branch.created`, `branch.renamed`,
+  `branch.closed`, `branch.reopened`.
+- Later rules: stock in a closed branch (Phase 6); staff limited to one
+  branch (`memberships.branch_id`) when staff screens need it.
+
 ## Tests
 
 - `src/modules/tax/gst.test.ts`: GSTIN check (published sample accepted;
@@ -70,6 +87,13 @@ a convenience only.
   only one fitting, no plan = nothing added, a shop cannot change plans or
   its subscription. Verified to fail without the lock, with an off-by-one
   limit, or without failing closed.
+- `tests/integration/branches.test.ts`: add, plan limit, names, rename,
+  close/reopen, last open branch, simultaneous closes, audit, Manager /
+  Cashier / Accountant refused, other business's branches not found.
+  Verified to fail without the last-branch rule, the closing lock, or the
+  plan check on adding or reopening.
+- `tests/flows/branches.spec.ts`: the whole screen in a real browser, and a
+  cashier refused.
 - `tests/isolation/*`: `subscriptions` is attacked like every tenant table;
   `plans` and `subscriptions` are out of the login role's reach.
 - `tests/flows/business-settings.spec.ts`: fill in and reload; mistyped

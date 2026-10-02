@@ -1,10 +1,10 @@
 import "server-only";
 import { z } from "zod";
-import { withTenant, type TenantContext } from "@/db/with-tenant";
+import { withTenant, type TenantContext, type TenantTx } from "@/db/with-tenant";
 import { requirePermission } from "@/modules/auth";
 import { financialYearLabel, financialYearStart, PREFIX_PATTERN } from "@/modules/sales";
 import { GST_REGISTRATIONS, GST_STATES, gstinProblem, isGstStateCode, needsGstin, normaliseGstin } from "@/modules/tax";
-import { limitOf } from "./entitlements";
+import { limitOf, requireCapacity } from "./entitlements";
 import * as repo from "./repo";
 
 // Business profile and GST settings (blueprint Phase 4, rules 1.x and 4.5).
@@ -222,5 +222,127 @@ export async function getPlanUsage(ctx: TenantContext): Promise<PlanUsageDto | n
         limit: limitOf(plan, resource),
       })),
     };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Branches (shop locations). Owner and Admin ("Business and tax settings").
+// A branch is closed (archived), never deleted, so its history stays; it can
+// be reopened if the plan has room. The last open branch cannot be closed.
+// Every change is audited. Stock in a closed branch: Phase 6 rule.
+
+export type BranchErrorCode = "NOT_FOUND" | "NAME_TAKEN" | "LAST_OPEN_BRANCH" | "ALREADY_CLOSED" | "ALREADY_OPEN";
+
+const MESSAGES: Record<BranchErrorCode, string> = {
+  NOT_FOUND: "This branch was not found.",
+  NAME_TAKEN: "Another branch already has this name.",
+  LAST_OPEN_BRANCH: "This is the only open branch. Open or add another branch first.",
+  ALREADY_CLOSED: "This branch is already closed.",
+  ALREADY_OPEN: "This branch is already open.",
+};
+
+export class BranchError extends Error {
+  constructor(public readonly code: BranchErrorCode) {
+    super(MESSAGES[code]);
+    this.name = "BranchError";
+  }
+}
+
+export interface BranchDto {
+  id: string;
+  name: string;
+  open: boolean;
+}
+
+const branchName = z
+  .string()
+  .trim()
+  .min(1, { error: "Enter a branch name." })
+  .max(100, { error: "Use at most 100 characters." });
+
+export const createBranchInput = z.strictObject({ name: branchName });
+export const renameBranchInput = z.strictObject({ branchId: z.uuid(), name: branchName });
+export const branchIdInput = z.strictObject({ branchId: z.uuid() });
+
+const branchDto = (row: repo.BranchRow): BranchDto => ({ id: row.id, name: row.name, open: row.archivedAt === null });
+
+async function audit(
+  tx: TenantTx,
+  ctx: TenantContext,
+  action: string,
+  branchId: string,
+  before: object,
+  after: object,
+): Promise<void> {
+  await repo.addAuditEntry(tx, ctx, {
+    actorRole: await repo.actorRoleName(tx, ctx),
+    action,
+    entityType: "branch",
+    entityId: branchId,
+    before,
+    after,
+  });
+}
+
+export async function listBranches(ctx: TenantContext): Promise<BranchDto[]> {
+  await requirePermission(ctx, "settings.manage");
+  const rows = await withTenant(ctx, (tx) => repo.listBranches(tx));
+  return rows.map(branchDto);
+}
+
+export async function createBranch(ctx: TenantContext, rawInput: unknown): Promise<BranchDto> {
+  await requirePermission(ctx, "settings.manage");
+  const { name } = createBranchInput.parse(rawInput);
+  return withTenant(ctx, async (tx) => {
+    // Specific answers first, then the plan (which locks and counts).
+    if (await repo.branchNameTaken(tx, name, null)) throw new BranchError("NAME_TAKEN");
+    await requireCapacity(tx, ctx, "branches");
+    const id = await repo.insertBranch(tx, ctx, name);
+    await audit(tx, ctx, "branch.created", id, {}, { name });
+    return { id, name, open: true };
+  });
+}
+
+export async function renameBranch(ctx: TenantContext, rawInput: unknown): Promise<BranchDto> {
+  await requirePermission(ctx, "settings.manage");
+  const { branchId, name } = renameBranchInput.parse(rawInput);
+  return withTenant(ctx, async (tx) => {
+    const branch = await repo.lockBranch(tx, branchId);
+    if (branch === undefined) throw new BranchError("NOT_FOUND");
+    if (branch.name === name) return branchDto(branch);
+    if (await repo.branchNameTaken(tx, name, branch.id)) throw new BranchError("NAME_TAKEN");
+    await repo.updateBranch(tx, branch, { name });
+    await audit(tx, ctx, "branch.renamed", branch.id, { name: branch.name }, { name });
+    return { ...branchDto(branch), name };
+  });
+}
+
+export async function closeBranch(ctx: TenantContext, rawInput: unknown): Promise<BranchDto> {
+  await requirePermission(ctx, "settings.manage");
+  const { branchId } = branchIdInput.parse(rawInput);
+  return withTenant(ctx, async (tx) => {
+    await repo.lockBranchClosing(tx, ctx);
+    const branch = await repo.lockBranch(tx, branchId);
+    if (branch === undefined) throw new BranchError("NOT_FOUND");
+    if (branch.archivedAt !== null) throw new BranchError("ALREADY_CLOSED");
+    if ((await repo.countUsage(tx, ctx)).branches <= 1) throw new BranchError("LAST_OPEN_BRANCH");
+    await repo.updateBranch(tx, branch, { archivedAt: new Date() });
+    await audit(tx, ctx, "branch.closed", branch.id, { open: true }, { open: false });
+    return { ...branchDto(branch), open: false };
+  });
+}
+
+export async function reopenBranch(ctx: TenantContext, rawInput: unknown): Promise<BranchDto> {
+  await requirePermission(ctx, "settings.manage");
+  const { branchId } = branchIdInput.parse(rawInput);
+  return withTenant(ctx, async (tx) => {
+    const branch = await repo.lockBranch(tx, branchId);
+    if (branch === undefined) throw new BranchError("NOT_FOUND");
+    if (branch.archivedAt === null) throw new BranchError("ALREADY_OPEN");
+    // Reopening counts against the plan like adding.
+    await requireCapacity(tx, ctx, "branches");
+    await repo.updateBranch(tx, branch, { archivedAt: null });
+    await audit(tx, ctx, "branch.reopened", branch.id, { open: false }, { open: true });
+    return { ...branchDto(branch), open: true };
   });
 }

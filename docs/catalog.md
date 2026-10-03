@@ -20,6 +20,10 @@ Service: `src/modules/catalog/service.ts`.
   as inactive; nothing is deleted.
 - Every change audited (`catalog.<kind>_created/_renamed/_archived/_restored`).
 
+Screen: `/catalog/lists` ("Catalog" in the menu, "Manage products" only;
+others "Not allowed"): add, rename, archive and restore categories (with
+an optional main category), brands and units (code, fractions).
+
 ## Tests
 
 - `tests/integration/tax-rates.test.ts`: only TEST rates, no overlapping
@@ -30,5 +34,8 @@ Service: `src/modules/catalog/service.ts`.
   Accountant refused, Manager allowed, other business's items not found.
   Verified to fail if sub-sub-categories, duplicate names or the wrong
   permission are allowed.
+- `tests/flows/catalog-lists.spec.ts`: the Lists screen in a real browser
+  (subcategory, duplicate refused, unit, archive/restore) and a cashier
+  refused.
 - `tests/isolation/*`: categories, brands and units attacked like every
   tenant table; tax tables and catalog lists out of the login role's reach.

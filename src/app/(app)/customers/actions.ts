@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createCustomer, setCustomerArchived, updateCustomer } from "@/modules/parties";
+import { recordCustomerPayment } from "@/modules/sales";
 import { errorMessage, formRupees, formString, LOGGED_OUT, memberCtx, type ActionState } from "@/app/(app)/_shared/action-result";
 
 // Customer screens. The services check permission (credit limits: Manager
@@ -52,4 +53,25 @@ export async function archiveCustomerAction(_previous: ActionState, form: FormDa
   }
   revalidatePath("/customers", "layout");
   return { error: null, done: null };
+}
+
+export async function customerPaymentAction(_previous: ActionState, form: FormData): Promise<ActionState> {
+  const ctx = await memberCtx();
+  if (ctx === null) return LOGGED_OUT;
+  const amount = formRupees(form, "amount") ?? -1;
+  if (amount <= 0) return { error: "Enter the amount in rupees, e.g. 500 or 499.50.", done: null };
+  try {
+    await recordCustomerPayment(ctx, {
+      idempotencyKey: formString(form, "idempotencyKey"),
+      customerId: formString(form, "customerId"),
+      branchId: formString(form, "branchId"),
+      method: formString(form, "method"),
+      amountPaise: amount,
+      reference: formString(form, "reference"),
+    });
+  } catch (error) {
+    return { error: errorMessage(error), done: null };
+  }
+  revalidatePath("/customers", "layout");
+  return { error: null, done: "Payment saved." };
 }

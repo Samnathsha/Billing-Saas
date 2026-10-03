@@ -6,6 +6,7 @@ import {
   branches,
   brands,
   categories,
+  customerPayments,
   customers,
   devices,
   files,
@@ -118,6 +119,7 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     invoices: randomUUID(),
     invoice_items: randomUUID(),
     invoice_payments: randomUUID(),
+    customer_payments: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -280,6 +282,7 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
       unitCostPaise: "30000",
     });
     await tx.insert(invoicePayments).values({ id: id("invoice_payments"), tenantId, invoiceId: id("invoices"), method: "cash", amountPaise: 30_000, kind: "sale", createdBy: ctx.userId });
+    await tx.insert(customerPayments).values({ id: id("customer_payments"), tenantId, customerId: id("customers"), branchId, method: "upi", amountPaise: 5000, receivedOn: "2026-10-02", createdBy: ctx.userId });
     await tx.insert(supplierPayments).values({
       id: id("supplier_payments"),
       tenantId,

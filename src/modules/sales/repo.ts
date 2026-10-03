@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
-import { auditLogs, invoiceItems, invoicePayments, invoices, memberships, roles, serialNumbers, settings, tenants } from "@/db/schema";
+import { auditLogs, customerPayments, invoiceItems, invoicePayments, invoices, memberships, roles, serialNumbers, settings, tenants } from "@/db/schema";
 
 // Database queries of the sales module, inside the caller's transaction.
 
@@ -129,4 +129,22 @@ export async function serialTexts(tx: TenantTx, ids: string[]): Promise<Map<stri
   if (ids.length === 0) return new Map();
   const rows = await tx.select({ id: serialNumbers.id, serial: serialNumbers.serial }).from(serialNumbers).where(inArray(serialNumbers.id, ids));
   return new Map(rows.map((r) => [r.id, r.serial]));
+}
+
+export async function insertCustomerPayment(tx: TenantTx, ctx: TenantContext, values: Omit<typeof customerPayments.$inferInsert, "tenantId" | "createdBy">): Promise<void> {
+  await tx.insert(customerPayments).values({ ...values, tenantId: ctx.tenantId, createdBy: ctx.userId });
+}
+
+export async function customerPaymentsOf(tx: TenantTx, customerId: string) {
+  return tx
+    .select()
+    .from(customerPayments)
+    .where(eq(customerPayments.customerId, customerId))
+    .orderBy(desc(customerPayments.createdAt))
+    .limit(200);
+}
+
+export async function findCustomerPayment(tx: TenantTx, id: string) {
+  const [row] = await tx.select().from(customerPayments).where(eq(customerPayments.id, id));
+  return row;
 }

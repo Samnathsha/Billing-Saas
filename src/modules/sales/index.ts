@@ -20,3 +20,4 @@ export {
   type SalesErrorCode,
 } from "./service";
 export { getPosSetup, priceItemsForSale, priceItemsInput, type PosItemDto, type PosSetupDto } from "./pos.service";
+export { customerPaymentInput, listCustomerPayments, recordCustomerPayment, type CustomerPaymentDto } from "./payments.service";

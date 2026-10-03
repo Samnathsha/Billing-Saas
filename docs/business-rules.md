@@ -354,3 +354,7 @@ Each question has the default the app will use until answered.
     bill (or credit note) has a number, its prefix cannot be changed until
     the next 1 April; the change is refused with that message (simpler
     than a change "scheduled" for April). DEFAULT, owner to confirm.
+41. **Customer payments:** a payment is dated the day it is recorded (no
+    back-dating); paying more than owed leaves an advance on the
+    customer's account, used by later credit sales; any cashier may take a
+    payment. DEFAULT, owner and accountant to confirm.

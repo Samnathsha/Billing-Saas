@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
+import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArchiveCustomerForm, EditCustomerForm } from "@/components/forms/customer-forms";
+import { ArchiveCustomerForm, CustomerPaymentForm, EditCustomerForm } from "@/components/forms/customer-forms";
 import { NotAllowed } from "@/components/not-allowed";
 import { formatPaise, paiseToRupeesText } from "@/lib/money";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
 import { getCustomer, PartyError, type CustomerDto } from "@/modules/parties";
-import { listInvoices, type InvoiceListItemDto } from "@/modules/sales";
+import { listCustomerPayments, listInvoices, type CustomerPaymentDto, type InvoiceListItemDto } from "@/modules/sales";
+import { listBranchChoices } from "@/modules/tenants";
 import { GST_STATES } from "@/modules/tax";
-import { archiveCustomerAction, editCustomerAction } from "@/app/(app)/customers/actions";
+import { archiveCustomerAction, customerPaymentAction, editCustomerAction } from "@/app/(app)/customers/actions";
 
 export const metadata: Metadata = { title: "Customer" };
 
@@ -20,9 +22,11 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   let customer: CustomerDto;
   let bills: InvoiceListItemDto[];
+  let payments: CustomerPaymentDto[];
   try {
     customer = await getCustomer(who.ctx, { id });
     bills = await listInvoices(who.ctx, { customerId: id });
+    payments = await listCustomerPayments(who.ctx, { customerId: id });
   } catch (error) {
     if (error instanceof PermissionDeniedError) return <NotAllowed />;
     if (error instanceof PartyError) notFound();
@@ -45,6 +49,41 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
       <p className="text-sm" aria-label="Credit">
         {customer.creditLimitPaise === 0 ? "No credit allowed." : `Credit limit ${formatPaise(customer.creditLimitPaise)}; ${formatPaise(Math.max(0, left))} left.`}
       </p>
+      {who.permissions.includes("sales.create") ? (
+        <CustomerPaymentForm
+          customerId={customer.id}
+          branches={(await listBranchChoices(who.ctx)).filter((b) => b.open).map((b) => ({ id: b.id, name: b.name }))}
+          idempotencyKey={randomUUID()}
+          owesPaise={customer.balancePaise}
+          save={customerPaymentAction}
+        />
+      ) : null}
+      <section className="flex flex-col gap-2">
+        <h2 className="font-medium">Payments</h2>
+        {payments.length === 0 ? <p className="text-sm text-muted-foreground">No payments yet.</p> : null}
+        {payments.length > 0 ? (
+          <table className="w-full rounded-lg border text-sm" aria-label="Customer payments">
+            <thead className="border-b bg-muted/40 text-left">
+              <tr>
+                <th className="p-2 font-medium">Date</th>
+                <th className="p-2 font-medium">Method</th>
+                <th className="p-2 font-medium">Reference</th>
+                <th className="p-2 text-right font-medium">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {payments.map((p) => (
+                <tr key={p.id}>
+                  <td className="p-2">{p.receivedOn}</td>
+                  <td className="p-2">{p.method === "upi" ? "UPI" : p.method === "card" ? "Card" : "Cash"}</td>
+                  <td className="p-2">{p.reference ?? ""}</td>
+                  <td className="p-2 text-right tabular-nums">{formatPaise(p.amountPaise)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
+      </section>
       <section className="flex flex-col gap-2">
         <h2 className="font-medium">Bills</h2>
         {bills.length === 0 ? <p className="text-sm text-muted-foreground">No bills yet.</p> : null}
@@ -85,7 +124,6 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
         />
       ) : null}
       {canGiveCredit ? <ArchiveCustomerForm id={customer.id} active={customer.active} save={archiveCustomerAction} /> : null}
-      <p className="text-xs text-muted-foreground">Taking payments against what a customer owes comes in Phase 8.</p>
     </main>
   );
 }

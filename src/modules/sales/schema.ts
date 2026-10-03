@@ -187,3 +187,32 @@ export const invoicePayments = pgTable(
     check("invoice_payments_reference_length", sql`char_length(${t.reference}) <= 100`),
   ],
 );
+
+// Money a customer pays against what they owe (business rules 16). The
+// customer's balance goes down through an append-only ledger row; paying
+// more than owed leaves an advance (open question 41). Append-only.
+export const customerPayments = pgTable(
+  "customer_payments",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    customerId: uuid("customer_id").notNull(),
+    branchId: uuid("branch_id").notNull(),
+    // 'cash' | 'card' | 'upi'
+    method: text("method").notNull(),
+    amountPaise: bigint("amount_paise", { mode: "number" }).notNull(),
+    reference: text("reference"),
+    receivedOn: date("received_on").notNull(), // business time zone
+    createdBy: uuid("created_by").notNull(),
+    createdAt: createdAtColumn(),
+  },
+  (t) => [
+    unique("customer_payments_tenant_id_id_key").on(t.tenantId, t.id),
+    index("customer_payments_customer_idx").on(t.tenantId, t.customerId, t.receivedOn),
+    foreignKey({ name: "customer_payments_customer_fk", columns: [t.tenantId, t.customerId], foreignColumns: [customers.tenantId, customers.id] }).onDelete("restrict"),
+    foreignKey({ name: "customer_payments_branch_fk", columns: [t.tenantId, t.branchId], foreignColumns: [branches.tenantId, branches.id] }).onDelete("restrict"),
+    check("customer_payments_method", sql`${t.method} in ('cash', 'card', 'upi')`),
+    check("customer_payments_amount", sql`${t.amountPaise} > 0 AND ${t.amountPaise} <= 100000000000`),
+    check("customer_payments_reference_length", sql`char_length(${t.reference}) <= 100`),
+  ],
+);

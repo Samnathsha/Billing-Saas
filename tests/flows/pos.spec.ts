@@ -148,6 +148,16 @@ test("a customer with a credit limit buys partly on credit; the rest shows on th
   await expect(page.getByLabel("Balance")).toHaveText("Owes ₹500.00");
   await expect(page.getByLabel("Credit", { exact: true })).toHaveText("Credit limit ₹1,000.00; ₹500.00 left.");
 
+  // She pays ₹200 of it by UPI.
+  const payment = page.getByRole("form", { name: "Take a payment" });
+  await payment.getByLabel("Amount (₹)").fill("200");
+  await payment.getByLabel("Method").selectOption("upi");
+  await payment.getByLabel(/Reference/).fill("UTR 555");
+  await payment.getByRole("button", { name: "Save payment" }).click();
+  await expect(payment.getByRole("status")).toHaveText("Payment saved.");
+  await expect(page.getByLabel("Balance")).toHaveText("Owes ₹300.00");
+  await expect(page.getByRole("table", { name: "Customer payments" })).toContainText("UTR 555");
+
   // Over the limit: refused by the server, nothing saved.
   await page.getByRole("link", { name: "New bill" }).click();
   await page.getByLabel(/Scan a barcode/).fill("SH-M");
@@ -155,6 +165,8 @@ test("a customer with a credit limit buys partly on credit; the rest shows on th
   await page.getByLabel("Customer (phone or name, optional)").fill("Meena");
   await page.getByRole("button", { name: "Find" }).click();
   await page.getByRole("button", { name: /Meena/ }).click();
+  await page.getByLabel("Cash received (₹)").fill("0");
   await page.getByRole("button", { name: /Save bill/ }).click();
+  // 300 owed + 799 on credit > 1000.
   await expect(page.getByRole("alert").filter({ hasText: "over their credit limit" })).toBeVisible();
 });

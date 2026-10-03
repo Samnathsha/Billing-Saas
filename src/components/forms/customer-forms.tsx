@@ -104,3 +104,51 @@ export function ArchiveCustomerForm(props: { id: string; active: boolean; save: 
     </form>
   );
 }
+
+export function CustomerPaymentForm(props: { customerId: string; branches: { id: string; name: string }[]; idempotencyKey: string; owesPaise: number; save: FormAction }): ReactNode {
+  const [state, action, pending] = useActionState(props.save, EMPTY);
+  return (
+    <form action={action} className="flex flex-col gap-3 rounded-lg border p-3" aria-label="Take a payment">
+      <h2 className="font-medium">Take a payment</h2>
+      <input type="hidden" name="customerId" value={props.customerId} />
+      <input type="hidden" name="idempotencyKey" value={props.idempotencyKey} />
+      <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="pay-amount">Amount (₹)</Label>
+          <Input id="pay-amount" name="amount" required inputMode="decimal" maxLength={16} className="w-36" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="pay-method">Method</Label>
+          <select id="pay-method" name="method" required defaultValue="cash" className={selectClass}>
+            <option value="cash">Cash</option>
+            <option value="upi">UPI</option>
+            <option value="card">Card</option>
+          </select>
+        </div>
+        {props.branches.length > 1 ? (
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="pay-branch">Branch</Label>
+            <select id="pay-branch" name="branchId" required defaultValue={props.branches[0]?.id} className={selectClass}>
+              {props.branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <input type="hidden" name="branchId" value={props.branches[0]?.id ?? ""} />
+        )}
+        <div className="flex flex-1 flex-col gap-1">
+          <Label htmlFor="pay-reference">Reference (UTR, card slip)</Label>
+          <Input id="pay-reference" name="reference" maxLength={100} />
+        </div>
+      </div>
+      {props.owesPaise > 0 ? null : <p className="text-sm text-muted-foreground">This customer owes nothing; a payment now becomes an advance.</p>}
+      <Result state={state} />
+      <Button type="submit" disabled={pending} className="self-start">
+        Save payment
+      </Button>
+    </form>
+  );
+}

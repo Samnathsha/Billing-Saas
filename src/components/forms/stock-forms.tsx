@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition, type ReactNode, type RefObject, type SubmitEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,24 @@ export interface BranchChoice {
 }
 
 export const EMPTY: ActionState = { error: null, done: null };
+
+// A form that keeps what was typed when the server refuses it (React clears
+// a form after every action by default, so a cashier would have to type a
+// whole purchase again), and clears it after a success it reports itself.
+export function useKeptForm(state: ActionState, dispatch: (form: FormData) => void, ref: RefObject<HTMLFormElement | null>): (event: SubmitEvent<HTMLFormElement>) => void {
+  const [, startTransition] = useTransition();
+  useEffect(() => {
+    if (state.done !== null) ref.current?.reset();
+  }, [state, ref]);
+  return (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    startTransition(() => {
+      dispatch(data);
+    });
+  };
+}
+
 export const selectClass = "h-8 rounded-lg border border-input bg-transparent px-2 text-sm";
 const textareaClass = "min-h-16 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm";
 
@@ -51,9 +69,11 @@ export function Result({ state }: { state: ActionState }): ReactNode {
 // so a double click saves once.
 export function OpeningStockForm(props: { branches: BranchChoice[]; idempotencyKey: string; showCost: boolean; save: FormAction }): ReactNode {
   const [state, action, pending] = useActionState(props.save, EMPTY);
+  const formRef = useRef<HTMLFormElement>(null);
+  const onSubmit = useKeptForm(state, action, formRef);
   const [rows, setRows] = useState([0]);
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-4">
       <input type="hidden" name="idempotencyKey" value={props.idempotencyKey} />
       <input type="hidden" name="rows" value={rows.join(",")} />
       <BranchSelect branches={props.branches} />
@@ -109,8 +129,10 @@ const REASONS = [
 
 export function AdjustStockForm(props: { branches: BranchChoice[]; idempotencyKey: string; save: FormAction }): ReactNode {
   const [state, action, pending] = useActionState(props.save, EMPTY);
+  const formRef = useRef<HTMLFormElement>(null);
+  const onSubmit = useKeptForm(state, action, formRef);
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-4">
       <input type="hidden" name="idempotencyKey" value={props.idempotencyKey} />
       <BranchSelect branches={props.branches} />
       <div className="flex flex-wrap gap-3">

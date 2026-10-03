@@ -8,7 +8,7 @@ import { NotAllowed } from "@/components/not-allowed";
 import { formatPaise } from "@/lib/money";
 import { formatQuantity } from "@/lib/quantity";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
-import { getInvoice, SalesError, type InvoiceDto } from "@/modules/sales";
+import { getInvoice, getReturnable, SalesError, type InvoiceDto, type ReturnableDto } from "@/modules/sales";
 import { GST_STATES } from "@/modules/tax";
 import { todayInIndia } from "@/app/(app)/_shared/today";
 import { voidInvoiceAction } from "@/app/(app)/sales/actions";
@@ -27,14 +27,17 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
   const sp = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   let bill: InvoiceDto;
+  let returns: ReturnableDto["creditNotes"];
   try {
     bill = await getInvoice(who.ctx, { invoiceId: id });
+    returns = (await getReturnable(who.ctx, { invoiceId: id })).creditNotes;
   } catch (error) {
     if (error instanceof PermissionDeniedError) return <NotAllowed />;
     if (error instanceof SalesError) notFound();
     throw error;
   }
-  const canVoid = bill.status === "posted" && who.permissions.includes("invoices.void") && bill.invoiceDate === todayInIndia();
+  const canVoid = bill.status === "posted" && returns.length === 0 && who.permissions.includes("invoices.void") && bill.invoiceDate === todayInIndia();
+  const canReturn = bill.status === "posted" && who.permissions.includes("sales.create");
   const received = bill.payments.filter((p) => p.kind === "sale");
   const refunded = bill.payments.filter((p) => p.kind === "void");
   return (
@@ -42,6 +45,9 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <Link href="/sales" className="text-sm underline">← Bills</Link>
         <div className="flex gap-2">
+          {canReturn ? (
+            <Link href={`/sales/${bill.id}/return`} className="inline-flex h-8 items-center rounded-lg border px-3 text-sm">Return items</Link>
+          ) : null}
           {who.permissions.includes("sales.create") ? (
             <Link href="/pos" className="inline-flex h-8 items-center rounded-lg border px-3 text-sm">New bill</Link>
           ) : null}
@@ -203,6 +209,16 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
         <p className="mt-6 text-right text-sm">For {bill.seller.name} · Authorised signatory</p>
       </article>
 
+      {returns.length > 0 ? (
+        <section className="flex flex-col gap-1 text-sm print:hidden" aria-label="Returns">
+          <h2 className="font-medium">Returns against this bill</h2>
+          {returns.map((r) => (
+            <p key={r.id}>
+              <Link href={`/credit-notes/${r.id}`} className="underline">{r.number}</Link> · {r.creditNoteDate} · {formatPaise(r.refundPaise)} {r.refundMethod === "store_credit" ? "store credit" : `refunded (${METHODS[r.refundMethod] ?? r.refundMethod})`}
+            </p>
+          ))}
+        </section>
+      ) : null}
       {canVoid ? <VoidInvoiceForm invoiceId={bill.id} idempotencyKey={randomUUID()} save={voidInvoiceAction} /> : null}
     </main>
   );

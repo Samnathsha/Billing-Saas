@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useState, useRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BranchSelect, EMPTY, Result, selectClass, type BranchChoice, type FormAction } from "./stock-forms";
+import { BranchSelect, EMPTY, Result, selectClass, useKeptForm, type BranchChoice, type FormAction } from "./stock-forms";
 import { MethodSelect } from "./supplier-forms";
 
 const textareaClass = "min-h-14 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm";
@@ -21,9 +21,11 @@ export function NewPurchaseForm(props: {
   save: FormAction;
 }): ReactNode {
   const [state, action, pending] = useActionState(props.save, EMPTY);
+  const formRef = useRef<HTMLFormElement>(null);
+  const onSubmit = useKeptForm(state, action, formRef);
   const [rows, setRows] = useState([0]);
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-4">
       <input type="hidden" name="idempotencyKey" value={props.idempotencyKey} />
       <input type="hidden" name="rows" value={rows.join(",")} />
       <div className="flex flex-wrap gap-3">

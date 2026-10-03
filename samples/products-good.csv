@@ -1,0 +1,6 @@
+product_name,unit,tax,hsn,sku,size,colour,selling_price,mrp,cost,barcode
+Linen Shirt,pcs,TEST 5%,6205,LN-S,S,White,999,1299,550,8902000000011
+Linen Shirt,pcs,TEST 5%,6205,LN-M,M,White,999,1299,550,8902000000028
+Linen Shirt,pcs,TEST 5%,6205,LN-L,L,White,1049,1299,575,8902000000035
+Denim Jeans,pcs,TEST 5%,6203,DN-30,30,Blue,1499,1999,800,8902000000042
+Denim Jeans,pcs,TEST 5%,6203,DN-32,32,Blue,1499,1999,800,8902000000059

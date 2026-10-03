@@ -1,0 +1,4 @@
+product_name,unit,tax,hsn,sku,size,colour,selling_price,mrp,cost,barcode
+Polo T-Shirt,pcs,TEST 5%,6109,PL-M,M,Red,599,799,300,8903000000017
+Polo T-Shirt,pcs,TEST 5%,6109,PL-L,L,Red,59.999,799,300,8903000000024
+Polo T-Shirt,kg,TEST 5%,6109,PL-XL,XL,Red,649,799,320,8903000000031

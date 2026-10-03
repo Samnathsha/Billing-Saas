@@ -134,3 +134,17 @@ rule covers every `*.service.ts`).
 - `tests/isolation/*`: categories, brands, units, products, variants,
   barcodes, serial numbers and files attacked like every
   tenant table; tax tables and catalog lists out of the login role's reach.
+
+## Phase 5 sign-off
+
+2026-10-03: the owner ran the Phase 5 hand test on the development
+database and signed off: product with two variants (prices in rupees,
+cost), barcode added and scanned through search, CSV import (the bad
+sample refused with both problems listed and nothing imported; the good
+sample imported 2 products / 5 variants), a cashier saw prices but no cost
+and no editing, logo upload (a CSV refused as not an image), and the shop
+type locked once products exist. Sample files: `samples/products-good.csv`
+and `samples/products-bad.csv`.
+
+Still open: Cloudflare R2 for photos (owner creates the account; see
+"Logo and product photos" above); accountant questions 29-31.

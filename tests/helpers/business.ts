@@ -8,6 +8,7 @@ import {
   categories,
   devices,
   files,
+  idempotencyKeys,
   invitations,
   memberships,
   products,
@@ -16,6 +17,8 @@ import {
   roles,
   serialNumbers,
   settings,
+  stockBalances,
+  stockMovements,
   subscriptions,
   syncOperations,
   tenants,
@@ -92,6 +95,9 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     barcodes: randomUUID(),
     serial_numbers: randomUUID(),
     files: randomUUID(),
+    stock_movements: randomUUID(),
+    stock_balances: randomUUID(),
+    idempotency_keys: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -142,6 +148,21 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
       height: 10,
       sha256: "0".repeat(64),
     });
+    await tx.insert(stockBalances).values({ id: id("stock_balances"), tenantId, variantId: id("product_variants"), branchId, quantity: "5", averageCostPaise: "300" });
+    await tx.insert(stockMovements).values({
+      id: id("stock_movements"),
+      tenantId,
+      branchId,
+      variantId: id("product_variants"),
+      movementType: "OPENING_STOCK",
+      quantity: "5",
+      unitCostPaise: "300",
+      sourceType: "opening_stock",
+      sourceId: randomUUID(),
+      sourceLineId: randomUUID(),
+      createdBy: ctx.userId,
+    });
+    await tx.insert(idempotencyKeys).values({ id: id("idempotency_keys"), tenantId, key: randomUUID(), operation: "stock.opening", result: { ok: true } });
     await tx.insert(invitations).values({
       id: id("invitations"),
       tenantId,

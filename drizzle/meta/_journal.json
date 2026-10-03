@@ -155,6 +155,20 @@
       "when": 1791005821475,
       "tag": "0021_files",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791017145788,
+      "tag": "0022_stock",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791017190454,
+      "tag": "0023_stock_source_key",
+      "breakpoints": true
     }
   ]
 }

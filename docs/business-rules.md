@@ -154,6 +154,22 @@ or tax advice; the accountant signs off before launch.
 - **Photos:** logo and product photos on Cloudflare R2 as the last step of
   Phase 5; the owner creates the account then, keys only in `.env.local`.
 
+### 14. Stock and purchases (owner decisions 2026-10-03, Phase 6)
+
+- **Purchase cost and GST:** a GST-registered (regular) business records
+  purchase cost WITHOUT GST (claimed back as input tax credit); a
+  composition or unregistered business records cost INCLUDING the GST paid.
+  Accountant to confirm.
+- **Wrong purchase:** never edited. A Manager or above voids the whole
+  purchase with a reason; new entries reverse its stock and the supplier
+  balance; then the correct purchase is entered. Refused if any of that
+  stock is no longer there (e.g. already sold).
+- **Transfers between branches:** later (Phase 8). Phase 6 keeps stock per
+  branch; purchases, opening stock and adjustments go into a chosen branch.
+- Stock never goes below zero for online work (rule 7.1). Quantities in a
+  whole-piece unit must be whole numbers; IMEI items move one unit at a
+  time.
+
 ## OPEN QUESTIONS FOR ACCOUNTANT
 
 Each question has the default the app will use until answered.

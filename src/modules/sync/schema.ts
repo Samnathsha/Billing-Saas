@@ -31,3 +31,23 @@ export const syncOperations = pgTable(
     check("sync_operations_status_valid", sql`${t.status} in ('applied', 'rejected', 'flagged')`),
   ],
 );
+
+// Idempotency for writes from screens (purchases, later sales): the screen
+// sends a fresh key per attempt; a retry with the same key gets the stored
+// result instead of running twice (CLAUDE.md: every money or stock write
+// has an idempotency key). Append-only.
+export const idempotencyKeys = pgTable(
+  "idempotency_keys",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    key: uuid("key").notNull(),
+    operation: text("operation").notNull(),
+    result: jsonb("result").notNull(),
+    createdAt: createdAtColumn(),
+  },
+  (t) => [
+    unique("idempotency_keys_key").on(t.tenantId, t.key),
+    check("idempotency_keys_operation_format", sql`${t.operation} ~ '^[a-z_]+(\\.[a-z_]+)+$'`),
+  ],
+);

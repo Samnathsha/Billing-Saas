@@ -1,0 +1,2 @@
+ALTER TABLE "stock_movements" DROP CONSTRAINT "stock_movements_source_key";--> statement-breakpoint
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_source_key" UNIQUE NULLS NOT DISTINCT("tenant_id","source_type","source_line_id","movement_type","serial_number_id");

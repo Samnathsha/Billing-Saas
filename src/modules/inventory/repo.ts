@@ -243,3 +243,10 @@ export async function lockSerialsWithPlace(tx: TenantTx, serials: string[]) {
     .where(inArray(sql`upper(${serialNumbers.serial})`, serials.map((x) => x.toUpperCase())))
     .for("update");
 }
+
+export async function setSerialPlace(tx: TenantTx, row: { id: string; version: number }, values: { status: "in_stock" | "scrapped"; branchId: string }): Promise<void> {
+  await tx
+    .update(serialNumbers)
+    .set({ ...values, version: row.version + 1 })
+    .where(eq(serialNumbers.id, row.id));
+}

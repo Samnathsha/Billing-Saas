@@ -109,7 +109,7 @@ export interface LedgerEntryValues {
   // Exactly one of the two (database check).
   supplierId?: string;
   customerId?: string;
-  entryType: "opening" | "purchase" | "invoice" | "payment" | "void_reversal";
+  entryType: "opening" | "purchase" | "invoice" | "payment" | "return" | "void_reversal";
   amountPaise: number;
   sourceType: string;
   sourceId: string;

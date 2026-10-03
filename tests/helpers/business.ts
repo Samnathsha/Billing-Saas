@@ -6,6 +6,8 @@ import {
   branches,
   brands,
   categories,
+  creditNoteItems,
+  creditNotes,
   customerPayments,
   customers,
   devices,
@@ -120,6 +122,8 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     invoice_items: randomUUID(),
     invoice_payments: randomUUID(),
     customer_payments: randomUUID(),
+    credit_notes: randomUUID(),
+    credit_note_items: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -282,6 +286,45 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
       unitCostPaise: "30000",
     });
     await tx.insert(invoicePayments).values({ id: id("invoice_payments"), tenantId, invoiceId: id("invoices"), method: "cash", amountPaise: 30_000, kind: "sale", createdBy: ctx.userId });
+    await tx.insert(creditNotes).values({
+      id: id("credit_notes"),
+      tenantId,
+      invoiceId: id("invoices"),
+      branchId,
+      number: "CN/26-27/00003",
+      prefix: "CN",
+      financialYear: "26-27",
+      sequenceNumber: 3,
+      creditNoteDate: "2026-10-02",
+      customerId: id("customers"),
+      refundMethod: "store_credit",
+      reason: "Fixture return",
+      outsideWindow: false,
+      taxablePaise: 49_999,
+      cgstPaise: 0,
+      sgstPaise: 0,
+      igstPaise: 0,
+      taxPaise: 0,
+      totalPaise: 49_999,
+      roundOffPaise: 1,
+      refundPaise: 50_000,
+      createdBy: ctx.userId,
+    });
+    await tx.insert(creditNoteItems).values({
+      id: id("credit_note_items"),
+      tenantId,
+      creditNoteId: id("credit_notes"),
+      lineNumber: 1,
+      invoiceItemId: id("invoice_items"),
+      variantId: id("product_variants"),
+      quantity: "1",
+      resellable: true,
+      taxablePaise: 49_999,
+      cgstPaise: 0,
+      sgstPaise: 0,
+      igstPaise: 0,
+      totalPaise: 49_999,
+    });
     await tx.insert(customerPayments).values({ id: id("customer_payments"), tenantId, customerId: id("customers"), branchId, method: "upi", amountPaise: 5000, receivedOn: "2026-10-02", createdBy: ctx.userId });
     await tx.insert(supplierPayments).values({
       id: id("supplier_payments"),

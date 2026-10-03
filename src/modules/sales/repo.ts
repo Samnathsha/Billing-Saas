@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
-import { auditLogs, customerPayments, invoiceItems, invoicePayments, invoices, memberships, roles, serialNumbers, settings, tenants } from "@/db/schema";
+import { auditLogs, creditNoteItems, creditNotes, customerPayments, invoiceItems, invoicePayments, invoices, memberships, roles, serialNumbers, settings, tenants } from "@/db/schema";
 
 // Database queries of the sales module, inside the caller's transaction.
 
@@ -43,6 +43,8 @@ export async function saleSettings(tx: TenantTx) {
       pricesIncludeTax: settings.pricesIncludeTax,
       cashierDiscountLimitBps: settings.cashierDiscountLimitBps,
       invoicePrefix: settings.invoicePrefix,
+      creditNotePrefix: settings.creditNotePrefix,
+      returnWindowDays: settings.returnWindowDays,
       timeZone: settings.timeZone,
       financialYearStartMonth: settings.financialYearStartMonth,
     })
@@ -147,4 +149,67 @@ export async function customerPaymentsOf(tx: TenantTx, customerId: string) {
 export async function findCustomerPayment(tx: TenantTx, id: string) {
   const [row] = await tx.select().from(customerPayments).where(eq(customerPayments.id, id));
   return row;
+}
+
+// Quantity already returned per bill line, as exact decimal text.
+export async function returnedQuantities(tx: TenantTx, invoiceId: string): Promise<Map<string, string>> {
+  const rows = await tx
+    .select({ invoiceItemId: creditNoteItems.invoiceItemId, quantity: sql<string>`sum(${creditNoteItems.quantity})::text` })
+    .from(creditNoteItems)
+    .innerJoin(creditNotes, eq(creditNotes.id, creditNoteItems.creditNoteId))
+    .where(eq(creditNotes.invoiceId, invoiceId))
+    .groupBy(creditNoteItems.invoiceItemId);
+  return new Map(rows.map((r) => [r.invoiceItemId, r.quantity]));
+}
+
+export async function hasCreditNotes(tx: TenantTx, invoiceId: string): Promise<boolean> {
+  const rows = await tx.select({ id: creditNotes.id }).from(creditNotes).where(eq(creditNotes.invoiceId, invoiceId)).limit(1);
+  return rows.length > 0;
+}
+
+export async function insertCreditNote(tx: TenantTx, ctx: TenantContext, values: Omit<typeof creditNotes.$inferInsert, "tenantId" | "createdBy">): Promise<void> {
+  await tx.insert(creditNotes).values({ ...values, tenantId: ctx.tenantId, createdBy: ctx.userId });
+}
+
+export async function insertCreditNoteItems(tx: TenantTx, ctx: TenantContext, items: Omit<typeof creditNoteItems.$inferInsert, "tenantId">[]): Promise<void> {
+  if (items.length > 0) await tx.insert(creditNoteItems).values(items.map((i) => ({ ...i, tenantId: ctx.tenantId })));
+}
+
+export async function findCreditNote(tx: TenantTx, id: string) {
+  const [row] = await tx.select().from(creditNotes).where(eq(creditNotes.id, id));
+  return row;
+}
+
+export async function creditNoteItemsOf(tx: TenantTx, creditNoteId: string) {
+  return tx
+    .select({
+      lineNumber: creditNoteItems.lineNumber,
+      invoiceItemId: creditNoteItems.invoiceItemId,
+      quantity: creditNoteItems.quantity,
+      resellable: creditNoteItems.resellable,
+      taxablePaise: creditNoteItems.taxablePaise,
+      cgstPaise: creditNoteItems.cgstPaise,
+      sgstPaise: creditNoteItems.sgstPaise,
+      igstPaise: creditNoteItems.igstPaise,
+      totalPaise: creditNoteItems.totalPaise,
+      productName: invoiceItems.productName,
+      variantLabel: invoiceItems.variantLabel,
+      sku: invoiceItems.sku,
+      hsnCode: invoiceItems.hsnCode,
+      unitCode: invoiceItems.unitCode,
+      taxLabel: invoiceItems.taxLabel,
+      serialNumberId: creditNoteItems.serialNumberId,
+    })
+    .from(creditNoteItems)
+    .innerJoin(invoiceItems, eq(invoiceItems.id, creditNoteItems.invoiceItemId))
+    .where(eq(creditNoteItems.creditNoteId, creditNoteId))
+    .orderBy(creditNoteItems.lineNumber);
+}
+
+export async function creditNotesOfInvoice(tx: TenantTx, invoiceId: string) {
+  return tx
+    .select({ id: creditNotes.id, number: creditNotes.number, creditNoteDate: creditNotes.creditNoteDate, refundPaise: creditNotes.refundPaise, refundMethod: creditNotes.refundMethod })
+    .from(creditNotes)
+    .where(eq(creditNotes.invoiceId, invoiceId))
+    .orderBy(creditNotes.createdAt);
 }

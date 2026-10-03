@@ -1,6 +1,6 @@
 // Public entry point of the inventory module. Other code imports only from
 // "@/modules/inventory", never from files inside this folder.
 export { assertStockTargets, postMovements, StockError, type MovementInput, type StockErrorCode } from "./stock";
-export { markSerialsSold, receiveSerials, reverseStockOf, takeSerialsForSale, unitCostsOf } from "./serials";
+export { markSerialsSold, receiveSerials, returnSerial, reverseStockOf, takeSerialsForSale, unitCostsOf } from "./serials";
 export { InventoryError, type InventoryErrorCode } from "./errors";
 export { adjustStock, getStockLevels, recordOpeningStock, type StockLevelDto } from "./service";

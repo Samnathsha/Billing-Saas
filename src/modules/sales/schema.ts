@@ -216,3 +216,89 @@ export const customerPayments = pgTable(
     check("customer_payments_reference_length", sql`char_length(${t.reference}) <= 100`),
   ],
 );
+
+// Returns (business rules 16; open questions 9-10): a credit note against
+// one posted bill, with its own number series (CN/26-27/00001). Amounts
+// reverse the bill's own lines at their own rates. Never changed once
+// saved: both tables are append-only.
+export const creditNotes = pgTable(
+  "credit_notes",
+  {
+    // Made on the device, like a bill's id.
+    id: uuid("id").primaryKey(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    invoiceId: uuid("invoice_id").notNull(),
+    branchId: uuid("branch_id").notNull(),
+    number: text("number").notNull(),
+    prefix: text("prefix").notNull(),
+    financialYear: text("financial_year").notNull(),
+    sequenceNumber: integer("sequence_number").notNull(),
+    creditNoteDate: date("credit_note_date").notNull(),
+    customerId: uuid("customer_id"),
+    // 'cash' | 'card' | 'upi' (money back) | 'store_credit'
+    refundMethod: text("refund_method").notNull(),
+    reason: text("reason").notNull(),
+    // After the return window: allowed for Manager and above, flagged.
+    outsideWindow: boolean("outside_window").notNull(),
+    taxablePaise: bigint("taxable_paise", { mode: "number" }).notNull(),
+    cgstPaise: bigint("cgst_paise", { mode: "number" }).notNull(),
+    sgstPaise: bigint("sgst_paise", { mode: "number" }).notNull(),
+    igstPaise: bigint("igst_paise", { mode: "number" }).notNull(),
+    taxPaise: bigint("tax_paise", { mode: "number" }).notNull(),
+    totalPaise: bigint("total_paise", { mode: "number" }).notNull(),
+    roundOffPaise: bigint("round_off_paise", { mode: "number" }).notNull(),
+    refundPaise: bigint("refund_paise", { mode: "number" }).notNull(),
+    createdBy: uuid("created_by").notNull(),
+    createdAt: createdAtColumn(),
+  },
+  (t) => [
+    unique("credit_notes_tenant_id_id_key").on(t.tenantId, t.id),
+    unique("credit_notes_number_key").on(t.tenantId, t.number),
+    unique("credit_notes_sequence_key").on(t.tenantId, t.prefix, t.financialYear, t.sequenceNumber),
+    index("credit_notes_invoice_idx").on(t.tenantId, t.invoiceId),
+    index("credit_notes_tenant_date_idx").on(t.tenantId, t.creditNoteDate),
+    foreignKey({ name: "credit_notes_invoice_fk", columns: [t.tenantId, t.invoiceId], foreignColumns: [invoices.tenantId, invoices.id] }).onDelete("restrict"),
+    foreignKey({ name: "credit_notes_branch_fk", columns: [t.tenantId, t.branchId], foreignColumns: [branches.tenantId, branches.id] }).onDelete("restrict"),
+    foreignKey({ name: "credit_notes_customer_fk", columns: [t.tenantId, t.customerId], foreignColumns: [customers.tenantId, customers.id] }).onDelete("restrict"),
+    check("credit_notes_method", sql`${t.refundMethod} in ('cash', 'card', 'upi', 'store_credit')`),
+    check("credit_notes_store_credit_needs_customer", sql`${t.refundMethod} <> 'store_credit' OR ${t.customerId} IS NOT NULL`),
+    check("credit_notes_number_format", sql`char_length(${t.number}) <= 16 AND ${t.sequenceNumber} between 1 and 99999`),
+    check("credit_notes_reason_length", sql`char_length(${t.reason}) between 3 and 500`),
+    check("credit_notes_money", sql`${t.taxablePaise} >= 0 AND ${t.cgstPaise} >= 0 AND ${t.cgstPaise} = ${t.sgstPaise} AND ${t.igstPaise} >= 0 AND ${t.cgstPaise} + ${t.sgstPaise} + ${t.igstPaise} = ${t.taxPaise} AND ${t.taxablePaise} + ${t.taxPaise} = ${t.totalPaise}`),
+    check("credit_notes_round_off", sql`${t.roundOffPaise} between -49 and 50 AND ${t.refundPaise} = ${t.totalPaise} + ${t.roundOffPaise} AND ${t.refundPaise} >= 0`),
+  ],
+);
+
+export const creditNoteItems = pgTable(
+  "credit_note_items",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    creditNoteId: uuid("credit_note_id").notNull(),
+    lineNumber: smallint("line_number").notNull(),
+    invoiceItemId: uuid("invoice_item_id").notNull(),
+    variantId: uuid("variant_id").notNull(),
+    serialNumberId: uuid("serial_number_id"),
+    quantity: numeric("quantity", { precision: 14, scale: 3 }).notNull(),
+    // Back on the shelf (stock in at the bill's cost) or damaged (not).
+    resellable: boolean("resellable").notNull(),
+    taxablePaise: bigint("taxable_paise", { mode: "number" }).notNull(),
+    cgstPaise: bigint("cgst_paise", { mode: "number" }).notNull(),
+    sgstPaise: bigint("sgst_paise", { mode: "number" }).notNull(),
+    igstPaise: bigint("igst_paise", { mode: "number" }).notNull(),
+    totalPaise: bigint("total_paise", { mode: "number" }).notNull(),
+    createdAt: createdAtColumn(),
+  },
+  (t) => [
+    unique("credit_note_items_tenant_id_id_key").on(t.tenantId, t.id),
+    unique("credit_note_items_line_key").on(t.tenantId, t.creditNoteId, t.lineNumber),
+    index("credit_note_items_invoice_item_idx").on(t.tenantId, t.invoiceItemId),
+    foreignKey({ name: "credit_note_items_credit_note_fk", columns: [t.tenantId, t.creditNoteId], foreignColumns: [creditNotes.tenantId, creditNotes.id] }).onDelete("restrict"),
+    foreignKey({ name: "credit_note_items_invoice_item_fk", columns: [t.tenantId, t.invoiceItemId], foreignColumns: [invoiceItems.tenantId, invoiceItems.id] }).onDelete("restrict"),
+    foreignKey({ name: "credit_note_items_variant_fk", columns: [t.tenantId, t.variantId], foreignColumns: [productVariants.tenantId, productVariants.id] }).onDelete("restrict"),
+    foreignKey({ name: "credit_note_items_serial_fk", columns: [t.tenantId, t.serialNumberId], foreignColumns: [serialNumbers.tenantId, serialNumbers.id] }).onDelete("restrict"),
+    check("credit_note_items_line_number", sql`${t.lineNumber} between 1 and 500`),
+    check("credit_note_items_quantity", sql`${t.quantity} > 0 AND (${t.serialNumberId} IS NULL OR ${t.quantity} = 1)`),
+    check("credit_note_items_money", sql`${t.taxablePaise} >= 0 AND ${t.cgstPaise} >= 0 AND ${t.cgstPaise} = ${t.sgstPaise} AND ${t.igstPaise} >= 0 AND ${t.taxablePaise} + ${t.cgstPaise} + ${t.sgstPaise} + ${t.igstPaise} = ${t.totalPaise}`),
+  ],
+);

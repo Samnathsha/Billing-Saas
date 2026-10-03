@@ -92,6 +92,9 @@ export const settings = pgTable(
     roundOffEnabled: boolean("round_off_enabled").notNull().default(true), // rule 3.5; open question 5
     // Basis points: 500 = 5.00%. Integer, never floating point. Rules 8.1, 8.3.
     cashierDiscountLimitBps: integer("cashier_discount_limit_bps").notNull().default(500),
+    // Business rules 16: returns within this many days of the bill; later
+    // only Manager and above.
+    returnWindowDays: integer("return_window_days").notNull().default(7),
     // Business profile (printed on invoices). Empty until the owner fills it.
     addressLine1: text("address_line1"),
     addressLine2: text("address_line2"),
@@ -136,6 +139,7 @@ export const settings = pgTable(
     check("settings_time_zone_length", sql`char_length(${t.timeZone}) between 1 and 64`),
     check("settings_fy_start_month_range", sql`${t.financialYearStartMonth} between 1 and 12`),
     check("settings_cashier_discount_range", sql`${t.cashierDiscountLimitBps} between 0 and 10000`),
+    check("settings_return_window_range", sql`${t.returnWindowDays} between 0 and 365`),
   ],
 );
 

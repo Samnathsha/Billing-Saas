@@ -104,3 +104,11 @@ export async function unitCostsOf(tx: TenantTx, sourceType: string, sourceId: st
   const rows = await repo.movementsOfSource(tx, sourceType, sourceId);
   return new Map(rows.map((r) => [r.sourceLineId, r.unitCostPaise]));
 }
+
+// A sold IMEI coming back on a return: in stock again in this branch, or
+// scrapped if damaged. It must be sold now (not already returned).
+export async function returnSerial(tx: TenantTx, serialNumberId: string, to: { branchId: string; resellable: boolean }): Promise<void> {
+  const row = await repo.lockSerialById(tx, serialNumberId);
+  if (row?.status !== "sold") throw new InventoryError("SERIAL_NOT_IN_STOCK", "already returned");
+  await repo.setSerialPlace(tx, row, { status: to.resellable ? "in_stock" : "scrapped", branchId: to.branchId });
+}

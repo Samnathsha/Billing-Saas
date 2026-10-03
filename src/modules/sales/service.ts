@@ -38,7 +38,14 @@ export type SalesErrorCode =
   | "DUPLICATE_INVOICE"
   | "NOT_FOUND"
   | "ALREADY_VOIDED"
-  | "VOID_ONLY_SAME_DAY";
+  | "VOID_ONLY_SAME_DAY"
+  | "RETURNS_EXIST"
+  | "INVOICE_VOIDED"
+  | "RETURN_WINDOW_PASSED"
+  | "ITEM_NOT_ON_BILL"
+  | "RETURN_TOO_MANY"
+  | "STORE_CREDIT_NEEDS_CUSTOMER"
+  | "CREDIT_NOTE_NOT_FOUND";
 
 const MESSAGES: Record<SalesErrorCode, string> = {
   SETTINGS_INCOMPLETE: "Set the business's state and GST registration in Business settings before billing.",
@@ -54,6 +61,13 @@ const MESSAGES: Record<SalesErrorCode, string> = {
   NOT_FOUND: "This bill was not found.",
   ALREADY_VOIDED: "This bill is already voided.",
   VOID_ONLY_SAME_DAY: "A bill can be voided only on the day it was made. Use a return instead.",
+  RETURNS_EXIST: "Items of this bill were already returned, so it cannot be voided. Use a return for the rest.",
+  INVOICE_VOIDED: "This bill was voided; nothing can be returned against it.",
+  RETURN_WINDOW_PASSED: "The return period for this bill has passed. Ask a manager.",
+  ITEM_NOT_ON_BILL: "An item being returned is not on this bill.",
+  RETURN_TOO_MANY: "That is more than was sold on this bill (earlier returns count).",
+  STORE_CREDIT_NEEDS_CUSTOMER: "Store credit needs a customer on the bill. Give the money back instead.",
+  CREDIT_NOTE_NOT_FOUND: "This credit note was not found.",
 };
 
 export class SalesError extends Error {
@@ -405,6 +419,8 @@ export async function voidInvoice(ctx: TenantContext, rawInput: unknown): Promis
     if (invoice.status !== "posted") throw new SalesError("ALREADY_VOIDED");
     const business = await repo.saleSettings(tx);
     if (business === undefined || invoice.invoiceDate !== todayIn(business.timeZone)) throw new SalesError("VOID_ONLY_SAME_DAY");
+    // Blueprint 7.6: no void once a return depends on the bill.
+    if (await repo.hasCreditNotes(tx, invoice.id)) throw new SalesError("RETURNS_EXIST");
 
     await reverseStockOf(tx, ctx, { sourceType: "invoice", sourceId: invoice.id, reversalSourceType: "invoice_void", note: input.reason });
     const received = (await repo.paymentsOf(tx, invoice.id)).filter((p) => p.kind === "sale");

@@ -250,13 +250,17 @@ Uploaded images (product photos, logo, expense receipts).
 
 ## 3. Catalog (Phase 5)
 
-### categories, brands, units: Planned
-Lists used to organise products. All archived, never deleted.
-- `categories`: `name`, optional `parent_id` (same business).
+### categories, brands, units: Built (Phase 5, migration 0016)
+Lists used to organise products. Archived, never deleted (no DELETE grant).
+- `categories`: `name`, optional `parent_id` (same business, composite
+  key). One level deep (a parent never has a parent; service rule).
 - `brands`: `name`.
-- `units`: `name`, `code` (e.g. `pcs`, `m`), `allows_fraction` (cloth sold
-  by the metre: yes; shirts: no).
-- Names unique per business, ignoring case.
+- `units`: `name`, `code` (e.g. `pcs`, `m`; 1-10 letters, digits or dots),
+  `allows_fraction` (cloth by the metre: yes; shirts: no).
+- Names (and unit codes) unique per business ignoring case, also against
+  archived ones.
+- Every business starts with Piece (`pcs`, whole) and Metre (`m`,
+  fractions); existing businesses got them in migration 0016.
 
 ### products: Planned
 What the shop sells, before size/colour.
@@ -290,21 +294,25 @@ One row per physical unit of a serial-tracked product (IMEI).
 
 ---
 
-## 4. Tax (Phase 4)
+## 4. Tax (built in Phase 5, migration 0015)
 
-### tax_rates: Planned
-GST rates as data, never hardcoded (business rule 4).
-- Columns: `country_code`, `tax_category`, `label` (e.g. `TEST 5%`),
-  `rate` (`numeric(7,4)`), `price_min_paise` / `price_max_paise` per piece
-  (for clothing slabs, optional), `effective_from`, `effective_to`
-  (optional), `is_test`.
-- Rules: date ranges for the same category and price range may not overlap
-  (database exclusion constraint). A rate change is a new row; old invoices
-  keep the rate in their own line snapshot. Development uses only the
-  clearly labelled `TEST` rates until the accountant supplies real slabs
-  (open questions 1 and 2).
-- Proposed: global (the law is the same for every business), read-only for
-  the app, maintained by you. Review question R1.
+### tax_categories and tax_rates: Built
+GST rates as data, never hardcoded (business rule 4). Global (the law is
+the same for every business), read-only for the app; rows come only from
+reviewed migrations.
+- `tax_categories`: `code` (what a product points to), `label`, `is_test`.
+- `tax_rates`: `country_code`, `tax_category`, `label`, `rate`
+  (`numeric(7,4)` percent), optional `price_min_paise` / `price_max_paise`
+  per piece (clothing slabs; min inclusive, max exclusive),
+  `effective_from`, `effective_to` (exclusive, optional), `is_test`.
+- Rules: a test row is always labelled `TEST ...` and only test rows are
+  (database check). No two rates of a category may overlap in dates and
+  price range: checked by `tests/integration/tax-rates.test.ts` on every
+  run (a database exclusion constraint would need the `btree_gist`
+  extension, which the migration role cannot install). A rate change is a
+  new row; old invoices keep the rate in their own line snapshot.
+- Seeded: only `TEST 5%` (`test_5`) and `TEST 18%` (`test_18`) until the
+  accountant supplies real categories and slabs (open questions 1 and 2).
 
 ---
 

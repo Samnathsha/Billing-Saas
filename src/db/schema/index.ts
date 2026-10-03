@@ -2,5 +2,7 @@
 // when a module gets a schema.ts.
 export * from "@/modules/audit/schema";
 export * from "@/modules/auth/schema";
+export * from "@/modules/catalog/schema";
 export * from "@/modules/sync/schema";
+export * from "@/modules/tax/schema";
 export * from "@/modules/tenants/schema";

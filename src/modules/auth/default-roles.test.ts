@@ -15,6 +15,8 @@ const BLUEPRINT_5_3: Record<string, [string, boolean, boolean, boolean, boolean,
   "Manage users and roles": ["users.manage", true, true, false, false, false],
   "Business and tax settings": ["settings.manage", true, true, false, false, false],
   "Delete business or transfer ownership": ["business.delete", true, false, false, false, false],
+  // Not in the original table: owner decision 2026-10-02 (business rules 13).
+  "Manage products": ["products.manage", true, true, true, false, false],
 };
 const COLUMNS = ["Owner", "Admin", "Manager", "Cashier", "Accountant"] as const;
 

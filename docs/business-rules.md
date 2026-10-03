@@ -140,6 +140,20 @@ or tax advice; the accountant signs off before launch.
   after that, a change only applies from the next 1 April (enforced in Phase
   7, when bills exist).
 
+### 13. Catalog (owner decisions 2026-10-02, Phase 5)
+
+- **Cost price on a product variant** is a *starting cost*: typed by the
+  owner, used for opening stock and profit until real purchases (Phase 6)
+  take over with the weighted average cost (rule 7.3). Only roles with
+  "View cost price and profit" (Owner, Admin, Manager, Accountant) ever see
+  it; the server leaves it out for everyone else.
+- **New permission "Manage products"** (`products.manage`): create and edit
+  products, variants and barcodes, and the catalog lists. Given to Owner,
+  Admin and Manager (also added to existing businesses). Changing a selling
+  price still also needs "Change a selling price" (`prices.change`).
+- **Photos:** logo and product photos on Cloudflare R2 as the last step of
+  Phase 5; the owner creates the account then, keys only in `.env.local`.
+
 ## OPEN QUESTIONS FOR ACCOUNTANT
 
 Each question has the default the app will use until answered.

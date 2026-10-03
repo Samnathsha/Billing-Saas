@@ -14,6 +14,8 @@ import { createFullTestBusiness, type FullTestBusiness } from "../helpers/busine
 const TENANT_TABLES = [
   "audit_logs",
   "branches",
+  "brands",
+  "categories",
   "devices",
   "invitations",
   "memberships",
@@ -22,6 +24,7 @@ const TENANT_TABLES = [
   "settings",
   "subscriptions",
   "sync_operations",
+  "units",
 ] as const;
 type TenantTable = (typeof TENANT_TABLES)[number];
 

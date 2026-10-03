@@ -3,6 +3,8 @@ import pg from "pg";
 import {
   auditLogs,
   branches,
+  brands,
+  categories,
   devices,
   invitations,
   memberships,
@@ -12,6 +14,7 @@ import {
   subscriptions,
   syncOperations,
   tenants,
+  units,
 } from "@/db/schema";
 import { createTenantContext, withTenant, type TenantContext } from "@/db/with-tenant";
 
@@ -76,6 +79,9 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     sync_operations: randomUUID(),
     subscriptions: randomUUID(),
     invitations: randomUUID(),
+    categories: randomUUID(),
+    brands: randomUUID(),
+    units: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -94,6 +100,9 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     await tx
       .insert(memberships)
       .values({ id: id("memberships"), tenantId, userId: ctx.userId, roleId: id("roles") });
+    await tx.insert(categories).values({ id: id("categories"), tenantId, name: `${name} category` });
+    await tx.insert(brands).values({ id: id("brands"), tenantId, name: `${name} brand` });
+    await tx.insert(units).values({ id: id("units"), tenantId, name: "Piece", code: "pcs" });
     await tx.insert(invitations).values({
       id: id("invitations"),
       tenantId,

@@ -5,6 +5,7 @@ import type { TenantContext, TenantTx, UserTx } from "@/db/with-tenant";
 import {
   auditLogs,
   branches,
+  units,
   invitations,
   memberships,
   plans,
@@ -51,6 +52,11 @@ export async function insertBusiness(tx: TenantTx, ctx: TenantContext, input: Ne
   if (plan === undefined) throw new Error("no default plan");
   await tx.insert(subscriptions).values({ tenantId, planCode: plan.code, status: "active", createdBy: userId });
   await tx.insert(branches).values({ tenantId, name: "Main branch", createdBy: userId });
+  // Starting units (same as migration 0016 gave existing businesses).
+  await tx.insert(units).values([
+    { tenantId, name: "Piece", code: "pcs", allowsFraction: false, createdBy: userId },
+    { tenantId, name: "Metre", code: "m", allowsFraction: true, createdBy: userId },
+  ]);
 
   const roleIds = new Map<string, string>();
   for (const name of Object.keys(DEFAULT_ROLES)) {

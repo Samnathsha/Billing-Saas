@@ -222,7 +222,7 @@ exists because a test showed Better Auth's own check let a cross-site
   login unaffected. Uses a stand-in for the HIBP service
   (`tests/helpers/hibp.ts`), so tests never need the internet. Verified to
   fail if the plugin is removed.
-- `tests/integration/permissions.test.ts`: all 55 role/permission pairs of
+- `tests/integration/permissions.test.ts`: all 60 role/permission pairs of
   blueprint table 5.3 through `requirePermission`, the safe refusal, unknown
   codes, and that removing a permission, demoting or disabling a member,
   suspending the business, or pairing a user with another business's id is

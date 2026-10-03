@@ -229,7 +229,9 @@ describe("what can be invited", () => {
     const first = (await listStaff(shop.ctx)).invitations[0]?.id ?? "";
     await revokeInvitation(shop.ctx, { invitationId: first });
     expect(await codeOf(invite(shop.ctx, `now-fits-${shop.ctx.tenantId}@test.invalid`))).toBe("ok");
-  });
+    // 11 invitations one after another: about 27 s on the remote test
+    // database, too close to the default 30 s.
+  }, 90_000);
 });
 
 describe("who may manage staff", () => {

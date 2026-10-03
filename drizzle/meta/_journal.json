@@ -99,6 +99,27 @@
       "when": 1790971052796,
       "tag": "0013_invitations",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790980293360,
+      "tag": "0014_products_manage_permission",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790980349101,
+      "tag": "0015_tax_rates",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790980807004,
+      "tag": "0016_catalog_lists",
+      "breakpoints": true
     }
   ]
 }

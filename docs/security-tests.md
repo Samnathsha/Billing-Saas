@@ -9,7 +9,7 @@ test file in docs/auth.md).
 | Wrong-password flood | Per account: after 5 failures, growing wait (even with the right password). Per IP: 10 logins per minute. | `tests/integration/rate-limits.test.ts` |
 | User enumeration | Sign-up, login, password reset and resend-verification answer exactly the same for unknown, verified and unverified emails. | `tests/integration/enumeration.test.ts`, `rate-limits.test.ts` (lockout for unknown emails) |
 | Revoked session reused | Stops at once: ended device, log out everywhere, logout, idle and 12-hour timeout, role change or deactivation by an admin. | `my-sessions.test.ts`, `sessions.test.ts`, `members.test.ts` |
-| Cashier calls an owner-only action | `FORBIDDEN` before anything happens. All 55 role/permission pairs of table 5.3. | `permissions.test.ts`, `members.test.ts` |
+| Cashier calls an owner-only action | `FORBIDDEN` before anything happens. All 60 role/permission pairs of table 5.3. | `permissions.test.ts`, `members.test.ts` |
 | Tenant A uses Tenant B's session or ids | Forged session business is replaced by the real one; forged context gets no permission; B's members and roles are "not found" for A; database row security blocks every table. | `onboarding.test.ts`, `permissions.test.ts`, `members.test.ts`, `tests/isolation/*` |
 | Cross-site request (CSRF) | Any write without our Origin: `403`, on pages, API routes and login endpoints. | `src/lib/origin-check.test.ts`, `tests/e2e/origin-check.spec.ts`, `my-sessions.test.ts` |
 | Session token theft through page scripts | Cookie is HttpOnly; no endpoint returns other sessions' tokens. | `sessions.test.ts`, `my-sessions.test.ts` |

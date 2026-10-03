@@ -11,7 +11,7 @@ import * as repo from "./repo";
 // Only "Business and tax settings" (Owner, Admin) may read or change them
 // here. Every change is audited with the old and new values.
 
-export type SettingsErrorCode = "CHANGED_BY_SOMEONE_ELSE" | "NOT_FOUND" | "LOCKED_BY_PRODUCTS";
+export type SettingsErrorCode = "CHANGED_BY_SOMEONE_ELSE" | "NOT_FOUND" | "LOCKED_BY_PRODUCTS" | "PREFIX_LOCKED";
 
 export class SettingsError extends Error {
   constructor(public readonly code: SettingsErrorCode) {
@@ -20,7 +20,9 @@ export class SettingsError extends Error {
         ? "Someone else changed these settings meanwhile. Please reload the page and try again."
         : code === "LOCKED_BY_PRODUCTS"
           ? "This cannot be changed once products exist (it would change what every product and price means)."
-          : "Business settings were not found.",
+          : code === "PREFIX_LOCKED"
+            ? "Bills (or credit notes) have already been numbered with this prefix this financial year. It can be changed from 1 April."
+            : "Business settings were not found.",
     );
     this.name = "SettingsError";
   }
@@ -166,6 +168,15 @@ export async function updateBusinessProfile(
     // Open question 28: locked once products exist.
     if (input.pricesIncludeTax !== current.pricesIncludeTax && (await repo.hasProducts(tx))) {
       throw new SettingsError("LOCKED_BY_PRODUCTS");
+    }
+    // Business rules 12: a prefix is fixed once this year's series started.
+    const financialYear = financialYearLabel(financialYearStart(new Date(), current.timeZone, current.financialYearStartMonth), current.financialYearStartMonth);
+    const prefixChanges = [
+      { kind: "invoice", from: current.invoicePrefix, to: input.invoicePrefix },
+      { kind: "credit_note", from: current.creditNotePrefix, to: input.creditNotePrefix },
+    ].filter((c) => c.from !== c.to);
+    for (const change of prefixChanges) {
+      if (await repo.seriesStarted(tx, { kind: change.kind, prefix: change.from, financialYear })) throw new SettingsError("PREFIX_LOCKED");
     }
     const before: Record<string, unknown> = {};
     const after: Record<string, unknown> = {};

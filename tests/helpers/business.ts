@@ -6,10 +6,12 @@ import {
   branches,
   brands,
   categories,
+  customers,
   devices,
   files,
   idempotencyKeys,
   invitations,
+  invoiceSequences,
   memberships,
   partyLedgerEntries,
   products,
@@ -108,6 +110,8 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     purchases: randomUUID(),
     purchase_items: randomUUID(),
     supplier_payments: randomUUID(),
+    customers: randomUUID(),
+    invoice_sequences: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -211,6 +215,8 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
       sourceId: id("purchases"),
       createdBy: ctx.userId,
     });
+    await tx.insert(customers).values({ id: id("customers"), tenantId, name: `${name} customer`, phone: "98400 55555", creditLimitPaise: 100_000, createdBy: ctx.userId });
+    await tx.insert(invoiceSequences).values({ id: id("invoice_sequences"), tenantId, series: "invoice", prefix: "INV", financialYear: "26-27", lastNumber: 7 });
     await tx.insert(supplierPayments).values({
       id: id("supplier_payments"),
       tenantId,

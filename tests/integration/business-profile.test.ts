@@ -6,7 +6,7 @@ import { getDb } from "@/db/client";
 import { auditLogs, memberships, roles, settings } from "@/db/schema";
 import { withTenant, type TenantContext } from "@/db/with-tenant";
 import { createBusiness, getRequestContext, PermissionDeniedError } from "@/modules/auth";
-import { financialYearStart } from "@/modules/sales";
+import { financialYearStart, takeNextNumber } from "@/modules/sales";
 import { gstinCheckChar } from "@/modules/tax/gst";
 import { getBusinessProfile, SettingsError, updateBusinessProfile } from "@/modules/tenants";
 import { registerVerifiedUser } from "../helpers/auth";
@@ -209,6 +209,20 @@ describe("bill and credit-note prefixes", () => {
     const code = await codeOf(updateBusinessProfile(ctx, fullProfile(before.version, overrides)));
     expect(code.split(":")[1]?.split(",")).toContain(path);
     expect((await getBusinessProfile(ctx)).version).toBe(before.version);
+  });
+
+  it("are fixed once this year's first number is taken; the other series stays free (rule 12)", async () => {
+    const shop = await newShop("Prefix lock");
+    expect(await codeOf(updateBusinessProfile(shop, fullProfile(1, { invoicePrefix: "SHP" })))).toBe("ok");
+    const { financialYear } = await getBusinessProfile(shop);
+    await withTenant(shop, (tx) => takeNextNumber(tx, shop, { kind: "invoice", prefix: "SHP", financialYear }));
+    expect(await codeOf(updateBusinessProfile(shop, fullProfile(2, { invoicePrefix: "NEW" })))).toBe("PREFIX_LOCKED");
+    expect(await codeOf(updateBusinessProfile(shop, fullProfile(2, { invoicePrefix: "SHP", creditNotePrefix: "CR" })))).toBe("ok");
+    expect(await getBusinessProfile(shop)).toMatchObject({ invoicePrefix: "SHP", creditNotePrefix: "CR", version: 3 });
+    // A number from another year does not lock this year's prefix.
+    const other = await newShop("Prefix last year");
+    await withTenant(other, (tx) => takeNextNumber(tx, other, { kind: "invoice", prefix: "INV", financialYear: "20-21" }));
+    expect(await codeOf(updateBusinessProfile(other, fullProfile(1, { invoicePrefix: "NEW" })))).toBe("ok");
   });
 });
 

@@ -7,6 +7,7 @@ export * from "@/modules/files/schema";
 export * from "@/modules/inventory/schema";
 export * from "@/modules/parties/schema";
 export * from "@/modules/purchasing/schema";
+export * from "@/modules/sales/schema";
 export * from "@/modules/sync/schema";
 export * from "@/modules/tax/schema";
 export * from "@/modules/tenants/schema";

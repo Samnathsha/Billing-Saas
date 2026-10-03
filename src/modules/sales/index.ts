@@ -6,3 +6,4 @@ export {
   formatDocumentNumber,
   PREFIX_PATTERN,
 } from "./numbering";
+export { SeriesFullError, takeNextNumber } from "./sequence";

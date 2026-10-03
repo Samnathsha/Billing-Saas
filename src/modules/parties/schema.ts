@@ -3,7 +3,7 @@ import { bigint, check, foreignKey, index, pgTable, text, timestamp, unique, uni
 import { createdAtColumn, idColumn, mutableRowColumns, tenantIdColumn } from "@/db/columns";
 import { tenants } from "@/modules/tenants/schema";
 
-// Suppliers (Phase 6; customers come in Phase 7) and the party ledger:
+// Suppliers (Phase 6), customers (Phase 7) and the party ledger:
 // balances are never a stored number someone can edit, they are the sum of
 // these append-only rows (blueprint 6.2).
 
@@ -30,14 +30,45 @@ export const suppliers = pgTable(
   ],
 );
 
-// Positive amount = we owe the supplier more (a purchase); negative = less
-// (a payment, a void). Customer rows arrive in Phase 7.
+// Basic customers (business rules 15): enough for credit sales and GST
+// bills to registered buyers. Full profiles and payments come in Phase 8.
+export const customers = pgTable(
+  "customers",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    phone: text("phone"),
+    gstin: text("gstin"),
+    stateCode: text("state_code"),
+    // The most this customer may owe at any time; 0 = no credit.
+    creditLimitPaise: bigint("credit_limit_paise", { mode: "number" }).notNull().default(0),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...mutableRowColumns(),
+  },
+  (t) => [
+    unique("customers_tenant_id_id_key").on(t.tenantId, t.id),
+    // A phone number finds one customer at the till.
+    uniqueIndex("customers_tenant_phone_key").on(t.tenantId, t.phone),
+    check("customers_name_length", sql`char_length(${t.name}) between 1 and 200`),
+    check("customers_phone_format", sql`${t.phone} ~ '^[+0-9 -]{6,20}$'`),
+    check("customers_gstin_format", sql`${t.gstin} ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'`),
+    check("customers_state_code_format", sql`${t.stateCode} ~ '^[0-9]{2}$'`),
+    check("customers_gstin_matches_state", sql`${t.gstin} IS NULL OR (${t.stateCode} IS NOT NULL AND left(${t.gstin}, 2) = ${t.stateCode})`),
+    check("customers_credit_limit", sql`${t.creditLimitPaise} between 0 and 100000000000`),
+  ],
+);
+
+// Suppliers: positive amount = we owe the supplier more (a purchase);
+// negative = less (a payment, a void). Customers: positive = the customer
+// owes us more (a credit sale); negative = less (a payment, a void).
 export const partyLedgerEntries = pgTable(
   "party_ledger_entries",
   {
     id: idColumn(),
     tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
     supplierId: uuid("supplier_id"),
+    customerId: uuid("customer_id"),
     entryType: text("entry_type").notNull(),
     amountPaise: bigint("amount_paise", { mode: "number" }).notNull(),
     sourceType: text("source_type").notNull(),
@@ -51,8 +82,11 @@ export const partyLedgerEntries = pgTable(
     // One entry per source and type: a retry cannot book twice.
     unique("party_ledger_entries_source_key").on(t.tenantId, t.sourceType, t.sourceId, t.entryType),
     index("party_ledger_entries_supplier_idx").on(t.tenantId, t.supplierId, t.createdAt),
+    index("party_ledger_entries_customer_idx").on(t.tenantId, t.customerId, t.createdAt),
+    foreignKey({ name: "party_ledger_entries_customer_fk", columns: [t.tenantId, t.customerId], foreignColumns: [customers.tenantId, customers.id] }).onDelete("restrict"),
     foreignKey({ name: "party_ledger_entries_supplier_fk", columns: [t.tenantId, t.supplierId], foreignColumns: [suppliers.tenantId, suppliers.id] }).onDelete("restrict"),
-    check("party_ledger_entries_party", sql`${t.supplierId} IS NOT NULL`),
+    // Exactly one party per row.
+    check("party_ledger_entries_party", sql`(${t.supplierId} IS NULL) <> (${t.customerId} IS NULL)`),
     check(
       "party_ledger_entries_type_valid",
       sql`${t.entryType} in ('opening', 'invoice', 'payment', 'return', 'purchase', 'purchase_return', 'adjustment', 'void_reversal')`,

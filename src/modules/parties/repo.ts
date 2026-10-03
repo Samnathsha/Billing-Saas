@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
-import { auditLogs, memberships, partyLedgerEntries, roles, suppliers } from "@/db/schema";
+import { auditLogs, customers, memberships, partyLedgerEntries, roles, suppliers } from "@/db/schema";
 
 // Database queries of the parties module, inside the caller's transaction.
 
@@ -106,8 +106,10 @@ export async function ledgerOf(tx: TenantTx, supplierId: string) {
 }
 
 export interface LedgerEntryValues {
-  supplierId: string;
-  entryType: "opening" | "purchase" | "payment" | "void_reversal";
+  // Exactly one of the two (database check).
+  supplierId?: string;
+  customerId?: string;
+  entryType: "opening" | "purchase" | "invoice" | "payment" | "void_reversal";
   amountPaise: number;
   sourceType: string;
   sourceId: string;
@@ -135,4 +137,75 @@ export async function addAuditEntry(
     .innerJoin(roles, and(eq(roles.tenantId, memberships.tenantId), eq(roles.id, memberships.roleId)))
     .where(eq(memberships.userId, ctx.userId));
   await tx.insert(auditLogs).values({ tenantId: ctx.tenantId, actorUserId: ctx.userId, actorRole: role?.name ?? "unknown", ...entry });
+}
+
+// Customers.
+
+export interface CustomerValues {
+  name: string;
+  phone: string | null;
+  gstin: string | null;
+  stateCode: string | null;
+  creditLimitPaise: number;
+}
+
+export async function customerPhoneTaken(tx: TenantTx, phone: string, exceptId: string | null): Promise<boolean> {
+  const rows = await tx.select({ id: customers.id }).from(customers).where(eq(customers.phone, phone));
+  return rows.some((r) => r.id !== exceptId);
+}
+
+export async function insertCustomer(tx: TenantTx, ctx: TenantContext, values: CustomerValues): Promise<string> {
+  const [row] = await tx
+    .insert(customers)
+    .values({ tenantId: ctx.tenantId, createdBy: ctx.userId, ...values })
+    .returning({ id: customers.id });
+  if (row === undefined) throw new Error("customer insert returned nothing");
+  return row.id;
+}
+
+const customerBalance = sql<string>`coalesce((SELECT sum(e.amount_paise) FROM party_ledger_entries e WHERE e.customer_id = customers.id), 0)::text`;
+
+const customerColumns = {
+  id: customers.id,
+  name: customers.name,
+  phone: customers.phone,
+  gstin: customers.gstin,
+  stateCode: customers.stateCode,
+  creditLimitPaise: customers.creditLimitPaise,
+  archivedAt: customers.archivedAt,
+  version: customers.version,
+  balancePaise: customerBalance,
+};
+
+// Locks the customer row until the end of the transaction: two credit sales
+// to the same customer are checked one after the other.
+export async function lockCustomer(tx: TenantTx, id: string) {
+  const [row] = await tx.select(customerColumns).from(customers).where(eq(customers.id, id)).for("update");
+  return row;
+}
+
+export async function updateCustomer(
+  tx: TenantTx,
+  row: { id: string; version: number },
+  values: Partial<CustomerValues> & { archivedAt?: Date | null },
+): Promise<void> {
+  await tx
+    .update(customers)
+    .set({ ...values, version: row.version + 1 })
+    .where(eq(customers.id, row.id));
+}
+
+export async function listCustomers(tx: TenantTx, filter: { includeArchived: boolean; q: string | null }) {
+  const conditions = [];
+  if (!filter.includeArchived) conditions.push(sql`${customers.archivedAt} IS NULL`);
+  if (filter.q !== null) {
+    const pattern = `%${filter.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    conditions.push(sql`(${customers.name} ILIKE ${pattern} OR ${customers.phone} ILIKE ${pattern} OR ${customers.gstin} ILIKE ${pattern})`);
+  }
+  return tx
+    .select(customerColumns)
+    .from(customers)
+    .where(and(...conditions))
+    .orderBy(sql`lower(${customers.name})`)
+    .limit(200);
 }

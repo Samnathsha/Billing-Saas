@@ -331,3 +331,12 @@ Each question has the default the app will use until answered.
 38. **Discount limit check:** the cashier's limit (5%) applies to the whole
     bill's discount and also to each line's own discount, both measured
     against the price before discount. DEFAULT, owner to confirm.
+39. **Who may give credit:** anyone who sells may add a customer at the
+    till, but only roles with "Discount above limit" (Manager, Admin,
+    Owner) may set or change a customer's credit limit or archive a
+    customer. A customer may not owe more than their limit after a sale.
+    DEFAULT, owner to confirm.
+40. **Bill prefix after the first bill:** once this financial year's first
+    bill (or credit note) has a number, its prefix cannot be changed until
+    the next 1 April; the change is refused with that message (simpler
+    than a change "scheduled" for April). DEFAULT, owner to confirm.

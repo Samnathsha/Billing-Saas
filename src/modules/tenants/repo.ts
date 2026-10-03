@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
-import { auditLogs, branches, memberships, products, roles, settings, tenants } from "@/db/schema";
+import { auditLogs, branches, invoiceSequences, memberships, products, roles, settings, tenants } from "@/db/schema";
 
 // Database queries of the tenants module. Everything runs inside the
 // caller's withTenant transaction; row-level security limits it to the
@@ -169,4 +169,15 @@ export async function hasProducts(tx: TenantTx): Promise<boolean> {
 
 export async function setTemplate(tx: TenantTx, ctx: TenantContext, template: "clothing" | "mobile"): Promise<void> {
   await tx.update(tenants).set({ template }).where(eq(tenants.id, ctx.tenantId));
+}
+
+// Has this series issued a number in this financial year? (Business rules
+// 12: a prefix is locked after the year's first bill.)
+export async function seriesStarted(tx: TenantTx, series: { kind: string; prefix: string; financialYear: string }): Promise<boolean> {
+  const rows = await tx
+    .select({ id: invoiceSequences.id })
+    .from(invoiceSequences)
+    .where(and(eq(invoiceSequences.series, series.kind), eq(invoiceSequences.prefix, series.prefix), eq(invoiceSequences.financialYear, series.financialYear)))
+    .limit(1);
+  return rows.length > 0;
 }

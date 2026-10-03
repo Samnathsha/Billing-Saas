@@ -204,6 +204,13 @@
       "when": 1791019451950,
       "tag": "0028_stock_movement_order",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791039294018,
+      "tag": "0029_customers_and_bill_numbers",
+      "breakpoints": true
     }
   ]
 }

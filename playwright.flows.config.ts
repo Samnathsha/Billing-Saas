@@ -12,6 +12,10 @@ export default defineConfig({
   globalSetup: "./tests/flows/global-setup.ts",
   workers: 1,
   reporter: "list",
+  // The dev server compiles each page on its first visit, which can take
+  // well over the default 5 s on a busy machine; this waits for screens to
+  // appear, it does not loosen any check.
+  expect: { timeout: 20_000 },
   use: { baseURL: `http://localhost:${String(PORT)}`, trace: "retain-on-failure" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {

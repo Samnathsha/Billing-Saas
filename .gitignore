@@ -52,3 +52,6 @@ next-env.d.ts
 
 # Personal Claude Code settings (permissions on this computer only)
 /.claude/settings.local.json
+
+# Local stand-in for private file storage (R2 in production)
+/.local-files/

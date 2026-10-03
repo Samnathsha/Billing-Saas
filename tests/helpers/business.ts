@@ -7,6 +7,7 @@ import {
   brands,
   categories,
   devices,
+  files,
   invitations,
   memberships,
   products,
@@ -90,6 +91,7 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     product_variants: randomUUID(),
     barcodes: randomUUID(),
     serial_numbers: randomUUID(),
+    files: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -128,6 +130,18 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     });
     await tx.insert(barcodes).values({ id: id("barcodes"), tenantId, variantId: id("product_variants"), code: "8901234567890" });
     await tx.insert(serialNumbers).values({ id: id("serial_numbers"), tenantId, variantId: id("product_variants"), serial: "356938035643809", branchId });
+    await tx.insert(files).values({
+      id: id("files"),
+      tenantId,
+      purpose: "product_image",
+      productId: id("products"),
+      storageKey: `${tenantId}/${id("files")}.webp`,
+      contentType: "image/webp",
+      sizeBytes: 100,
+      width: 10,
+      height: 10,
+      sha256: "0".repeat(64),
+    });
     await tx.insert(invitations).values({
       id: id("invitations"),
       tenantId,

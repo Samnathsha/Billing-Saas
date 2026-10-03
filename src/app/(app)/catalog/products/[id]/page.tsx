@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArchiveButton, BarcodeForms, PriceForm } from "@/components/forms/variant-forms";
+import { ImageUploadForm, RemoveImageButton } from "@/components/forms/image-upload-form";
 import { NotAllowed } from "@/components/not-allowed";
+import { listImages } from "@/modules/files";
+import { removeImageAction, uploadProductImageAction } from "@/app/(app)/files/actions";
 import { formatPaise, paiseToRupeesText } from "@/lib/money";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
 import { getProduct, ProductError, type ProductDto } from "@/modules/catalog";
@@ -23,6 +27,7 @@ export default async function ProductPage({ params }: PageProps<"/catalog/produc
     if (error instanceof ProductError || (error instanceof Error && error.name === "ZodError")) notFound();
     throw error;
   }
+  const images = (await listImages(who.ctx, { productId: product.id })).productImageIds;
   const canPrice = who.permissions.includes("prices.change");
   const canManage = who.permissions.includes("products.manage");
   const showCost = product.variants.some((v) => "costPricePaise" in v);
@@ -42,6 +47,17 @@ export default async function ProductPage({ params }: PageProps<"/catalog/produc
         {product.warrantyMonths !== null ? ` · warranty ${String(product.warrantyMonths)} months` : ""}
         {product.attributes.model !== undefined ? ` · model ${product.attributes.model}` : ""}
       </p>
+      <section className="flex flex-col gap-2" aria-label="Photos">
+        <div className="flex flex-wrap gap-3">
+          {images.map((fileId) => (
+            <div key={fileId} className="flex flex-col items-center gap-1">
+                <Image src={`/api/files/${fileId}`} alt={product.name} width={96} height={96} unoptimized className="h-24 w-24 rounded border object-cover" />
+              {canManage ? <RemoveImageButton fileId={fileId} hidden={{ returnTo: `/catalog/products/${product.id}` }} action={removeImageAction} /> : null}
+            </div>
+          ))}
+        </div>
+        {canManage ? <ImageUploadForm label="Add photo" hidden={{ productId: product.id }} action={uploadProductImageAction} /> : null}
+      </section>
       <ul className="flex flex-col divide-y rounded-lg border" aria-label="Variants">
         {product.variants.map((v) => (
           <li key={`${v.id}-${String(v.version)}`} className="flex flex-col gap-2 p-3" aria-label={v.sku}>

@@ -18,6 +18,7 @@ const TENANT_TABLES = [
   "brands",
   "categories",
   "devices",
+  "files",
   "invitations",
   "memberships",
   "product_variants",

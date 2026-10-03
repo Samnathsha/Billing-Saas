@@ -53,6 +53,53 @@ rule covers every `*.service.ts`).
 - Changing the unit or IMEI tracking after creation is not offered yet
   (open question 31: locked once stock exists, Phase 6).
 
+## Barcodes and search (step 5.3)
+
+- A barcode is unique among active barcodes of a business: a scan finds
+  exactly one item. Removing archives it and frees the code. Several per
+  variant allowed.
+- Search (Products page): name contains (any case), SKU starts with, or
+  exact barcode; LIKE wildcards are matched literally; 50 per page. A
+  scanned barcode in the search box opens its item directly.
+
+## CSV import (step 5.4): `/catalog/import`
+
+- One line per variant; lines with the same product name form one product
+  (product-level columns must agree across its lines).
+- Required columns: `product_name, unit, tax, sku, selling_price`.
+  Optional: `category, brand, hsn, size, colour, fabric, model, ram,
+  storage, warranty_months, track_imei, mrp, cost, reorder_level, barcode`.
+  Prices in rupees. Unit = unit code; tax = rate code or name.
+- Categories, brands and units must exist (never created by an import).
+- All or nothing: every line is checked first (also against SKUs and
+  barcodes already in use); any problem = nothing imported and every
+  problem listed with its line. Otherwise all products are created in one
+  transaction, each audited as `product.created`, plus `product.imported`.
+- Limits: 2 MB, 2,000 lines.
+
+## Serial numbers and shop type (step 5.6)
+
+- `serial_numbers` (IMEI per unit): structure only; filled by purchases in
+  Phase 6, changed by sales and returns.
+- Shop type (clothing / mobile): changeable on Business settings only while
+  no product exists. "Prices include GST" locks at the same moment (open
+  question 28).
+
+## Logo and product photos (step 5.5)
+
+- PNG, JPEG or WebP only, judged by content (first bytes and a real
+  decode); at most 2 MB; re-encoded to WebP (strips metadata such as GPS,
+  and anything appended), at most 1600 x 1600. A renamed `.exe` is refused.
+- Stored privately under a random business-prefixed key; viewed only at
+  `/api/files/<id>` by logged-in members of the same business.
+- Logo: one at a time (Business and tax settings). Product photos: up to 8
+  per product (Manage products). Audited.
+- Storage today: a local folder `.local-files/` (git-ignored) standing in
+  for Cloudflare R2. **To switch to R2 (owner):** create the Cloudflare
+  account and an R2 bucket, create an API token for that bucket only, put
+  the keys in `.env.local` (never in chat), then the R2 adapter replaces
+  the two functions in `src/modules/files/store.ts`.
+
 ## Tests
 
 - `tests/integration/tax-rates.test.ts`: only TEST rates, no overlapping
@@ -74,6 +121,16 @@ rule covers every `*.service.ts`).
   other businesses, database checks. Verified to fail if the cost is shown
   to everyone, the wrong permission may change prices, price changes are
   not audited, or identical variants are allowed.
-- `tests/isolation/*`: categories, brands, units, products and variants
-  attacked like every
+- `tests/integration/catalog-search.test.ts`: barcodes and search
+  (verified to fail without wildcard escaping).
+- `src/modules/catalog/csv.test.ts`, `csv-import.test.ts`,
+  `tests/integration/catalog-import.test.ts`: CSV reading, a 500-line file,
+  one bad line of 500 imports nothing (verified to fail without the
+  all-or-nothing rule), clashes, cashier refused.
+- `tests/integration/shop-type.test.ts`: switching and the locks.
+- `src/modules/files/images.test.ts`, `tests/integration/files.test.ts`:
+  renamed .exe, fake PNG, SVG/GIF, oversized, metadata stripped, resize;
+  logo and photos, permissions, other businesses, per-product limit.
+- `tests/isolation/*`: categories, brands, units, products, variants,
+  barcodes, serial numbers and files attacked like every
   tenant table; tax tables and catalog lists out of the login role's reach.

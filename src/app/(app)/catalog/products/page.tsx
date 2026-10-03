@@ -35,6 +35,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/catalog
         {canManage ? (
           <div className="flex gap-3 text-sm">
             <Link href="/catalog/lists" className="underline">Categories, brands, units</Link>
+            <Link href="/catalog/import" className="underline">Import CSV</Link>
             <Link href="/catalog/products/new" className="underline">New product</Link>
           </div>
         ) : null}

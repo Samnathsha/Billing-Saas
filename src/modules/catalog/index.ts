@@ -20,6 +20,8 @@ export {
   createProduct,
   createProductInput,
   getProduct,
+  ImportError,
+  importProductsCsv,
   listProducts,
   ProductError,
   setProductArchived,

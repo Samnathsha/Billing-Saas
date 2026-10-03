@@ -369,3 +369,17 @@ export async function archiveBarcode(tx: TenantTx, row: { id: string; version: n
 export async function listTaxCategories(tx: TenantTx) {
   return tx.select({ code: taxCategories.code, label: taxCategories.label }).from(taxCategories).orderBy(asc(taxCategories.label));
 }
+
+// Active list items for the CSV import, keyed by lower-case name / code.
+export async function importLookups(tx: TenantTx) {
+  const cats = await tx.select({ id: categories.id, name: categories.name }).from(categories).where(isNull(categories.archivedAt));
+  const brs = await tx.select({ id: brands.id, name: brands.name }).from(brands).where(isNull(brands.archivedAt));
+  const uns = await tx.select({ id: units.id, code: units.code }).from(units).where(isNull(units.archivedAt));
+  const taxes = await tx.select({ code: taxCategories.code, label: taxCategories.label }).from(taxCategories);
+  return {
+    categories: new Map(cats.map((c) => [c.name.toLowerCase(), c.id])),
+    brands: new Map(brs.map((b) => [b.name.toLowerCase(), b.id])),
+    units: new Map(uns.map((u) => [u.code.toLowerCase(), u.id])),
+    taxCategories: new Map(taxes.flatMap((t) => [[t.code.toLowerCase(), t.code], [t.label.toLowerCase(), t.code]] as [string, string][])),
+  };
+}

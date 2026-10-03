@@ -2,6 +2,8 @@ import "server-only";
 import { z } from "zod";
 import { withTenant, type TenantContext, type TenantTx } from "@/db/with-tenant";
 import { hasPermission, PermissionDeniedError, requirePermission, type Permission } from "@/modules/auth";
+import { parseCsv } from "./csv";
+import { MAX_BYTES, readProductRows, type RowError } from "./csv-import";
 import * as repo from "./repo";
 import { attributesSchema, orderedAttributes, variantKey, variantLabel, type Attributes, type Template } from "./templates";
 
@@ -318,51 +320,71 @@ export async function listProducts(
 // Writing.
 // ---------------------------------------------------------------------------
 
+export type CreateProductInput = z.infer<typeof createProductInput>;
+
+// Checks and inserts one product with its variants (and barcodes) inside
+// the caller's transaction: used by createProduct and by the CSV import,
+// which puts every product of a file into ONE transaction.
+async function insertCheckedProduct(
+  tx: TenantTx,
+  ctx: TenantContext,
+  input: CreateProductInput,
+  barcodesByVariant: readonly (readonly string[])[] = [],
+): Promise<string> {
+  const template = await repo.businessTemplate(tx);
+  const attributes = parseAttributes(template, "product", input.attributes, "attributes");
+  const variants = input.variants.map((v, i) => ({ ...v, attributes: parseAttributes(template, "variant", v.attributes, `variants.${String(i)}`) }));
+  await checkProductReferences(tx, input);
+  if (input.trackSerial && (await repo.unitAllowsFraction(tx, input.unitId)) !== false) {
+    throw new ProductError("SERIAL_NEEDS_WHOLE_UNIT");
+  }
+  const keys = variants.map((v) => variantKey(v.attributes));
+  if (new Set(keys).size !== keys.length) throw new ProductError("DUPLICATE_VARIANT");
+  await checkSkusFree(tx, variants.map((v) => v.sku), null);
+
+  const productId = await repo.insertProduct(tx, ctx, {
+    name: input.name,
+    categoryId: input.categoryId ?? null,
+    brandId: input.brandId ?? null,
+    unitId: input.unitId,
+    hsnCode: input.hsnCode ?? null,
+    taxCategory: input.taxCategory,
+    attributes,
+    trackSerial: input.trackSerial,
+    warrantyMonths: input.warrantyMonths ?? null,
+  });
+  for (const [position, v] of variants.entries()) {
+    const variantId = await repo.insertVariant(tx, ctx, productId, {
+      position,
+      sku: v.sku,
+      attributes: v.attributes,
+      sellingPricePaise: v.sellingPricePaise,
+      mrpPaise: v.mrpPaise ?? null,
+      costPricePaise: v.costPricePaise ?? null,
+      reorderLevel: v.reorderLevel ?? "0",
+    });
+    for (const code of barcodesByVariant[position] ?? []) {
+      if ((await repo.findActiveBarcode(tx, code)) !== undefined) throw new ProductError("BARCODE_TAKEN", code);
+      await repo.insertBarcode(tx, ctx, variantId, code);
+    }
+  }
+  await audit(tx, ctx, "product.created", "product", productId, null, { name: input.name, variants });
+  return productId;
+}
+
 export async function createProduct(ctx: TenantContext, rawInput: unknown): Promise<ProductDto> {
   await requirePermission(ctx, "products.manage");
   // Setting the first prices is setting a price.
   await requirePermission(ctx, "prices.change");
   const input = createProductInput.parse(rawInput);
   await requireCostRight(ctx, input.variants.some((v) => isSet(v.costPricePaise)));
+  const showCost = await hasPermission(ctx, "costs.view");
 
   return withTenant(ctx, async (tx) => {
-    const template = await repo.businessTemplate(tx);
-    const attributes = parseAttributes(template, "product", input.attributes, "attributes");
-    const variants = input.variants.map((v, i) => ({ ...v, attributes: parseAttributes(template, "variant", v.attributes, `variants.${String(i)}`) }));
-    await checkProductReferences(tx, input);
-    if (input.trackSerial && (await repo.unitAllowsFraction(tx, input.unitId)) !== false) {
-      throw new ProductError("SERIAL_NEEDS_WHOLE_UNIT");
-    }
-    const keys = variants.map((v) => variantKey(v.attributes));
-    if (new Set(keys).size !== keys.length) throw new ProductError("DUPLICATE_VARIANT");
-    await checkSkusFree(tx, variants.map((v) => v.sku), null);
-
-    const productId = await repo.insertProduct(tx, ctx, {
-      name: input.name,
-      categoryId: input.categoryId ?? null,
-      brandId: input.brandId ?? null,
-      unitId: input.unitId,
-      hsnCode: input.hsnCode ?? null,
-      taxCategory: input.taxCategory,
-      attributes,
-      trackSerial: input.trackSerial,
-      warrantyMonths: input.warrantyMonths ?? null,
-    });
-    for (const [position, v] of variants.entries()) {
-      await repo.insertVariant(tx, ctx, productId, {
-        position,
-        sku: v.sku,
-        attributes: v.attributes,
-        sellingPricePaise: v.sellingPricePaise,
-        mrpPaise: v.mrpPaise ?? null,
-        costPricePaise: v.costPricePaise ?? null,
-        reorderLevel: v.reorderLevel ?? "0",
-      });
-    }
-    await audit(tx, ctx, "product.created", "product", productId, null, { name: input.name, variants });
+    const productId = await insertCheckedProduct(tx, ctx, input);
     const created = await repo.getProduct(tx, productId);
     if (created === undefined) throw new Error("created product not found");
-    return toProductDto(created, await repo.variantsOf(tx, [productId]), template, await hasPermission(ctx, "costs.view"), []);
+    return toProductDto(created, await repo.variantsOf(tx, [productId]), await repo.businessTemplate(tx), showCost, []);
   });
 }
 
@@ -558,5 +580,107 @@ export async function findByBarcode(
   return withTenant(ctx, async (tx) => {
     const found = await repo.findActiveBarcode(tx, code);
     return found === undefined ? null : { productId: found.productId, variantId: found.variantId };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CSV import: all or nothing.
+// ---------------------------------------------------------------------------
+
+export class ImportError extends Error {
+  constructor(public readonly errors: RowError[]) {
+    super(`The file has ${String(errors.length)} problem(s); nothing was imported.`);
+    this.name = "ImportError";
+  }
+}
+
+export const importProductsInput = z.strictObject({
+  csv: z.string().min(1, { error: "Choose a CSV file." }).max(MAX_BYTES, { error: "The file is larger than 2 MB." }),
+});
+
+// Every line is checked first; if any line has a problem, nothing is
+// imported and every problem is reported with its line. Otherwise all
+// products are created in ONE transaction (any failure undoes all of it),
+// each checked and audited exactly as when created by hand.
+export async function importProductsCsv(ctx: TenantContext, rawInput: unknown): Promise<{ products: number; variants: number }> {
+  await requirePermission(ctx, "products.manage");
+  await requirePermission(ctx, "prices.change");
+  const { csv } = importProductsInput.parse(rawInput);
+  let table: string[][];
+  try {
+    table = parseCsv(csv);
+  } catch {
+    throw new ImportError([{ row: 0, column: "", message: "The file could not be read as CSV (a quote is not closed)." }]);
+  }
+  const showCost = await hasPermission(ctx, "costs.view");
+
+  return withTenant(ctx, async (tx) => {
+    const template = await repo.businessTemplate(tx);
+    const { products, errors, hasCost } = readProductRows(table, { template, ...(await repo.importLookups(tx)) });
+    if (hasCost && !showCost) throw new PermissionDeniedError("costs.view");
+
+    // Rules that need the database or the full product shape.
+    const allSkus = products.flatMap((p) => p.variants.map((v) => v.sku)).filter((x) => x !== "");
+    const taken = new Set((await repo.takenSkus(tx, allSkus, null)).map((x) => x.toLowerCase()));
+    const inputs: { input: CreateProductInput; codes: string[][] }[] = [];
+    // Lines that already failed to read are not checked again (one clear
+    // message per problem).
+    const unreadable = new Set(errors.map((e) => e.row));
+    for (const p of products) {
+      if (p.variants.some((v) => unreadable.has(v.row))) continue;
+      for (const v of p.variants) {
+        if (taken.has(v.sku.toLowerCase())) errors.push({ row: v.row, column: "sku", message: "This SKU is already used by another item." });
+        if (v.barcode !== null && (await repo.findActiveBarcode(tx, v.barcode)) !== undefined) {
+          errors.push({ row: v.row, column: "barcode", message: "This barcode is already on another item." });
+        }
+      }
+      const candidate = {
+        name: p.name,
+        categoryId: p.categoryId,
+        brandId: p.brandId,
+        unitId: p.unitId,
+        hsnCode: p.hsnCode,
+        taxCategory: p.taxCategory,
+        attributes: p.attributes,
+        trackSerial: p.trackSerial,
+        warrantyMonths: p.warrantyMonths,
+        variants: p.variants.map((v) => ({
+          sku: v.sku,
+          attributes: v.attributes,
+          sellingPricePaise: v.sellingPricePaise,
+          mrpPaise: v.mrpPaise,
+          costPricePaise: v.costPricePaise,
+          reorderLevel: v.reorderLevel,
+        })),
+      };
+      const parsed = createProductInput.safeParse(candidate);
+      const issues = parsed.success ? [] : parsed.error.issues;
+      for (const issue of issues) {
+        const [first, index, field] = issue.path;
+        const variant = first === "variants" && typeof index === "number" ? p.variants[index] : undefined;
+        errors.push({ row: variant?.row ?? p.row, column: String(variant === undefined ? (first ?? "") : (field ?? "")), message: issue.message });
+      }
+      for (const v of p.variants) {
+        const attrs = attributesSchema(template, "variant").safeParse(v.attributes);
+        if (!attrs.success) errors.push({ row: v.row, column: "", message: attrs.error.issues[0]?.message ?? "Invalid fields." });
+      }
+      if (template === "mobile" && !attributesSchema("mobile", "product").safeParse(p.attributes).success) {
+        errors.push({ row: p.row, column: "model", message: "Enter the model." });
+      }
+      const keys = p.variants.map((v) => variantKey(v.attributes));
+      if (new Set(keys).size !== keys.length) {
+        errors.push({ row: p.row, column: "", message: "Two lines of this product have the same size/colour details." });
+      }
+      if (parsed.success) inputs.push({ input: parsed.data, codes: p.variants.map((v) => (v.barcode === null ? [] : [v.barcode])) });
+    }
+    if (errors.length > 0) throw new ImportError(errors.sort((a, b) => a.row - b.row).slice(0, 200));
+
+    let variants = 0;
+    for (const { input, codes } of inputs) {
+      await insertCheckedProduct(tx, ctx, input, codes);
+      variants += input.variants.length;
+    }
+    await audit(tx, ctx, "product.imported", "product", ctx.tenantId, null, { products: inputs.length, variants });
+    return { products: inputs.length, variants };
   });
 }

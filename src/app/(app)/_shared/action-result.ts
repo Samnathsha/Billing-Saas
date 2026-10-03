@@ -6,6 +6,8 @@ import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
 import { InventoryError, StockError } from "@/modules/inventory";
 import { PartyError } from "@/modules/parties";
 import { PurchaseError } from "@/modules/purchasing";
+import { SalesError, SeriesFullError } from "@/modules/sales";
+import { TaxRateError } from "@/modules/tax";
 import { IdempotencyError } from "@/modules/sync";
 
 // Shared by the stock, supplier and purchase screen actions. Who and which
@@ -44,6 +46,9 @@ export function errorMessage(error: unknown, names?: Map<string, string>): strin
   if (
     error instanceof InventoryError ||
     error instanceof PurchaseError ||
+    error instanceof SalesError ||
+    error instanceof SeriesFullError ||
+    error instanceof TaxRateError ||
     error instanceof PartyError ||
     error instanceof IdempotencyError ||
     error instanceof PermissionDeniedError

@@ -112,7 +112,7 @@ export interface InvoiceDto {
   invoiceDate: string;
   status: "posted" | "voided";
   branchId: string;
-  seller: { name: string; gstin: string | null; stateCode: string; gstRegistration: string };
+  seller: { name: string; address: string | null; gstin: string | null; stateCode: string; gstRegistration: string };
   buyer: { customerId: string | null; name: string | null; phone: string | null; address: string | null; gstin: string | null };
   placeOfSupply: string;
   interState: boolean;
@@ -169,6 +169,14 @@ function addMonths(day: string, months: number): string {
   const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
   target.setUTCDate(Math.min(d, last));
   return target.toISOString().slice(0, 10);
+}
+
+// "12 Market Road, Near Bus Stand, Chennai 600001 · Phone +91 98400 00000"
+function sellerAddress(b: { addressLine1: string | null; addressLine2: string | null; city: string | null; pincode: string | null; phone: string | null }): string | null {
+  const place = [b.city, b.pincode].filter((p): p is string => p !== null && p !== "").join(" ");
+  const address = [b.addressLine1, b.addressLine2, place].filter((p): p is string => p !== null && p !== "").join(", ");
+  const text = [address, b.phone === null || b.phone === "" ? "" : `Phone ${b.phone}`].filter((p) => p !== "").join(" · ");
+  return text === "" ? null : text;
 }
 
 const isUniqueViolation = (error: unknown): boolean => {
@@ -265,6 +273,7 @@ export async function createSale(ctx: TenantContext, rawInput: unknown): Promise
         sequenceNumber: number.number,
         invoiceDate,
         sellerName: business.businessName,
+        sellerAddress: sellerAddress(business),
         sellerGstin: business.gstin,
         sellerStateCode: business.stateCode,
         gstRegistration: business.gstRegistration,
@@ -432,7 +441,7 @@ async function readInvoice(tx: TenantTx, invoiceId: string, showCost: boolean): 
     invoiceDate: row.invoiceDate,
     status: row.status === "voided" ? "voided" : "posted",
     branchId: row.branchId,
-    seller: { name: row.sellerName, gstin: row.sellerGstin, stateCode: row.sellerStateCode, gstRegistration: row.gstRegistration },
+    seller: { name: row.sellerName, address: row.sellerAddress, gstin: row.sellerGstin, stateCode: row.sellerStateCode, gstRegistration: row.gstRegistration },
     buyer: { customerId: row.customerId, name: row.buyerName, phone: row.buyerPhone, address: row.buyerAddress, gstin: row.buyerGstin },
     placeOfSupply: row.placeOfSupply,
     interState: row.interState,

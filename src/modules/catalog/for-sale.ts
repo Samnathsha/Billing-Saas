@@ -14,6 +14,7 @@ export interface VariantForSale {
   sku: string;
   hsnCode: string | null;
   unitCode: string;
+  allowsFraction: boolean;
   trackSerial: boolean;
   warrantyMonths: number | null;
   taxCategory: string;
@@ -34,6 +35,7 @@ export async function variantsForSale(tx: TenantTx, variantIds: string[]): Promi
         sku: r.sku,
         hsnCode: r.hsnCode,
         unitCode: r.unitCode,
+        allowsFraction: r.allowsFraction,
         trackSerial: r.trackSerial,
         warrantyMonths: r.warrantyMonths,
         taxCategory: r.taxCategory,

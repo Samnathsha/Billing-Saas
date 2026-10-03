@@ -461,6 +461,7 @@ export async function variantsForSale(tx: TenantTx, ids: string[]) {
       sku: productVariants.sku,
       hsnCode: products.hsnCode,
       unitCode: units.code,
+      allowsFraction: units.allowsFraction,
       trackSerial: products.trackSerial,
       warrantyMonths: products.warrantyMonths,
       taxCategory: products.taxCategory,

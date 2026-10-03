@@ -32,6 +32,11 @@ export async function saleSettings(tx: TenantTx) {
   const [row] = await tx
     .select({
       businessName: tenants.name,
+      addressLine1: settings.addressLine1,
+      addressLine2: settings.addressLine2,
+      city: settings.city,
+      pincode: settings.pincode,
+      phone: settings.phone,
       stateCode: settings.stateCode,
       gstRegistration: settings.gstRegistration,
       gstin: settings.gstin,

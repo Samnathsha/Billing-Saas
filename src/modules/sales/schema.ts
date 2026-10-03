@@ -53,6 +53,8 @@ export const invoices = pgTable(
     status: text("status").notNull().default("posted"),
     // Seller, as at the sale.
     sellerName: text("seller_name").notNull(),
+    // Address and phone as printed on the bill (GST rule: supplier's address).
+    sellerAddress: text("seller_address"),
     sellerGstin: text("seller_gstin"),
     sellerStateCode: text("seller_state_code").notNull(),
     gstRegistration: text("gst_registration").notNull(),
@@ -107,7 +109,7 @@ export const invoices = pgTable(
     check("invoices_paid_and_credit", sql`${t.paidPaise} + ${t.creditPaise} = ${t.payablePaise}`),
     check("invoices_credit_needs_customer", sql`${t.creditPaise} = 0 OR ${t.customerId} IS NOT NULL`),
     check("invoices_void_fields", sql`(${t.status} = 'voided') = (${t.voidReason} IS NOT NULL AND ${t.voidedAt} IS NOT NULL AND ${t.voidedBy} IS NOT NULL)`),
-    check("invoices_text_lengths", sql`char_length(${t.sellerName}) <= 200 AND char_length(${t.buyerName}) <= 200 AND char_length(${t.buyerAddress}) <= 500 AND char_length(${t.voidReason}) <= 500`),
+    check("invoices_text_lengths", sql`char_length(${t.sellerName}) <= 200 AND char_length(${t.sellerAddress}) <= 700 AND char_length(${t.buyerName}) <= 200 AND char_length(${t.buyerAddress}) <= 500 AND char_length(${t.voidReason}) <= 500`),
   ],
 );
 

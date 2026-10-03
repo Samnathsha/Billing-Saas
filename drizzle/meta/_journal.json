@@ -218,6 +218,13 @@
       "when": 1791040395193,
       "tag": "0030_invoices",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791045673839,
+      "tag": "0031_invoice_seller_address",
+      "breakpoints": true
     }
   ]
 }

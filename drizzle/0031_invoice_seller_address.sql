@@ -1,0 +1,3 @@
+ALTER TABLE "invoices" DROP CONSTRAINT "invoices_text_lengths";--> statement-breakpoint
+ALTER TABLE "invoices" ADD COLUMN "seller_address" text;--> statement-breakpoint
+ALTER TABLE "invoices" ADD CONSTRAINT "invoices_text_lengths" CHECK (char_length("invoices"."seller_name") <= 200 AND char_length("invoices"."seller_address") <= 700 AND char_length("invoices"."buyer_name") <= 200 AND char_length("invoices"."buyer_address") <= 500 AND char_length("invoices"."void_reason") <= 500);

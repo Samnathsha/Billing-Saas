@@ -19,3 +19,4 @@ export {
   type InvoiceListItemDto,
   type SalesErrorCode,
 } from "./service";
+export { getPosSetup, priceItemsForSale, priceItemsInput, type PosItemDto, type PosSetupDto } from "./pos.service";

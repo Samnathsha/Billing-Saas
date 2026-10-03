@@ -13,10 +13,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   if (who.kind === "no-business") redirect("/setup");
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="flex items-center justify-between gap-4 border-b px-4 py-3">
+      <header className="flex items-center justify-between gap-4 border-b px-4 py-3 print:hidden">
         <nav className="flex items-center gap-4 text-sm">
           <Link href="/dashboard" className="font-semibold">Billing</Link>
           {/* Menu links follow the role for convenience only; each page checks on the server. */}
+          {who.permissions.includes("sales.create") ? <Link href="/pos">New bill</Link> : null}
+          <Link href="/sales">Bills</Link>
           <Link href="/catalog/products">Products</Link>
           <Link href="/inventory">Stock</Link>
           {who.permissions.includes("purchases.create") || who.permissions.includes("reports.view") ? <Link href="/purchases">Purchases</Link> : null}
@@ -31,7 +33,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <LogoutButton />
         </div>
       </header>
-      <div className="flex flex-1 flex-col px-4 py-6">{children}</div>
+      <div className="flex flex-1 flex-col px-4 py-6 print:p-0">{children}</div>
     </div>
   );
 }

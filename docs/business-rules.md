@@ -195,6 +195,20 @@ or tax advice; the accountant signs off before launch.
   charged (no payment gateway); the bill date is always the moment of sale
   (no back-dating); each sale comes from one branch chosen at the till.
 
+### 16. Returns, payments and expenses (owner decisions 2026-10-03, Phase 8)
+
+- **Return window:** 7 days from the bill date (business time zone). After
+  that the till refuses the return; a Manager or above may still do it
+  (recorded in the audit log). The number of days is a business setting.
+- **Refund:** the cashier chooses per return: money back (cash, UPI or
+  card) or store credit on the customer's account (a customer must be
+  chosen). Every return gets a credit note number from its own series
+  (`CN/26-27/00001`), whichever way the money goes.
+- **Expenses:** recorded by Manager and above (Owner, Admin, Manager);
+  the Accountant can view them; a Cashier cannot.
+- Never more can be returned than was sold, counting earlier returns;
+  returned IMEI items must be the ones sold on that bill.
+
 ## OPEN QUESTIONS FOR ACCOUNTANT
 
 Each question has the default the app will use until answered.

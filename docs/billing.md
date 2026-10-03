@@ -68,3 +68,21 @@ database refuses any other change to a posted bill.
 Customer payments against their balance, returns and credit notes (Phase 8);
 reports (Phase 9); a PDF file of the bill (the browser's "Print" can save as
 PDF); e-invoicing (open question 19).
+
+## Phase 7 sign-off (2026-10-03)
+
+The owner tested by hand on the dev database: the till (scan a SKU, change
+the quantity, cash with change), the printed Tax Invoice, printing, stock
+going down, the day's bills; a bill with a line discount and a UPI + cash
+split; a customer with a ₹1,000 credit limit buying partly on credit and
+the balance on the customer's page; a same-day void (refund shown, the
+customer's balance and the stock restored). The owner then signed off
+Phase 7.
+
+Covered by automated browser tests instead (`tests/flows/pos.spec.ts`): a
+cashier's discount above 5% blocked, a cashier cannot void, a credit sale
+over the limit refused.
+
+**Before going live (blueprint "done when"):** about 50 varied test sales by
+the owner, and the accountant checks 5 printed bills against a calculator,
+together with the real GST rates (open questions 1–2) and questions 36–40.

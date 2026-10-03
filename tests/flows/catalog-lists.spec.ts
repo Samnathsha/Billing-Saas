@@ -14,7 +14,8 @@ async function ownerWithBusiness(page: Page): Promise<string> {
 test("categories with a subcategory, a brand, a unit; duplicates refused; archive and restore", async ({ page }) => {
   test.slow();
   await ownerWithBusiness(page);
-  await page.getByRole("link", { name: "Catalog" }).click();
+  await page.getByRole("link", { name: "Products" }).click();
+  await page.getByRole("link", { name: "Categories, brands, units" }).click();
   await expect(page.getByRole("heading", { name: "Catalog lists" })).toBeVisible();
   // Starting units.
   await expect(page.getByRole("list", { name: "Units" })).toContainText("pcs · whole only");
@@ -49,14 +50,15 @@ test("categories with a subcategory, a brand, a unit; duplicates refused; archiv
   await expect(raymond.getByRole("button", { name: "Archive" })).toBeVisible();
 });
 
-test("a cashier gets no Catalog link and 'Not allowed'", async ({ page, browser }) => {
+test("a cashier gets no lists link and 'Not allowed'", async ({ page, browser }) => {
   const ownerEmail = await ownerWithBusiness(page);
   const till = await (await newDevice(browser)).newPage();
   const cashierEmail = await confirmedAccount(till, "lists-cashier");
   await addMember(ownerEmail, cashierEmail, "Cashier");
   await logIn(till, cashierEmail);
   await expect(till).toHaveURL(/\/dashboard$/);
-  await expect(till.getByRole("link", { name: "Catalog" })).toHaveCount(0);
+  await till.goto("/catalog/products");
+  await expect(till.getByRole("link", { name: "Categories, brands, units" })).toHaveCount(0);
   await till.goto("/catalog/lists");
   await expect(till.getByRole("heading", { name: "Not allowed" })).toBeVisible();
 });

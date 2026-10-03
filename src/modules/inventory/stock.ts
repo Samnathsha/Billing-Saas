@@ -79,6 +79,16 @@ export class StockError extends Error {
   }
 }
 
+// Early check for services that write their own rows before posting
+// (e.g. purchase lines): every item exists in this business and the branch
+// is open. postMovements checks the same again.
+export async function assertStockTargets(tx: TenantTx, variantIds: string[], branchId: string): Promise<void> {
+  const found = new Set((await repo.variantFacts(tx, [...new Set(variantIds)])).map((f) => f.variantId));
+  const missing = variantIds.find((id) => !found.has(id));
+  if (missing !== undefined) throw new StockError("VARIANT_NOT_FOUND", missing);
+  if (!(await repo.openBranchIds(tx, [branchId])).has(branchId)) throw new StockError("BRANCH_CLOSED");
+}
+
 const ADDS_AT_COST: ReadonlySet<MovementType> = new Set(["PURCHASE_IN", "OPENING_STOCK", "SALE_RETURN_IN", "TRANSFER_IN", "ADJUSTMENT_IN"]);
 
 export async function postMovements(tx: TenantTx, ctx: TenantContext, rawInputs: MovementInput[]): Promise<string[]> {

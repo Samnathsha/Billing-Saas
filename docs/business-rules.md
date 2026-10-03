@@ -169,6 +169,14 @@ or tax advice; the accountant signs off before launch.
 - Stock never goes below zero for online work (rule 7.1). Quantities in a
   whole-piece unit must be whole numbers; IMEI items move one unit at a
   time.
+- **As built (Phase 6):** purchases need the business's GST registration to
+  be set first (it decides the cost rule). The same supplier bill number
+  cannot be entered twice for one supplier (ignoring case) unless the first
+  was voided. Voiding needs both "Create purchase" and "Void a posted
+  invoice". Money paid stays paid when a bill is voided (see question 34).
+  IMEI numbers of a voided purchase may be entered again. A supplier's
+  balance is always the sum of its account rows: opening balance,
+  purchases, payments and voids; never a typed number.
 
 ## OPEN QUESTIONS FOR ACCOUNTANT
 
@@ -271,4 +279,22 @@ Each question has the default the app will use until answered.
 31. **Unit or serial tracking after stock exists:** changing a product's
     unit (e.g. pieces to metres) or IMEI tracking after it has stock would
     change what the stock numbers mean. DEFAULT, owner to confirm: allowed
-    while no stock exists; locked once stock exists (enforced in Phase 6).
+    while no stock exists; locked once stock exists. (As built so far: the
+    unit and IMEI tracking cannot be changed at all once the product is
+    created; to change them, archive it and create a new product.)
+32. **Rounding on purchase bills:** the app works out each line as quantity
+    x price before GST, then GST on that line, each rounded half up to the
+    paisa; the bill total is the sum of the lines. A supplier's printed
+    bill may differ by a few paise (some round per bill, some add a
+    "round off"). DEFAULT, accountant to confirm: the app's figures are
+    kept; a "round off" line on purchases can be added if needed.
+33. **Purchase price entry:** the price per unit is typed BEFORE GST, after
+    any trade discount on the supplier's bill (no separate discount
+    column). DEFAULT, owner to confirm.
+34. **Paying a supplier more than we owe, and voided bills that were
+    paid:** the extra stays as an advance with that supplier (a negative
+    balance) and is used up by the next bills. DEFAULT, accountant to
+    confirm: yes; a refund from the supplier can be recorded later.
+35. **Bill and payment dates:** may be any day from 1 July 2017 (start of
+    GST) up to today in the business's time zone; not in the future.
+    DEFAULT, owner to confirm.

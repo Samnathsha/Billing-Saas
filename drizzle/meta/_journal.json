@@ -169,6 +169,34 @@
       "when": 1791017190454,
       "tag": "0023_stock_source_key",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791017689740,
+      "tag": "0024_suppliers",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791017755945,
+      "tag": "0025_purchases",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791018047373,
+      "tag": "0026_serial_voided",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1791018499311,
+      "tag": "0027_purchase_line_numbers",
+      "breakpoints": true
     }
   ]
 }

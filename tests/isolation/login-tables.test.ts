@@ -36,6 +36,11 @@ const BUSINESS_TABLES = [
   "stock_movements",
   "stock_balances",
   "idempotency_keys",
+  "suppliers",
+  "party_ledger_entries",
+  "purchases",
+  "purchase_items",
+  "supplier_payments",
 ] as const;
 const LOGIN_SECRET_TABLES = ["sessions", "accounts", "verifications", "rate_limits", "security_events"] as const;
 
@@ -102,6 +107,11 @@ const SELECT_SQL: Record<string, string> = {
   stock_movements: "SELECT count(*) FROM stock_movements",
   stock_balances: "SELECT count(*) FROM stock_balances",
   idempotency_keys: "SELECT count(*) FROM idempotency_keys",
+  suppliers: "SELECT count(*) FROM suppliers",
+  party_ledger_entries: "SELECT count(*) FROM party_ledger_entries",
+  purchases: "SELECT count(*) FROM purchases",
+  purchase_items: "SELECT count(*) FROM purchase_items",
+  supplier_payments: "SELECT count(*) FROM supplier_payments",
 };
 
 describe("auth_service cannot reach business data", () => {

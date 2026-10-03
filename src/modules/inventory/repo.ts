@@ -132,22 +132,63 @@ export async function hasMovements(tx: TenantTx, variantId: string, branchId: st
 }
 
 // Serial numbers (IMEI), compared ignoring case.
-export async function existingSerials(tx: TenantTx, serials: string[]): Promise<string[]> {
-  if (serials.length === 0) return [];
-  const rows = await tx
-    .select({ serial: serialNumbers.serial })
-    .from(serialNumbers)
-    .where(inArray(sql`upper(${serialNumbers.serial})`, serials.map((x) => x.toUpperCase())));
-  return rows.map((r) => r.serial);
-}
-
-export async function insertSerial(tx: TenantTx, ctx: TenantContext, values: { variantId: string; serial: string; branchId: string }): Promise<string> {
+export async function insertSerial(
+  tx: TenantTx,
+  ctx: TenantContext,
+  values: { variantId: string; serial: string; branchId: string; purchaseItemId?: string | null },
+): Promise<string> {
   const [row] = await tx
     .insert(serialNumbers)
     .values({ tenantId: ctx.tenantId, createdBy: ctx.userId, status: "in_stock", ...values })
     .returning({ id: serialNumbers.id });
   if (row === undefined) throw new Error("serial insert returned nothing");
   return row.id;
+}
+
+export async function lockSerials(tx: TenantTx, serials: string[]) {
+  if (serials.length === 0) return [];
+  return tx
+    .select({ id: serialNumbers.id, serial: serialNumbers.serial, status: serialNumbers.status, version: serialNumbers.version })
+    .from(serialNumbers)
+    .where(inArray(sql`upper(${serialNumbers.serial})`, serials.map((x) => x.toUpperCase())))
+    .for("update");
+}
+
+// A voided unit entered again: it takes the new item, branch and line.
+export async function reactivateSerial(
+  tx: TenantTx,
+  row: { id: string; version: number },
+  values: { variantId: string; branchId: string; purchaseItemId: string | null },
+): Promise<string> {
+  await tx
+    .update(serialNumbers)
+    .set({ ...values, status: "in_stock", version: row.version + 1 })
+    .where(eq(serialNumbers.id, row.id));
+  return row.id;
+}
+
+export async function lockSerialById(tx: TenantTx, id: string) {
+  const [row] = await tx
+    .select({ id: serialNumbers.id, branchId: serialNumbers.branchId, status: serialNumbers.status, version: serialNumbers.version })
+    .from(serialNumbers)
+    .where(eq(serialNumbers.id, id))
+    .for("update");
+  return row;
+}
+
+export async function movementsOfSource(tx: TenantTx, sourceType: string, sourceId: string) {
+  return tx
+    .select({
+      branchId: stockMovements.branchId,
+      variantId: stockMovements.variantId,
+      quantity: stockMovements.quantity,
+      unitCostPaise: stockMovements.unitCostPaise,
+      sourceLineId: stockMovements.sourceLineId,
+      serialNumberId: stockMovements.serialNumberId,
+    })
+    .from(stockMovements)
+    .where(and(eq(stockMovements.sourceType, sourceType), eq(stockMovements.sourceId, sourceId)))
+    .orderBy(stockMovements.createdAt, stockMovements.id);
 }
 
 export async function lockSerial(tx: TenantTx, serial: string) {
@@ -159,7 +200,7 @@ export async function lockSerial(tx: TenantTx, serial: string) {
   return row;
 }
 
-export async function setSerialStatus(tx: TenantTx, row: { id: string; version: number }, status: "in_stock" | "sold" | "returned" | "scrapped"): Promise<void> {
+export async function setSerialStatus(tx: TenantTx, row: { id: string; version: number }, status: "in_stock" | "sold" | "returned" | "scrapped" | "voided"): Promise<void> {
   await tx.update(serialNumbers).set({ status, version: row.version + 1 }).where(eq(serialNumbers.id, row.id));
 }
 

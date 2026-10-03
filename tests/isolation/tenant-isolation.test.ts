@@ -22,8 +22,11 @@ const TENANT_TABLES = [
   "idempotency_keys",
   "invitations",
   "memberships",
+  "party_ledger_entries",
   "product_variants",
   "products",
+  "purchase_items",
+  "purchases",
   "role_permissions",
   "roles",
   "serial_numbers",
@@ -31,6 +34,8 @@ const TENANT_TABLES = [
   "stock_balances",
   "stock_movements",
   "subscriptions",
+  "supplier_payments",
+  "suppliers",
   "sync_operations",
   "units",
 ] as const;
@@ -67,7 +72,9 @@ async function countAs(ctx: TenantContext, query: SQL): Promise<number> {
 // "Refused" means PostgreSQL said no: RLS, missing privilege, or the
 // append-only trigger. Any other error (e.g. a unique-key clash) would mean
 // the attack got further than it should, so it fails the test.
-const REFUSED = /row-level security|permission denied|append-only/;
+// "only voided": posted purchases refuse any change but a void (migration
+// 0025), checked before row-level security sees the row.
+const REFUSED = /row-level security|permission denied|append-only|cannot be changed, only voided/;
 
 async function outcome(work: Promise<unknown>): Promise<string> {
   try {

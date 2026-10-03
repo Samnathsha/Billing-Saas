@@ -11,8 +11,11 @@ import {
   idempotencyKeys,
   invitations,
   memberships,
+  partyLedgerEntries,
   products,
   productVariants,
+  purchaseItems,
+  purchases,
   rolePermissions,
   roles,
   serialNumbers,
@@ -20,6 +23,8 @@ import {
   stockBalances,
   stockMovements,
   subscriptions,
+  supplierPayments,
+  suppliers,
   syncOperations,
   tenants,
   units,
@@ -98,6 +103,11 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     stock_movements: randomUUID(),
     stock_balances: randomUUID(),
     idempotency_keys: randomUUID(),
+    suppliers: randomUUID(),
+    party_ledger_entries: randomUUID(),
+    purchases: randomUUID(),
+    purchase_items: randomUUID(),
+    supplier_payments: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -163,6 +173,54 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
       createdBy: ctx.userId,
     });
     await tx.insert(idempotencyKeys).values({ id: id("idempotency_keys"), tenantId, key: randomUUID(), operation: "stock.opening", result: { ok: true } });
+    await tx.insert(suppliers).values({ id: id("suppliers"), tenantId, name: `${name} supplier`, createdBy: ctx.userId });
+    await tx.insert(purchases).values({
+      id: id("purchases"),
+      tenantId,
+      supplierId: id("suppliers"),
+      branchId,
+      supplierInvoiceNumber: "B-1",
+      invoiceDate: "2026-04-01",
+      subtotalPaise: 1500,
+      taxPaise: 75,
+      totalPaise: 1575,
+      costBasis: "excludes_tax",
+      createdBy: ctx.userId,
+    });
+    await tx.insert(purchaseItems).values({
+      id: id("purchase_items"),
+      tenantId,
+      purchaseId: id("purchases"),
+      lineNumber: 1,
+      variantId: id("product_variants"),
+      quantity: "5",
+      unitPricePaise: 300,
+      taxRate: "5",
+      lineSubtotalPaise: 1500,
+      lineTaxPaise: 75,
+      lineTotalPaise: 1575,
+      unitCostPaise: "300",
+    });
+    await tx.insert(partyLedgerEntries).values({
+      id: id("party_ledger_entries"),
+      tenantId,
+      supplierId: id("suppliers"),
+      entryType: "purchase",
+      amountPaise: 1575,
+      sourceType: "purchase",
+      sourceId: id("purchases"),
+      createdBy: ctx.userId,
+    });
+    await tx.insert(supplierPayments).values({
+      id: id("supplier_payments"),
+      tenantId,
+      supplierId: id("suppliers"),
+      purchaseId: id("purchases"),
+      amountPaise: 1000,
+      method: "cash",
+      paidOn: "2026-04-01",
+      createdBy: ctx.userId,
+    });
     await tx.insert(invitations).values({
       id: id("invitations"),
       tenantId,

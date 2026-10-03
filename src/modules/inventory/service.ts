@@ -5,6 +5,8 @@ import { withTenant, type TenantContext } from "@/db/with-tenant";
 import { hasPermission, requirePermission, type Permission } from "@/modules/auth";
 import { claimIdempotencyKey } from "@/modules/sync";
 import * as repo from "./repo";
+import { InventoryError } from "./errors";
+import { receiveSerials } from "./serials";
 import { postMovements, type MovementInput } from "./stock";
 
 // Opening stock and stock adjustments (blueprint Phase 6; business rules 7,
@@ -15,26 +17,6 @@ import { postMovements, type MovementInput } from "./stock";
 const QTY_POSITIVE = /^\d{1,11}(\.\d{1,3})?$/;
 const SERIAL = /^[A-Za-z0-9-]{4,40}$/;
 const VIEW: readonly Permission[] = ["products.manage", "sales.create", "reports.view", "stock.adjust", "purchases.create"];
-
-export type InventoryErrorCode = "ALREADY_HAS_STOCK_HISTORY" | "SERIAL_COUNT" | "SERIAL_TAKEN" | "SERIAL_NOT_IN_STOCK" | "ZERO_QUANTITY";
-
-const MESSAGES: Record<InventoryErrorCode, string> = {
-  ALREADY_HAS_STOCK_HISTORY: "This item already has stock history in this branch. Use a stock adjustment instead.",
-  SERIAL_COUNT: "Enter one IMEI/serial number per unit.",
-  SERIAL_TAKEN: "This IMEI/serial number is already recorded.",
-  SERIAL_NOT_IN_STOCK: "This IMEI/serial number is not in stock in this branch.",
-  ZERO_QUANTITY: "Enter a quantity above zero.",
-};
-
-export class InventoryError extends Error {
-  constructor(
-    public readonly code: InventoryErrorCode,
-    public readonly detail?: string,
-  ) {
-    super(detail === undefined ? MESSAGES[code] : `${MESSAGES[code]} (${detail})`);
-    this.name = "InventoryError";
-  }
-}
 
 const quantity = z.string().trim().regex(QTY_POSITIVE, { error: "Enter a quantity (at most 3 decimals)." });
 const serials = z.array(z.string().trim().regex(SERIAL, { error: "IMEI/serial: 4 to 40 letters, digits or -" })).max(500).default([]);
@@ -84,11 +66,8 @@ export async function recordOpeningStock(ctx: TenantContext, rawInput: unknown):
       const lineId = randomUUID();
       if (line.serials.length > 0) {
         if (line.serials.length !== Number(line.quantity)) throw new InventoryError("SERIAL_COUNT");
-        const taken = await repo.existingSerials(tx, line.serials);
-        const repeated = line.serials.map((x) => x.toUpperCase()).filter((x, i, all) => all.indexOf(x) !== i);
-        if (taken.length > 0 || repeated.length > 0) throw new InventoryError("SERIAL_TAKEN", [...taken, ...repeated].join(", "));
-        for (const serial of line.serials) {
-          const serialNumberId = await repo.insertSerial(tx, ctx, { variantId: line.variantId, serial, branchId: input.branchId });
+        const serialIds = await receiveSerials(tx, ctx, { variantId: line.variantId, branchId: input.branchId, serials: line.serials });
+        for (const serialNumberId of serialIds) {
           movements.push({ branchId: input.branchId, variantId: line.variantId, type: "OPENING_STOCK", quantity: "1", unitCostPaise, sourceType: "opening_stock", sourceId: operationId, sourceLineId: lineId, serialNumberId });
         }
       } else {
@@ -113,8 +92,7 @@ export async function adjustStock(ctx: TenantContext, rawInput: unknown): Promis
     let serialNumberId: string | undefined;
     if (input.serial !== undefined) {
       if (input.direction === "in") {
-        if ((await repo.existingSerials(tx, [input.serial])).length > 0) throw new InventoryError("SERIAL_TAKEN", input.serial);
-        serialNumberId = await repo.insertSerial(tx, ctx, { variantId: input.variantId, serial: input.serial, branchId: input.branchId });
+        [serialNumberId] = await receiveSerials(tx, ctx, { variantId: input.variantId, branchId: input.branchId, serials: [input.serial] });
       } else {
         const row = await repo.lockSerial(tx, input.serial);
         if (row === undefined || row.status !== "in_stock" || row.branchId !== input.branchId || row.variantId !== input.variantId) {

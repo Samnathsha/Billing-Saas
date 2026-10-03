@@ -206,7 +206,8 @@ export const serialNumbers = pgTable(
     tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
     variantId: uuid("variant_id").notNull(),
     serial: text("serial").notNull(),
-    // 'in_stock' | 'sold' | 'returned' | 'scrapped'
+    // 'in_stock' | 'sold' | 'returned' | 'scrapped' | 'voided' (its purchase
+    // was voided: the number may be entered again)
     status: text("status").notNull().default("in_stock"),
     branchId: uuid("branch_id"),
     // Links to purchase and sale lines arrive with those tables (Phase 6-7).
@@ -230,6 +231,6 @@ export const serialNumbers = pgTable(
       foreignColumns: [branches.tenantId, branches.id],
     }).onDelete("restrict"),
     check("serial_numbers_format", sql`${t.serial} ~ '^[A-Za-z0-9-]{4,40}$'`),
-    check("serial_numbers_status_valid", sql`${t.status} in ('in_stock', 'sold', 'returned', 'scrapped')`),
+    check("serial_numbers_status_valid", sql`${t.status} in ('in_stock', 'sold', 'returned', 'scrapped', 'voided')`),
   ],
 );

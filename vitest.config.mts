@@ -28,7 +28,10 @@ export default defineConfig({
           name: "db",
           include: ["tests/integration/**/*.test.ts", "tests/isolation/**/*.test.ts"],
           setupFiles: ["tests/setup-db-env.ts"],
-          hookTimeout: 60_000,
+          // Neon (the remote test database) needs seconds per test where the
+          // local database needs milliseconds; 2 minutes still stops a hang.
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
           // One file at a time: these tests share one database.
           fileParallelism: false,
         },

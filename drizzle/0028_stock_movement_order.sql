@@ -1,0 +1,3 @@
+DROP INDEX "stock_movements_tenant_variant_idx";--> statement-breakpoint
+ALTER TABLE "stock_movements" ADD COLUMN "seq" bigint NOT NULL GENERATED ALWAYS AS IDENTITY (sequence name "stock_movements_seq_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1);--> statement-breakpoint
+CREATE INDEX "stock_movements_tenant_variant_idx" ON "stock_movements" USING btree ("tenant_id","variant_id","branch_id","seq");

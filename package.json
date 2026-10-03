@@ -22,6 +22,7 @@
     "db:check-rls:dev": "tsx scripts/check-rls.ts dev",
     "dev:add-member": "tsx scripts/dev-add-member.ts",
     "audit:runtime": "tsx scripts/audit-runtime.ts",
+    "stock:rebuild": "tsx scripts/rebuild-stock.ts",
     "auth:secret": "tsx scripts/auth-secret.ts"
   },
   "dependencies": {

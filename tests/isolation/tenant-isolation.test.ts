@@ -139,8 +139,10 @@ describe.each(TENANT_TABLES)("Business A attacks Business B in %s", (table) => {
 
   it("cannot insert a row carrying B's tenant_id (forged)", async () => {
     // Copies A's own row, swapping in a new id and B's tenant_id.
+    // OVERRIDING SYSTEM VALUE: copying stock_movements.seq would otherwise be
+    // refused for that reason alone, before row-level security is tested.
     const forged = sql`
-      INSERT INTO ${t}
+      INSERT INTO ${t} OVERRIDING SYSTEM VALUE
       SELECT (jsonb_populate_record(NULL::${t},
                 to_jsonb(r) || jsonb_build_object('id', gen_random_uuid(), 'tenant_id', ${b.ctx.tenantId}::uuid))).*
         FROM ${t} r WHERE r.id = ${rowId(a, table)}`;

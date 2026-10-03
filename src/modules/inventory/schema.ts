@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, foreignKey, index, numeric, pgTable, text, unique, uuid } from "drizzle-orm/pg-core";
+import { bigint, check, foreignKey, index, numeric, pgTable, text, unique, uuid } from "drizzle-orm/pg-core";
 import { createdAtColumn, idColumn, mutableRowColumns, tenantIdColumn } from "@/db/columns";
 import { productVariants, serialNumbers } from "@/modules/catalog/schema";
 import { branches, tenants } from "@/modules/tenants/schema";
@@ -47,6 +47,11 @@ export const stockMovements = pgTable(
     serialNumberId: uuid("serial_number_id"),
     createdBy: uuid("created_by").notNull(),
     createdAt: createdAtColumn(),
+    // The order in which movements were applied. Taken at insert, while the
+    // balance row is locked, so for one item and branch it always follows
+    // the real order (created_at is the transaction's START time and can
+    // be out of order). Used to replay the ledger (scripts/rebuild-stock.ts).
+    seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity(),
   },
   (t) => [
     unique("stock_movements_tenant_id_id_key").on(t.tenantId, t.id),
@@ -56,7 +61,7 @@ export const stockMovements = pgTable(
     unique("stock_movements_source_key")
       .on(t.tenantId, t.sourceType, t.sourceLineId, t.movementType, t.serialNumberId)
       .nullsNotDistinct(),
-    index("stock_movements_tenant_variant_idx").on(t.tenantId, t.variantId, t.branchId, t.createdAt),
+    index("stock_movements_tenant_variant_idx").on(t.tenantId, t.variantId, t.branchId, t.seq),
     foreignKey({ name: "stock_movements_branch_fk", columns: [t.tenantId, t.branchId], foreignColumns: [branches.tenantId, branches.id] }).onDelete("restrict"),
     foreignKey({ name: "stock_movements_variant_fk", columns: [t.tenantId, t.variantId], foreignColumns: [productVariants.tenantId, productVariants.id] }).onDelete("restrict"),
     foreignKey({ name: "stock_movements_serial_fk", columns: [t.tenantId, t.serialNumberId], foreignColumns: [serialNumbers.tenantId, serialNumbers.id] }).onDelete("restrict"),

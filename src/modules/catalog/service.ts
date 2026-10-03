@@ -31,6 +31,8 @@ export interface CatalogListsDto {
   categories: { id: string; name: string; parentId: string | null; active: boolean }[];
   brands: { id: string; name: string; active: boolean }[];
   units: { id: string; name: string; code: string; allowsFraction: boolean; active: boolean }[];
+  taxCategories: { code: string; label: string }[];
+  template: "clothing" | "mobile";
 }
 
 const name = (max: number) =>
@@ -70,6 +72,8 @@ export async function getCatalogLists(ctx: TenantContext): Promise<CatalogListsD
       allowsFraction: u.allowsFraction,
       active: u.archivedAt === null,
     })),
+    taxCategories: await repo.listTaxCategories(tx),
+    template: await repo.businessTemplate(tx),
   }));
 }
 

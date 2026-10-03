@@ -301,3 +301,7 @@ export async function countProducts(tx: TenantTx): Promise<number> {
   const [row] = await tx.select({ n: count() }).from(products);
   return row?.n ?? 0;
 }
+
+export async function listTaxCategories(tx: TenantTx) {
+  return tx.select({ code: taxCategories.code, label: taxCategories.label }).from(taxCategories).orderBy(asc(taxCategories.label));
+}

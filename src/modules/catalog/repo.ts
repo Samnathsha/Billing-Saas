@@ -448,3 +448,27 @@ export async function variantSummaries(tx: TenantTx, filter: { ids: string[] } |
     .innerJoin(units, eq(units.id, products.unitId))
     .where(where);
 }
+
+// Everything a sale needs to know about its items, archived ones included
+// (the sale refuses those itself).
+export async function variantsForSale(tx: TenantTx, ids: string[]) {
+  if (ids.length === 0) return [];
+  return tx
+    .select({
+      variantId: productVariants.id,
+      productName: products.name,
+      attributes: productVariants.attributes,
+      sku: productVariants.sku,
+      hsnCode: products.hsnCode,
+      unitCode: units.code,
+      trackSerial: products.trackSerial,
+      warrantyMonths: products.warrantyMonths,
+      taxCategory: products.taxCategory,
+      sellingPricePaise: productVariants.sellingPricePaise,
+      active: sql<boolean>`${productVariants.archivedAt} IS NULL AND ${products.archivedAt} IS NULL`,
+    })
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .innerJoin(units, eq(units.id, products.unitId))
+    .where(inArray(productVariants.id, ids));
+}

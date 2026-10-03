@@ -10,4 +10,4 @@ export {
   type GstinProblem,
   type GstRegistration,
 } from "./gst";
-export { pickTaxRate, TaxRateError, type TaxRateRow } from "./rates";
+export { pickTaxRate, TaxRateError, taxRatesFor, type TaxRateRow } from "./rates";

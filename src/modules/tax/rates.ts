@@ -1,3 +1,6 @@
+import type { TenantTx } from "@/db/with-tenant";
+import * as repo from "./repo";
+
 // Choosing the GST rate for an item (business rules 4.1, 4.2; open
 // questions 1 and 2). Pure: the caller passes the rate rows of the item's
 // tax category. A row applies when the day is inside its dates
@@ -36,4 +39,13 @@ export function pickTaxRate(rows: TaxRateRow[], taxCategory: string, onDay: stri
   if (only === undefined) throw new TaxRateError("NO_RATE", taxCategory);
   if (rest.length > 0) throw new TaxRateError("SEVERAL_RATES", taxCategory);
   return only;
+}
+
+// The rate rows of each tax category, for pickTaxRate. Inside the caller's
+// transaction (a TenantTx exists only inside withTenant).
+export async function taxRatesFor(tx: TenantTx, categories: string[]): Promise<Map<string, TaxRateRow[]>> {
+  const rows = await repo.ratesOf(tx, [...new Set(categories)]);
+  const byCategory = new Map<string, TaxRateRow[]>();
+  for (const { taxCategory, ...row } of rows) byCategory.set(taxCategory, [...(byCategory.get(taxCategory) ?? []), row]);
+  return byCategory;
 }

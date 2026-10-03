@@ -21,6 +21,7 @@ export interface CustomerDto {
   phone: string | null;
   gstin: string | null;
   stateCode: string | null;
+  address: string | null;
   creditLimitPaise: number;
   // What the customer owes us; negative = we owe them (advance).
   balancePaise: number;
@@ -36,6 +37,7 @@ const fields = {
   phone: optional(z.string().trim().regex(/^[+0-9 -]{6,20}$/, { error: "Enter a phone number (digits, spaces, + or -)." })),
   gstin: optional(z.string().transform(normaliseGstin)),
   stateCode: optional(z.string().trim()),
+  address: optional(z.string().trim().max(500, { error: "Use at most 500 characters." })).default(null),
   creditLimitPaise: z.int({ error: "Enter the credit limit in paise." }).min(0).max(MAX_PAISE).default(0),
 };
 
@@ -59,6 +61,7 @@ const values = (input: z.infer<typeof createCustomerInput>): repo.CustomerValues
   phone: input.phone,
   gstin: input.gstin,
   stateCode: input.gstin !== null ? input.gstin.slice(0, 2) : input.stateCode,
+  address: input.address,
   creditLimitPaise: input.creditLimitPaise,
 });
 
@@ -69,6 +72,7 @@ const toCustomerDto = (row: Row): CustomerDto => ({
   phone: row.phone,
   gstin: row.gstin,
   stateCode: row.stateCode,
+  address: row.address,
   creditLimitPaise: row.creditLimitPaise,
   balancePaise: Number(row.balancePaise),
   active: row.archivedAt === null,
@@ -99,7 +103,7 @@ export async function updateCustomer(ctx: TenantContext, rawInput: unknown): Pro
     if (input.creditLimitPaise !== row.creditLimitPaise && !mayGiveCredit) throw new PartyError("CREDIT_NOT_ALLOWED");
     if (input.phone !== null && input.phone !== row.phone && (await repo.customerPhoneTaken(tx, input.phone, row.id))) throw new PartyError("PHONE_TAKEN");
     await repo.updateCustomer(tx, row, input);
-    const before = { name: row.name, phone: row.phone, gstin: row.gstin, stateCode: row.stateCode, creditLimitPaise: row.creditLimitPaise };
+    const before = { name: row.name, phone: row.phone, gstin: row.gstin, stateCode: row.stateCode, address: row.address, creditLimitPaise: row.creditLimitPaise };
     await repo.addAuditEntry(tx, ctx, { action: "parties.customer_updated", entityType: "customer", entityId: row.id, before, after: input });
   });
 }

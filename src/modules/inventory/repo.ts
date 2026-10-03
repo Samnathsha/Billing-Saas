@@ -216,3 +216,30 @@ export async function addAuditEntry(
     .where(eq(memberships.userId, ctx.userId));
   await tx.insert(auditLogs).values({ tenantId: ctx.tenantId, actorUserId: ctx.userId, actorRole: role?.name ?? "unknown", ...entry });
 }
+
+export async function markSerialSold(
+  tx: TenantTx,
+  row: { id: string; version: number },
+  values: { invoiceItemId: string; warrantyEndsOn: string | null },
+): Promise<void> {
+  await tx
+    .update(serialNumbers)
+    .set({ status: "sold", invoiceItemId: values.invoiceItemId, warrantyEndsOn: values.warrantyEndsOn, version: row.version + 1 })
+    .where(eq(serialNumbers.id, row.id));
+}
+
+export async function lockSerialsWithPlace(tx: TenantTx, serials: string[]) {
+  if (serials.length === 0) return [];
+  return tx
+    .select({
+      id: serialNumbers.id,
+      serial: serialNumbers.serial,
+      variantId: serialNumbers.variantId,
+      branchId: serialNumbers.branchId,
+      status: serialNumbers.status,
+      version: serialNumbers.version,
+    })
+    .from(serialNumbers)
+    .where(inArray(sql`upper(${serialNumbers.serial})`, serials.map((x) => x.toUpperCase())))
+    .for("update");
+}

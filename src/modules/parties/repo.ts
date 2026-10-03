@@ -146,6 +146,7 @@ export interface CustomerValues {
   phone: string | null;
   gstin: string | null;
   stateCode: string | null;
+  address: string | null;
   creditLimitPaise: number;
 }
 
@@ -171,6 +172,7 @@ const customerColumns = {
   phone: customers.phone,
   gstin: customers.gstin,
   stateCode: customers.stateCode,
+  address: customers.address,
   creditLimitPaise: customers.creditLimitPaise,
   archivedAt: customers.archivedAt,
   version: customers.version,

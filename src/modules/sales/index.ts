@@ -7,3 +7,15 @@ export {
   PREFIX_PATTERN,
 } from "./numbering";
 export { SeriesFullError, takeNextNumber } from "./sequence";
+export {
+  createSale,
+  createSaleInput,
+  getInvoice,
+  listInvoices,
+  SalesError,
+  voidInvoice,
+  voidInvoiceInput,
+  type InvoiceDto,
+  type InvoiceListItemDto,
+  type SalesErrorCode,
+} from "./service";

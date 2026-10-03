@@ -78,6 +78,7 @@ describe("customers", () => {
       phone: "98400 11111",
       gstin: KA_GSTIN,
       stateCode: "29",
+      address: null,
       creditLimitPaise: 0,
       balancePaise: 0,
       active: true,

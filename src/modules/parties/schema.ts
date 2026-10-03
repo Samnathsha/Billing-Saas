@@ -41,6 +41,8 @@ export const customers = pgTable(
     phone: text("phone"),
     gstin: text("gstin"),
     stateCode: text("state_code"),
+    // Printed on a GST bill to a registered buyer (open question 17).
+    address: text("address"),
     // The most this customer may owe at any time; 0 = no credit.
     creditLimitPaise: bigint("credit_limit_paise", { mode: "number" }).notNull().default(0),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
@@ -55,6 +57,7 @@ export const customers = pgTable(
     check("customers_gstin_format", sql`${t.gstin} ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'`),
     check("customers_state_code_format", sql`${t.stateCode} ~ '^[0-9]{2}$'`),
     check("customers_gstin_matches_state", sql`${t.gstin} IS NULL OR (${t.stateCode} IS NOT NULL AND left(${t.gstin}, 2) = ${t.stateCode})`),
+    check("customers_address_length", sql`char_length(${t.address}) <= 500`),
     check("customers_credit_limit", sql`${t.creditLimitPaise} between 0 and 100000000000`),
   ],
 );

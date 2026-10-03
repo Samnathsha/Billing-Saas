@@ -33,11 +33,11 @@ export async function bookSupplierEntry(tx: TenantTx, ctx: TenantContext, entry:
 export async function lockCustomerForSale(
   tx: TenantTx,
   customerId: string,
-): Promise<{ id: string; name: string; phone: string | null; gstin: string | null; stateCode: string | null; creditLimitPaise: number; balancePaise: number }> {
+): Promise<{ id: string; name: string; phone: string | null; gstin: string | null; stateCode: string | null; address: string | null; creditLimitPaise: number; balancePaise: number }> {
   const row = await repo.lockCustomer(tx, customerId);
   if (row === undefined) throw new PartyError("NOT_FOUND");
   if (row.archivedAt !== null) throw new PartyError("ARCHIVED");
-  return { id: row.id, name: row.name, phone: row.phone, gstin: row.gstin, stateCode: row.stateCode, creditLimitPaise: row.creditLimitPaise, balancePaise: Number(row.balancePaise) };
+  return { id: row.id, name: row.name, phone: row.phone, gstin: row.gstin, stateCode: row.stateCode, address: row.address, creditLimitPaise: row.creditLimitPaise, balancePaise: Number(row.balancePaise) };
 }
 
 // Refuses credit that would take the customer over their limit (business

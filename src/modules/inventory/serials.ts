@@ -74,3 +74,33 @@ export async function reverseStockOf(
     })),
   );
 }
+
+// For a sale: the IMEI/serial numbers being sold, each in stock, of this
+// item, in this branch. Locked until the end of the transaction, so two
+// tills cannot sell the same phone. Returns ids in the same order.
+export async function takeSerialsForSale(tx: TenantTx, input: { variantId: string; branchId: string; serials: string[] }): Promise<{ id: string; version: number }[]> {
+  const upper = input.serials.map((x) => x.toUpperCase());
+  const repeated = input.serials.find((_, i) => upper.indexOf(upper[i] ?? "") !== i);
+  if (repeated !== undefined) throw new InventoryError("SERIAL_NOT_IN_STOCK", repeated);
+  const rows = new Map((await repo.lockSerialsWithPlace(tx, input.serials)).map((r) => [r.serial.toUpperCase(), r]));
+  return input.serials.map((serial) => {
+    const row = rows.get(serial.toUpperCase());
+    if (row === undefined || row.status !== "in_stock" || row.variantId !== input.variantId || row.branchId !== input.branchId) {
+      throw new InventoryError("SERIAL_NOT_IN_STOCK", serial);
+    }
+    return { id: row.id, version: row.version };
+  });
+}
+
+// After the bill lines exist: link each sold unit to its line and set the
+// warranty end date (blueprint 7.5 step 9).
+export async function markSerialsSold(tx: TenantTx, sold: { serial: { id: string; version: number }; invoiceItemId: string; warrantyEndsOn: string | null }[]): Promise<void> {
+  for (const s of sold) await repo.markSerialSold(tx, s.serial, { invoiceItemId: s.invoiceItemId, warrantyEndsOn: s.warrantyEndsOn });
+}
+
+// The cost each line of a document went out (or came in) at, from its
+// stock movements: source line id -> unit cost.
+export async function unitCostsOf(tx: TenantTx, sourceType: string, sourceId: string): Promise<Map<string, string>> {
+  const rows = await repo.movementsOfSource(tx, sourceType, sourceId);
+  return new Map(rows.map((r) => [r.sourceLineId, r.unitCostPaise]));
+}

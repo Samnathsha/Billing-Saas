@@ -119,3 +119,42 @@ test("a bill at the till, printed numbers, stock, a same-day void; a cashier sel
   await page.goto("/sales");
   await expect(page.getByText(/1 bill, ₹760\.00 \(1 voided, not counted\)/)).toBeVisible();
 });
+
+test("a customer with a credit limit buys partly on credit; the rest shows on their account", async ({ page }) => {
+  test.slow();
+  await shopWithStock(page);
+  await page.getByRole("link", { name: "Customers" }).click();
+  await page.getByLabel("Customer name").fill("Meena");
+  await page.getByLabel("Phone").fill("98400 77777");
+  await page.getByLabel("Credit limit (₹, 0 = no credit)").fill("1000");
+  await page.getByRole("button", { name: "Add customer" }).click();
+  await expect(page.getByRole("heading", { name: "Meena" })).toBeVisible();
+  await expect(page.getByLabel("Credit", { exact: true })).toHaveText("Credit limit ₹1,000.00; ₹1,000.00 left.");
+
+  await page.getByRole("link", { name: "New bill" }).click();
+  await page.getByLabel(/Scan a barcode/).fill("SH-M");
+  await page.getByLabel(/Scan a barcode/).press("Enter");
+  await page.getByLabel("Customer (phone or name, optional)").fill("77777");
+  await page.getByRole("button", { name: "Find" }).click();
+  await page.getByRole("button", { name: /Meena/ }).click();
+  await page.getByLabel("Cash received (₹)").fill("299");
+  await expect(page.getByLabel("Payment summary")).toContainText("On the customer's account₹500.00");
+  await page.getByRole("button", { name: /Save bill/ }).click();
+  await expect(page.getByLabel("Totals")).toContainText("On account₹500.00");
+  await expect(page.getByRole("article", { name: "Bill" })).toContainText("Bill to: Meena");
+
+  await page.getByRole("link", { name: "Customers" }).click();
+  await page.getByRole("link", { name: "Meena" }).click();
+  await expect(page.getByLabel("Balance")).toHaveText("Owes ₹500.00");
+  await expect(page.getByLabel("Credit", { exact: true })).toHaveText("Credit limit ₹1,000.00; ₹500.00 left.");
+
+  // Over the limit: refused by the server, nothing saved.
+  await page.getByRole("link", { name: "New bill" }).click();
+  await page.getByLabel(/Scan a barcode/).fill("SH-M");
+  await page.getByLabel(/Scan a barcode/).press("Enter");
+  await page.getByLabel("Customer (phone or name, optional)").fill("Meena");
+  await page.getByRole("button", { name: "Find" }).click();
+  await page.getByRole("button", { name: /Meena/ }).click();
+  await page.getByRole("button", { name: /Save bill/ }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "over their credit limit" })).toBeVisible();
+});

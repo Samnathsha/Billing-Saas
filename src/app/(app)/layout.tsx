@@ -19,6 +19,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           {/* Menu links follow the role for convenience only; each page checks on the server. */}
           {who.permissions.includes("sales.create") ? <Link href="/pos">New bill</Link> : null}
           <Link href="/sales">Bills</Link>
+          <Link href="/customers">Customers</Link>
           <Link href="/catalog/products">Products</Link>
           <Link href="/inventory">Stock</Link>
           {who.permissions.includes("purchases.create") || who.permissions.includes("reports.view") ? <Link href="/purchases">Purchases</Link> : null}

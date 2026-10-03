@@ -2,6 +2,7 @@ import "server-only";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { env } from "@/lib/env";
+import { guardPool } from "./pool-errors";
 import * as schema from "./schema";
 
 // The one connection pool, as app_user. Only src/db may import this file
@@ -15,12 +16,15 @@ const globalForDb = globalThis as typeof globalThis & { __billingDb?: Database }
 
 export function getDb(): Database {
   globalForDb.__billingDb ??= drizzle({
-    client: new Pool({
-      connectionString: env.databaseUrl,
-      max: 10,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-    }),
+    client: guardPool(
+      new Pool({
+        connectionString: env.databaseUrl,
+        max: 10,
+        idleTimeoutMillis: 30_000,
+        connectionTimeoutMillis: 10_000,
+      }),
+      "app",
+    ),
     schema,
   });
   return globalForDb.__billingDb;

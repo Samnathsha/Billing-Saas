@@ -2,6 +2,7 @@ import "server-only";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { env } from "@/lib/env";
+import { guardPool } from "./pool-errors";
 import * as schema from "./schema";
 
 // The login library's own connection pool, as auth_service (ADR 0003). It
@@ -14,12 +15,15 @@ const globalForAuthDb = globalThis as typeof globalThis & { __billingAuthDb?: Au
 
 export function getAuthDb(): AuthDatabase {
   globalForAuthDb.__billingAuthDb ??= drizzle({
-    client: new Pool({
-      connectionString: env.authDatabaseUrl,
-      max: 5,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-    }),
+    client: guardPool(
+      new Pool({
+        connectionString: env.authDatabaseUrl,
+        max: 5,
+        idleTimeoutMillis: 30_000,
+        connectionTimeoutMillis: 10_000,
+      }),
+      "login",
+    ),
     schema,
   });
   return globalForAuthDb.__billingAuthDb;

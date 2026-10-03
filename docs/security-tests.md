@@ -26,3 +26,13 @@ Not yet covered (comes with its feature):
   noisy for automated tests). Sign-up for an existing email may answer at a
   slightly different speed; the per-IP limits make measuring it slow.
   Review again before launch.
+
+## Database connection drops (2026-10-03)
+
+A dropped idle connection (network blip, database restart) makes pg emit
+an "error" event with the failed connection attached, password included.
+With no listener this crashed the process, and the crash report printed
+the password (seen once in a local Neon test log; the logs were deleted and
+the test database passwords changed). `src/db/pool-errors.ts` now listens on
+both pools: the app keeps running, the pool reconnects on the next query,
+and only the error code is logged. Tested in `src/db/pool-errors.test.ts`.

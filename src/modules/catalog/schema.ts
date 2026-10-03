@@ -113,7 +113,7 @@ export const products = pgTable(
   },
   (t) => [
     unique("products_tenant_id_id_key").on(t.tenantId, t.id),
-    index("products_tenant_name_idx").on(t.tenantId, sql`lower(${t.name})`),
+    index("products_tenant_name_idx").on(t.tenantId, sql`lower(${t.name}) text_pattern_ops`),
     foreignKey({ name: "products_category_fk", columns: [t.tenantId, t.categoryId], foreignColumns: [categories.tenantId, categories.id] }).onDelete("restrict"),
     foreignKey({ name: "products_brand_fk", columns: [t.tenantId, t.brandId], foreignColumns: [brands.tenantId, brands.id] }).onDelete("restrict"),
     foreignKey({ name: "products_unit_fk", columns: [t.tenantId, t.unitId], foreignColumns: [units.tenantId, units.id] }).onDelete("restrict"),
@@ -166,5 +166,31 @@ export const productVariants = pgTable(
     check("product_variants_cost", sql`${t.costPricePaise} IS NULL OR ${t.costPricePaise} between 0 and 1000000000`),
     check("product_variants_reorder", sql`${t.reorderLevel} >= 0`),
     check("product_variants_attributes_object", sql`jsonb_typeof(${t.attributes}) = 'object'`),
+  ],
+);
+
+// Barcodes (blueprint 6.3): a scan finds exactly one item. A variant may
+// have several. Removing a barcode archives it, freeing the code for reuse.
+export const barcodes = pgTable(
+  "barcodes",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    variantId: uuid("variant_id").notNull(),
+    code: text("code").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...mutableRowColumns(),
+  },
+  (t) => [
+    unique("barcodes_tenant_id_id_key").on(t.tenantId, t.id),
+    // One active item per code in a business.
+    uniqueIndex("barcodes_tenant_code_active_key").on(t.tenantId, t.code).where(sql`${t.archivedAt} IS NULL`),
+    index("barcodes_tenant_variant_idx").on(t.tenantId, t.variantId),
+    foreignKey({
+      name: "barcodes_variant_fk",
+      columns: [t.tenantId, t.variantId],
+      foreignColumns: [productVariants.tenantId, productVariants.id],
+    }).onDelete("restrict"),
+    check("barcodes_code_format", sql`${t.code} ~ '^[A-Za-z0-9-]{1,64}$'`),
   ],
 );

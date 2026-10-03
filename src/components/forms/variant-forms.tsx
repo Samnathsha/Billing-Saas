@@ -59,3 +59,36 @@ export function ArchiveButton(props: { kind: "product" | "variant"; id: string; 
     </form>
   );
 }
+
+// Barcodes of one variant: add one, remove one.
+export function BarcodeForms(props: {
+  productId: string;
+  variantId: string;
+  barcodes: { id: string; code: string }[];
+  action: Action;
+}): ReactNode {
+  const [state, action, pending] = useActionState(props.action, { error: null });
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      {props.barcodes.map((b) => (
+        <form key={b.id} action={action} className="flex items-center gap-1 rounded border px-1">
+          <input type="hidden" name="productId" value={props.productId} />
+          <input type="hidden" name="barcodeId" value={b.id} />
+          <span>{b.code}</span>
+          <button type="submit" aria-label={`Remove barcode ${b.code}`} disabled={pending} className="px-1">
+            ×
+          </button>
+        </form>
+      ))}
+      <form action={action} className="flex items-center gap-1">
+        <input type="hidden" name="productId" value={props.productId} />
+        <input type="hidden" name="variantId" value={props.variantId} />
+        <Input name="code" placeholder="Add barcode" aria-label="New barcode" maxLength={64} required className="h-7 w-40" />
+        <Button type="submit" variant="outline" size="sm" disabled={pending}>
+          Add
+        </Button>
+      </form>
+      <FormMessage kind="error" text={state.error} />
+    </div>
+  );
+}

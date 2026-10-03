@@ -13,6 +13,7 @@ import { createFullTestBusiness, type FullTestBusiness } from "../helpers/busine
 // database, so a new tenant table cannot be forgotten here.
 const TENANT_TABLES = [
   "audit_logs",
+  "barcodes",
   "branches",
   "brands",
   "categories",

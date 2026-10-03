@@ -29,7 +29,8 @@ export type ProductErrorCode =
   | "CHANGED_BY_SOMEONE_ELSE"
   | "LAST_ACTIVE_VARIANT"
   | "ALREADY_ARCHIVED"
-  | "NOT_ARCHIVED";
+  | "NOT_ARCHIVED"
+  | "BARCODE_TAKEN";
 
 const MESSAGES: Record<ProductErrorCode, string> = {
   NOT_FOUND: "This product was not found.",
@@ -42,6 +43,7 @@ const MESSAGES: Record<ProductErrorCode, string> = {
   LAST_ACTIVE_VARIANT: "This is the last active variant. Archive the whole product instead.",
   ALREADY_ARCHIVED: "This is already archived.",
   NOT_ARCHIVED: "This is not archived.",
+  BARCODE_TAKEN: "This barcode is already on another item.",
 };
 
 export class ProductError extends Error {
@@ -64,6 +66,7 @@ export interface VariantDto {
   // Present only for "View cost price and profit".
   costPricePaise?: number | null;
   reorderLevel: string;
+  barcodes: { id: string; code: string }[];
   active: boolean;
   version: number;
 }
@@ -165,7 +168,18 @@ export const changePriceInput = z
     path: ["mrpPaise"],
   });
 export const archiveInput = z.strictObject({ id: z.uuid(), archived: z.boolean() });
-export const listProductsInput = z.strictObject({ page: z.int().min(1).max(10_000).default(1) });
+export const listProductsInput = z.strictObject({
+  page: z.int().min(1).max(10_000).default(1),
+  // Name, start of SKU, or exact barcode. Blank = everything.
+  q: z.preprocess((v) => (typeof v === "string" ? (v.trim() === "" ? null : v.trim()) : v), z.string().max(100).nullable().default(null)),
+});
+const barcodeCode = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9-]{1,64}$/, { error: "Barcode: 1 to 64 letters, digits or -" });
+export const addBarcodeInput = z.strictObject({ variantId: z.uuid(), code: barcodeCode });
+export const removeBarcodeInput = z.strictObject({ barcodeId: z.uuid() });
+export const findByBarcodeInput = z.strictObject({ code: barcodeCode });
 
 // ---------------------------------------------------------------------------
 // Helpers.
@@ -186,7 +200,9 @@ const asAttributes = (value: unknown): Attributes =>
 
 const isSet = <T,>(value: T | null | undefined): value is T => value !== null && value !== undefined;
 
-function toVariantDto(v: repo.VariantRow, template: Template, showCost: boolean): VariantDto {
+type BarcodeRow = { id: string; variantId: string; code: string };
+
+function toVariantDto(v: repo.VariantRow, template: Template, showCost: boolean, codes: BarcodeRow[]): VariantDto {
   const attributes = orderedAttributes(template, "variant", v.attributes);
   return {
     id: v.id,
@@ -197,12 +213,19 @@ function toVariantDto(v: repo.VariantRow, template: Template, showCost: boolean)
     mrpPaise: v.mrpPaise,
     ...(showCost ? { costPricePaise: v.costPricePaise } : {}),
     reorderLevel: v.reorderLevel,
+    barcodes: codes.filter((b) => b.variantId === v.id).map((b) => ({ id: b.id, code: b.code })),
     active: v.archivedAt === null,
     version: v.version,
   };
 }
 
-function toProductDto(p: repo.ProductRow, variants: repo.VariantRow[], template: Template, showCost: boolean): ProductDto {
+function toProductDto(
+  p: repo.ProductRow,
+  variants: repo.VariantRow[],
+  template: Template,
+  showCost: boolean,
+  codes: BarcodeRow[],
+): ProductDto {
   return {
     id: p.id,
     name: p.name,
@@ -216,7 +239,7 @@ function toProductDto(p: repo.ProductRow, variants: repo.VariantRow[], template:
     warrantyMonths: p.warrantyMonths,
     active: p.archivedAt === null,
     version: p.version,
-    variants: variants.filter((v) => v.productId === p.id).map((v) => toVariantDto(v, template, showCost)),
+    variants: variants.filter((v) => v.productId === p.id).map((v) => toVariantDto(v, template, showCost, codes)),
   };
 }
 
@@ -263,7 +286,9 @@ export async function getProduct(ctx: TenantContext, productId: string): Promise
   return withTenant(ctx, async (tx) => {
     const product = await repo.getProduct(tx, id);
     if (product === undefined) throw new ProductError("NOT_FOUND");
-    return toProductDto(product, await repo.variantsOf(tx, [id]), await repo.businessTemplate(tx), showCost);
+    const variants = await repo.variantsOf(tx, [id]);
+    const codes = await repo.activeBarcodesOf(tx, variants.map((v) => v.id));
+    return toProductDto(product, variants, await repo.businessTemplate(tx), showCost, codes);
   });
 }
 
@@ -272,15 +297,16 @@ export async function listProducts(
   rawInput: unknown,
 ): Promise<{ products: ProductDto[]; page: number; pages: number; total: number }> {
   await requirePermission(ctx, VIEW);
-  const { page } = listProductsInput.parse(rawInput);
+  const { page, q } = listProductsInput.parse(rawInput);
   const showCost = await hasPermission(ctx, "costs.view");
   return withTenant(ctx, async (tx) => {
-    const total = await repo.countProducts(tx);
-    const rows = await repo.listProducts(tx, PAGE_SIZE, (page - 1) * PAGE_SIZE);
+    const total = await repo.countProducts(tx, q);
+    const rows = await repo.listProducts(tx, PAGE_SIZE, (page - 1) * PAGE_SIZE, q);
     const variants = await repo.variantsOf(tx, rows.map((r) => r.id));
+    const codes = await repo.activeBarcodesOf(tx, variants.map((v) => v.id));
     const template = await repo.businessTemplate(tx);
     return {
-      products: rows.map((p) => toProductDto(p, variants, template, showCost)),
+      products: rows.map((p) => toProductDto(p, variants, template, showCost, codes)),
       page,
       pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
       total,
@@ -336,7 +362,7 @@ export async function createProduct(ctx: TenantContext, rawInput: unknown): Prom
     await audit(tx, ctx, "product.created", "product", productId, null, { name: input.name, variants });
     const created = await repo.getProduct(tx, productId);
     if (created === undefined) throw new Error("created product not found");
-    return toProductDto(created, await repo.variantsOf(tx, [productId]), template, await hasPermission(ctx, "costs.view"));
+    return toProductDto(created, await repo.variantsOf(tx, [productId]), template, await hasPermission(ctx, "costs.view"), []);
   });
 }
 
@@ -491,5 +517,46 @@ export async function setVariantArchived(ctx: TenantContext, rawInput: unknown):
     }
     await repo.updateVariant(tx, variant, { archivedAt: archived ? new Date() : null });
     await audit(tx, ctx, archived ? "product.variant_archived" : "product.variant_restored", "product_variant", variant.id, { archived: !archived }, { archived });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Barcodes: a scan finds exactly one item.
+// ---------------------------------------------------------------------------
+
+export async function addBarcode(ctx: TenantContext, rawInput: unknown): Promise<{ barcodeId: string }> {
+  await requirePermission(ctx, "products.manage");
+  const input = addBarcodeInput.parse(rawInput);
+  return withTenant(ctx, async (tx) => {
+    const variant = await repo.lockVariant(tx, input.variantId);
+    if (variant === undefined) throw new ProductError("NOT_FOUND");
+    if ((await repo.findActiveBarcode(tx, input.code)) !== undefined) throw new ProductError("BARCODE_TAKEN");
+    const barcodeId = await repo.insertBarcode(tx, ctx, variant.id, input.code);
+    await audit(tx, ctx, "product.barcode_added", "barcode", barcodeId, null, { variantId: variant.id, code: input.code });
+    return { barcodeId };
+  });
+}
+
+export async function removeBarcode(ctx: TenantContext, rawInput: unknown): Promise<void> {
+  await requirePermission(ctx, "products.manage");
+  const { barcodeId } = removeBarcodeInput.parse(rawInput);
+  await withTenant(ctx, async (tx) => {
+    const row = await repo.lockBarcode(tx, barcodeId);
+    if (row === undefined || row.archivedAt !== null) throw new ProductError("NOT_FOUND");
+    await repo.archiveBarcode(tx, row);
+    await audit(tx, ctx, "product.barcode_removed", "barcode", row.id, { code: row.code }, null);
+  });
+}
+
+// Scan or type a barcode: exactly one item, or nothing.
+export async function findByBarcode(
+  ctx: TenantContext,
+  rawInput: unknown,
+): Promise<{ productId: string; variantId: string } | null> {
+  await requirePermission(ctx, VIEW);
+  const { code } = findByBarcodeInput.parse(rawInput);
+  return withTenant(ctx, async (tx) => {
+    const found = await repo.findActiveBarcode(tx, code);
+    return found === undefined ? null : { productId: found.productId, variantId: found.variantId };
   });
 }

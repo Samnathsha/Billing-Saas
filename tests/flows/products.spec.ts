@@ -54,3 +54,30 @@ test("create a product with two variants, change a price; a cashier never sees t
   expect(html).not.toContain("45000");
   expect(html).not.toContain("costPricePaise");
 });
+
+test("add a barcode; scanning it in search opens exactly that item; name search lists matches", async ({ page }) => {
+  test.slow();
+  await ownerWithBusiness(page);
+  await page.goto("/catalog/products/new");
+  const form = page.getByRole("form", { name: "New product" });
+  await form.getByLabel("Product name").fill("Denim Jeans");
+  await form.getByLabel("Unit").selectOption({ label: "Piece (pcs)" });
+  await form.getByLabel("Tax rate").selectOption({ label: "TEST 5%" });
+  const v1 = form.getByRole("group", { name: "Variant 1" });
+  await v1.getByLabel("SKU").fill("DN-32");
+  await v1.getByLabel("Selling price (₹)").fill("1299");
+  await form.getByRole("button", { name: "Save product" }).click();
+  await expect(page.getByRole("heading", { name: "Denim Jeans" })).toBeVisible();
+  const item = page.getByRole("list", { name: "Variants" }).getByRole("listitem", { name: "DN-32" });
+  await item.getByLabel("New barcode").fill("8901111222233");
+  await item.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(item.getByText("8901111222233")).toBeVisible();
+
+  await page.goto("/catalog/products");
+  await page.getByLabel("Search products").fill("8901111222233");
+  await page.getByLabel("Search products").press("Enter");
+  await expect(page.getByRole("heading", { name: "Denim Jeans" })).toBeVisible();
+
+  await page.goto("/catalog/products?q=denim");
+  await expect(page.getByRole("list", { name: "Products" }).getByRole("listitem")).toHaveCount(1);
+});

@@ -134,6 +134,13 @@
       "when": 1791001888778,
       "tag": "0018_variant_position",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791004541404,
+      "tag": "0019_barcodes",
+      "breakpoints": true
     }
   ]
 }

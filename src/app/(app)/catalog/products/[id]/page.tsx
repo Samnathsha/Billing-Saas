@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArchiveButton, PriceForm } from "@/components/forms/variant-forms";
+import { ArchiveButton, BarcodeForms, PriceForm } from "@/components/forms/variant-forms";
 import { NotAllowed } from "@/components/not-allowed";
 import { formatPaise, paiseToRupeesText } from "@/lib/money";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
 import { getProduct, ProductError, type ProductDto } from "@/modules/catalog";
-import { archiveAction, changePriceAction } from "@/app/(app)/catalog/products/actions";
+import { archiveAction, barcodeAction, changePriceAction } from "@/app/(app)/catalog/products/actions";
 
 export const metadata: Metadata = { title: "Product" };
 
@@ -54,6 +54,11 @@ export default async function ProductPage({ params }: PageProps<"/catalog/produc
               </span>
               {canManage ? <ArchiveButton kind="variant" id={v.id} productId={product.id} active={v.active} action={archiveAction} /> : null}
             </div>
+            {canManage ? (
+              <BarcodeForms productId={product.id} variantId={v.id} barcodes={v.barcodes} action={barcodeAction} />
+            ) : v.barcodes.length > 0 ? (
+              <p className="text-xs text-muted-foreground">Barcodes: {v.barcodes.map((b) => b.code).join(", ")}</p>
+            ) : null}
             {canPrice ? (
               <PriceForm
                 productId={product.id}

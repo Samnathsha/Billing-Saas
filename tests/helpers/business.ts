@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import {
   auditLogs,
+  barcodes,
   branches,
   brands,
   categories,
@@ -86,6 +87,7 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     units: randomUUID(),
     products: randomUUID(),
     product_variants: randomUUID(),
+    barcodes: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -122,6 +124,7 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
       sellingPricePaise: 49_900,
       costPricePaise: 30_000,
     });
+    await tx.insert(barcodes).values({ id: id("barcodes"), tenantId, variantId: id("product_variants"), code: "8901234567890" });
     await tx.insert(invitations).values({
       id: id("invitations"),
       tenantId,

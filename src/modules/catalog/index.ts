@@ -12,7 +12,10 @@ export {
   type CatalogListsDto,
 } from "./service";
 export {
+  addBarcode,
   addVariant,
+  findByBarcode,
+  removeBarcode,
   changeVariantPrice,
   createProduct,
   createProductInput,

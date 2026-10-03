@@ -7,7 +7,15 @@ import { ZodError } from "zod";
 import type { ProductFormState } from "@/components/forms/product-form";
 import { rupeesToPaise } from "@/lib/money";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
-import { changeVariantPrice, createProduct, ProductError, setProductArchived, setVariantArchived } from "@/modules/catalog";
+import {
+  addBarcode,
+  changeVariantPrice,
+  createProduct,
+  ProductError,
+  removeBarcode,
+  setProductArchived,
+  setVariantArchived,
+} from "@/modules/catalog";
 
 type MemberCtx = Extract<Awaited<ReturnType<typeof getRequestContext>>, { kind: "member" }>["ctx"];
 
@@ -100,6 +108,19 @@ export async function archiveAction(_p: ProductFormState, form: FormData): Promi
   try {
     const input = { id: text(form, "id"), archived: form.get("archived") === "yes" };
     await (text(form, "kind") === "variant" ? setVariantArchived(ctx, input) : setProductArchived(ctx, input));
+  } catch (error) {
+    return { error: message(error) };
+  }
+  revalidatePath(`/catalog/products/${text(form, "productId")}`);
+  return { error: null };
+}
+
+export async function barcodeAction(_p: ProductFormState, form: FormData): Promise<ProductFormState> {
+  const ctx = await member();
+  if (ctx === null) return { error: "Please log in again." };
+  try {
+    if (form.has("barcodeId")) await removeBarcode(ctx, { barcodeId: text(form, "barcodeId") });
+    else await addBarcode(ctx, { variantId: text(form, "variantId"), code: text(form, "code") });
   } catch (error) {
     return { error: message(error) };
   }

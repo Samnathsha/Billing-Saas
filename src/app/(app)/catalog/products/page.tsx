@@ -5,17 +5,24 @@ import { redirect } from "next/navigation";
 import { NotAllowed } from "@/components/not-allowed";
 import { formatPaise } from "@/lib/money";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
-import { listProducts } from "@/modules/catalog";
+import { findByBarcode, listProducts } from "@/modules/catalog";
 
 export const metadata: Metadata = { title: "Products" };
 
 export default async function ProductsPage({ searchParams }: PageProps<"/catalog/products">) {
   const who = await getRequestContext(await headers());
   if (who.kind !== "member") redirect("/login");
-  const pageParam = Number((await searchParams).page ?? "1");
+  const sp = await searchParams;
+  const pageParam = Number(sp.page ?? "1");
+  const q = typeof sp.q === "string" ? sp.q.slice(0, 100) : "";
   let result: Awaited<ReturnType<typeof listProducts>>;
   try {
-    result = await listProducts(who.ctx, { page: Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1 });
+    // A scanned barcode goes straight to its item.
+    if (/^[A-Za-z0-9-]{1,64}$/.test(q.trim())) {
+      const hit = await findByBarcode(who.ctx, { code: q.trim() });
+      if (hit !== null) redirect(`/catalog/products/${hit.productId}`);
+    }
+    result = await listProducts(who.ctx, { page: Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1, q });
   } catch (error) {
     if (error instanceof PermissionDeniedError) return <NotAllowed />;
     throw error;
@@ -32,7 +39,18 @@ export default async function ProductsPage({ searchParams }: PageProps<"/catalog
           </div>
         ) : null}
       </div>
-      {result.total === 0 ? <p className="text-sm text-muted-foreground">No products yet.</p> : null}
+      <form method="get" className="flex gap-2" role="search">
+        <input
+          name="q"
+          defaultValue={q}
+          placeholder="Search name, SKU, or scan a barcode"
+          aria-label="Search products"
+          autoFocus
+          className="h-8 w-80 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+        />
+        <button type="submit" className="rounded-lg border px-3 text-sm">Search</button>
+      </form>
+      {result.total === 0 ? <p className="text-sm text-muted-foreground">{q === "" ? "No products yet." : "Nothing found."}</p> : null}
       <ul className="flex flex-col divide-y rounded-lg border" aria-label="Products">
         {result.products.map((p) => {
           const prices = p.variants.filter((v) => v.active).map((v) => v.sellingPricePaise);
@@ -54,8 +72,8 @@ export default async function ProductsPage({ searchParams }: PageProps<"/catalog
       {result.pages > 1 ? (
         <p className="text-sm">
           Page {result.page} of {result.pages}
-          {result.page > 1 ? <Link href={`?page=${String(result.page - 1)}`} className="ml-3 underline">Previous</Link> : null}
-          {result.page < result.pages ? <Link href={`?page=${String(result.page + 1)}`} className="ml-3 underline">Next</Link> : null}
+          {result.page > 1 ? <Link href={`?q=${encodeURIComponent(q)}&page=${String(result.page - 1)}`} className="ml-3 underline">Previous</Link> : null}
+          {result.page < result.pages ? <Link href={`?q=${encodeURIComponent(q)}&page=${String(result.page + 1)}`} className="ml-3 underline">Next</Link> : null}
         </p>
       ) : null}
     </main>

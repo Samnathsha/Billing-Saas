@@ -3,6 +3,7 @@ import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
 import {
   auditLogs,
+  barcodes,
   brands,
   categories,
   memberships,
@@ -292,14 +293,77 @@ export async function updateVariant(tx: TenantTx, variant: VariantRow, values: P
     .where(eq(productVariants.id, variant.id));
 }
 
-// A page of products, by name.
-export async function listProducts(tx: TenantTx, limit: number, offset: number): Promise<ProductRow[]> {
-  return tx.select(productColumns).from(products).orderBy(asc(sql`lower(${products.name})`), asc(products.id)).limit(limit).offset(offset);
+// Search: name contains, SKU starts with, or exact barcode. LIKE wildcards
+// in the search text are escaped, so they are matched literally.
+function searchFilter(q: string | null) {
+  if (q === null) return undefined;
+  const escaped = q.toLowerCase().replace(/[\\%_]/g, (c) => `\\${c}`);
+  return sql`(
+    lower(${products.name}) LIKE ${`%${escaped}%`}
+    OR EXISTS (SELECT 1 FROM ${productVariants} v WHERE v.product_id = ${products.id} AND lower(v.sku) LIKE ${`${escaped}%`})
+    OR EXISTS (SELECT 1 FROM ${barcodes} b JOIN ${productVariants} v2 ON v2.id = b.variant_id
+               WHERE v2.product_id = ${products.id} AND b.code = ${q} AND b.archived_at IS NULL)
+  )`;
 }
 
-export async function countProducts(tx: TenantTx): Promise<number> {
-  const [row] = await tx.select({ n: count() }).from(products);
+// A page of products, by name.
+export async function listProducts(tx: TenantTx, limit: number, offset: number, q: string | null = null): Promise<ProductRow[]> {
+  return tx
+    .select(productColumns)
+    .from(products)
+    .where(searchFilter(q))
+    .orderBy(asc(sql`lower(${products.name})`), asc(products.id))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function countProducts(tx: TenantTx, q: string | null = null): Promise<number> {
+  const [row] = await tx.select({ n: count() }).from(products).where(searchFilter(q));
   return row?.n ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Barcodes.
+// ---------------------------------------------------------------------------
+
+export async function activeBarcodesOf(tx: TenantTx, variantIds: string[]) {
+  if (variantIds.length === 0) return [];
+  return tx
+    .select({ id: barcodes.id, variantId: barcodes.variantId, code: barcodes.code })
+    .from(barcodes)
+    .where(and(inArray(barcodes.variantId, variantIds), isNull(barcodes.archivedAt)))
+    .orderBy(asc(barcodes.createdAt), asc(barcodes.code));
+}
+
+export async function findActiveBarcode(tx: TenantTx, code: string) {
+  const [row] = await tx
+    .select({ id: barcodes.id, variantId: barcodes.variantId, productId: productVariants.productId })
+    .from(barcodes)
+    .innerJoin(productVariants, eq(productVariants.id, barcodes.variantId))
+    .where(and(eq(barcodes.code, code), isNull(barcodes.archivedAt)));
+  return row;
+}
+
+export async function insertBarcode(tx: TenantTx, ctx: TenantContext, variantId: string, code: string): Promise<string> {
+  const [row] = await tx
+    .insert(barcodes)
+    .values({ tenantId: ctx.tenantId, variantId, code, createdBy: ctx.userId })
+    .returning({ id: barcodes.id });
+  if (row === undefined) throw new Error("barcode insert returned nothing");
+  return row.id;
+}
+
+export async function lockBarcode(tx: TenantTx, id: string) {
+  const [row] = await tx
+    .select({ id: barcodes.id, code: barcodes.code, archivedAt: barcodes.archivedAt, version: barcodes.version })
+    .from(barcodes)
+    .where(eq(barcodes.id, id))
+    .for("update");
+  return row;
+}
+
+export async function archiveBarcode(tx: TenantTx, row: { id: string; version: number }): Promise<void> {
+  await tx.update(barcodes).set({ archivedAt: new Date(), version: row.version + 1 }).where(eq(barcodes.id, row.id));
 }
 
 export async function listTaxCategories(tx: TenantTx) {

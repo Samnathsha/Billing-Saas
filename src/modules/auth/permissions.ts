@@ -22,9 +22,25 @@ export class PermissionDeniedError extends Error {
 
 const KNOWN: ReadonlySet<string> = new Set(PERMISSIONS);
 
-export async function requirePermission(ctx: TenantContext, permission: Permission): Promise<void> {
+// One permission, or a list meaning "any one of these" (e.g. looking up
+// products: whoever sells, manages products or views reports).
+export async function requirePermission(ctx: TenantContext, permission: Permission | readonly Permission[]): Promise<void> {
+  const wanted = typeof permission === "string" ? [permission] : permission;
+  const first = wanted[0];
   // A typo cast past TypeScript is a programming error, not a refusal.
-  if (!KNOWN.has(permission)) throw new Error("requirePermission: unknown permission code");
-  const allowed = await withTenant(ctx, (tx) => repo.memberHasPermission(tx, ctx, permission));
-  if (!allowed) throw new PermissionDeniedError(permission);
+  if (first === undefined || wanted.some((p) => !KNOWN.has(p))) {
+    throw new Error("requirePermission: unknown permission code");
+  }
+  const allowed = await withTenant(ctx, async (tx) => {
+    for (const p of wanted) if (await repo.memberHasPermission(tx, ctx, p)) return true;
+    return false;
+  });
+  if (!allowed) throw new PermissionDeniedError(first);
+}
+
+// Yes/no, for deciding what to show (e.g. cost price), never as the
+// gate of a service function: those start with requirePermission.
+export async function hasPermission(ctx: TenantContext, permission: Permission): Promise<boolean> {
+  if (!KNOWN.has(permission)) throw new Error("hasPermission: unknown permission code");
+  return withTenant(ctx, (tx) => repo.memberHasPermission(tx, ctx, permission));
 }

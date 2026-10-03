@@ -11,3 +11,20 @@ export {
   type CatalogErrorCode,
   type CatalogListsDto,
 } from "./service";
+export {
+  addVariant,
+  changeVariantPrice,
+  createProduct,
+  createProductInput,
+  getProduct,
+  listProducts,
+  ProductError,
+  setProductArchived,
+  setVariantArchived,
+  updateProduct,
+  updateVariant,
+  type ProductDto,
+  type ProductErrorCode,
+  type VariantDto,
+} from "./products.service";
+export { variantLabel } from "./templates";

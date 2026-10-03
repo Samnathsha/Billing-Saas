@@ -17,7 +17,7 @@ export {
   type OnboardingErrorCode,
 } from "./onboarding";
 export { getRequestContext, type RequestContext } from "./request-context";
-export { PermissionDeniedError, requirePermission } from "./permissions";
+export { hasPermission, PermissionDeniedError, requirePermission } from "./permissions";
 export {
   endMySession,
   endSessionInput,

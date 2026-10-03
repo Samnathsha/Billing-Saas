@@ -8,6 +8,8 @@ import {
   devices,
   invitations,
   memberships,
+  products,
+  productVariants,
   rolePermissions,
   roles,
   settings,
@@ -82,6 +84,8 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     categories: randomUUID(),
     brands: randomUUID(),
     units: randomUUID(),
+    products: randomUUID(),
+    product_variants: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -103,6 +107,21 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     await tx.insert(categories).values({ id: id("categories"), tenantId, name: `${name} category` });
     await tx.insert(brands).values({ id: id("brands"), tenantId, name: `${name} brand` });
     await tx.insert(units).values({ id: id("units"), tenantId, name: "Piece", code: "pcs" });
+    await tx.insert(products).values({
+      id: id("products"),
+      tenantId,
+      name: `${name} shirt`,
+      unitId: id("units"),
+      taxCategory: "test_5",
+    });
+    await tx.insert(productVariants).values({
+      id: id("product_variants"),
+      tenantId,
+      productId: id("products"),
+      sku: `SKU-${tenantId.slice(0, 8)}`,
+      sellingPricePaise: 49_900,
+      costPricePaise: 30_000,
+    });
     await tx.insert(invitations).values({
       id: id("invitations"),
       tenantId,

@@ -1,0 +1,2 @@
+ALTER TABLE "product_variants" ADD COLUMN "position" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "product_variants" ADD CONSTRAINT "product_variants_position" CHECK ("product_variants"."position" >= 0);

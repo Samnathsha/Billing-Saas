@@ -136,7 +136,7 @@ const bannedSyntax = [
 
 // ---------------------------------------------------------------------------
 // Permission checks (blueprint 5.3). Every exported function in a module's
-// service.ts takes `ctx` first and starts with
+// service.ts (or any *.service.ts) takes `ctx` first and starts with
 //   await requirePermission(ctx, "...");
 // Exports must be plain `export async function` declarations so this can be
 // checked; and index.ts may not hand out repo.ts queries, which would skip
@@ -284,7 +284,7 @@ const eslintConfig = defineConfig([
   {
     // ESLint replaces (does not merge) a rule's options per block, so the
     // general banned syntax is repeated here.
-    files: ["src/modules/*/service.ts"],
+    files: ["src/modules/*/service.ts", "src/modules/*/*.service.ts"],
     rules: { "no-restricted-syntax": ["error", ...bannedSyntax, ...serviceSyntax] },
   },
   {

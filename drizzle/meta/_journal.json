@@ -120,6 +120,20 @@
       "when": 1790980807004,
       "tag": "0016_catalog_lists",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791000950127,
+      "tag": "0017_products",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791001888778,
+      "tag": "0018_variant_position",
+      "breakpoints": true
     }
   ]
 }

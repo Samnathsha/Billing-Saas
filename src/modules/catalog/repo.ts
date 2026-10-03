@@ -1,7 +1,18 @@
 import "server-only";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
-import { auditLogs, brands, categories, memberships, roles, units } from "@/db/schema";
+import {
+  auditLogs,
+  brands,
+  categories,
+  memberships,
+  products,
+  productVariants,
+  roles,
+  taxCategories,
+  tenants,
+  units,
+} from "@/db/schema";
 
 // Database queries of the catalog module, inside the caller's withTenant
 // transaction (row-level security limits them to the business).
@@ -118,4 +129,175 @@ export async function addAuditEntry(
   await tx
     .insert(auditLogs)
     .values({ tenantId: ctx.tenantId, actorUserId: ctx.userId, actorRole: await actorRoleName(tx, ctx), ...entry });
+}
+
+// ---------------------------------------------------------------------------
+// Products and variants.
+// ---------------------------------------------------------------------------
+
+export async function businessTemplate(tx: TenantTx): Promise<"clothing" | "mobile"> {
+  const [row] = await tx.select({ template: tenants.template }).from(tenants);
+  return row?.template === "mobile" ? "mobile" : "clothing";
+}
+
+// Is this list item there and not archived?
+export async function listItemActive(tx: TenantTx, kind: ListKind, id: string): Promise<boolean> {
+  const table = tableOf[kind];
+  const rows = await tx.select({ id: table.id }).from(table).where(and(eq(table.id, id), isNull(table.archivedAt)));
+  return rows.length > 0;
+}
+
+export async function unitAllowsFraction(tx: TenantTx, unitId: string): Promise<boolean | undefined> {
+  const [row] = await tx.select({ f: units.allowsFraction }).from(units).where(eq(units.id, unitId));
+  return row?.f;
+}
+
+export async function taxCategoryExists(tx: TenantTx, code: string): Promise<boolean> {
+  const rows = await tx.select({ code: taxCategories.code }).from(taxCategories).where(eq(taxCategories.code, code));
+  return rows.length > 0;
+}
+
+// SKUs already used in this business (ignoring case), apart from one variant.
+export async function takenSkus(tx: TenantTx, skus: string[], exceptVariantId: string | null): Promise<string[]> {
+  if (skus.length === 0) return [];
+  const rows = await tx
+    .select({ id: productVariants.id, sku: productVariants.sku })
+    .from(productVariants)
+    .where(inArray(sql`lower(${productVariants.sku})`, skus.map((x) => x.toLowerCase())));
+  return rows.filter((r) => r.id !== exceptVariantId).map((r) => r.sku);
+}
+
+export interface ProductRow {
+  id: string;
+  name: string;
+  categoryId: string | null;
+  brandId: string | null;
+  unitId: string;
+  hsnCode: string | null;
+  taxCategory: string;
+  attributes: unknown;
+  trackSerial: boolean;
+  warrantyMonths: number | null;
+  archivedAt: Date | null;
+  version: number;
+}
+
+export interface VariantRow {
+  id: string;
+  productId: string;
+  sku: string;
+  attributes: unknown;
+  sellingPricePaise: number;
+  mrpPaise: number | null;
+  costPricePaise: number | null;
+  reorderLevel: string;
+  position: number;
+  archivedAt: Date | null;
+  version: number;
+}
+
+const productColumns = {
+  id: products.id,
+  name: products.name,
+  categoryId: products.categoryId,
+  brandId: products.brandId,
+  unitId: products.unitId,
+  hsnCode: products.hsnCode,
+  taxCategory: products.taxCategory,
+  attributes: products.attributes,
+  trackSerial: products.trackSerial,
+  warrantyMonths: products.warrantyMonths,
+  archivedAt: products.archivedAt,
+  version: products.version,
+};
+
+const variantColumns = {
+  id: productVariants.id,
+  productId: productVariants.productId,
+  sku: productVariants.sku,
+  attributes: productVariants.attributes,
+  sellingPricePaise: productVariants.sellingPricePaise,
+  mrpPaise: productVariants.mrpPaise,
+  costPricePaise: productVariants.costPricePaise,
+  reorderLevel: productVariants.reorderLevel,
+  position: productVariants.position,
+  archivedAt: productVariants.archivedAt,
+  version: productVariants.version,
+};
+
+export type NewProduct = Omit<ProductRow, "id" | "archivedAt" | "version">;
+export type NewVariant = Omit<VariantRow, "id" | "productId" | "archivedAt" | "version">;
+
+export async function insertProduct(tx: TenantTx, ctx: TenantContext, values: NewProduct): Promise<string> {
+  const [row] = await tx
+    .insert(products)
+    .values({ tenantId: ctx.tenantId, createdBy: ctx.userId, ...values })
+    .returning({ id: products.id });
+  if (row === undefined) throw new Error("product insert returned nothing");
+  return row.id;
+}
+
+export async function insertVariant(tx: TenantTx, ctx: TenantContext, productId: string, values: NewVariant): Promise<string> {
+  const [row] = await tx
+    .insert(productVariants)
+    .values({ tenantId: ctx.tenantId, productId, createdBy: ctx.userId, ...values })
+    .returning({ id: productVariants.id });
+  if (row === undefined) throw new Error("variant insert returned nothing");
+  return row.id;
+}
+
+export async function getProduct(tx: TenantTx, id: string): Promise<ProductRow | undefined> {
+  const [row] = await tx.select(productColumns).from(products).where(eq(products.id, id));
+  return row;
+}
+
+export async function lockProduct(tx: TenantTx, id: string): Promise<ProductRow | undefined> {
+  const [row] = await tx.select(productColumns).from(products).where(eq(products.id, id)).for("update");
+  return row;
+}
+
+export async function variantsOf(tx: TenantTx, productIds: string[]): Promise<VariantRow[]> {
+  if (productIds.length === 0) return [];
+  return tx
+    .select(variantColumns)
+    .from(productVariants)
+    .where(inArray(productVariants.productId, productIds))
+    .orderBy(asc(productVariants.position), asc(productVariants.createdAt), asc(productVariants.id));
+}
+
+export async function lockVariant(tx: TenantTx, id: string): Promise<VariantRow | undefined> {
+  const [row] = await tx.select(variantColumns).from(productVariants).where(eq(productVariants.id, id)).for("update");
+  return row;
+}
+
+export async function countActiveVariants(tx: TenantTx, productId: string): Promise<number> {
+  const [row] = await tx
+    .select({ n: count() })
+    .from(productVariants)
+    .where(and(eq(productVariants.productId, productId), isNull(productVariants.archivedAt)));
+  return row?.n ?? 0;
+}
+
+export async function updateProduct(tx: TenantTx, product: ProductRow, values: Partial<NewProduct> & { archivedAt?: Date | null }): Promise<void> {
+  await tx
+    .update(products)
+    .set({ ...values, version: product.version + 1 })
+    .where(eq(products.id, product.id));
+}
+
+export async function updateVariant(tx: TenantTx, variant: VariantRow, values: Partial<NewVariant> & { archivedAt?: Date | null }): Promise<void> {
+  await tx
+    .update(productVariants)
+    .set({ ...values, version: variant.version + 1 })
+    .where(eq(productVariants.id, variant.id));
+}
+
+// A page of products, by name.
+export async function listProducts(tx: TenantTx, limit: number, offset: number): Promise<ProductRow[]> {
+  return tx.select(productColumns).from(products).orderBy(asc(sql`lower(${products.name})`), asc(products.id)).limit(limit).offset(offset);
+}
+
+export async function countProducts(tx: TenantTx): Promise<number> {
+  const [row] = await tx.select({ n: count() }).from(products);
+  return row?.n ?? 0;
 }

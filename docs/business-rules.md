@@ -245,3 +245,14 @@ Each question has the default the app will use until answered.
     switching this changes what every stored price means. DEFAULT, owner and
     accountant to confirm: allowed freely until the first product exists,
     then locked like the shop type (enforced in Phase 5).
+29. **Price of zero:** may a product be sold for ₹0 (a free item)? DEFAULT,
+    owner and accountant to confirm: no; the lowest selling price is 1
+    paisa (database check). A free gift can be handled as a discount later.
+30. **Selling price above MRP:** must the selling price never exceed the
+    MRP printed on the item (Legal Metrology)? DEFAULT, accountant to
+    confirm: yes; if an MRP is entered, the selling price must be at or
+    below it (database check).
+31. **Unit or serial tracking after stock exists:** changing a product's
+    unit (e.g. pieces to metres) or IMEI tracking after it has stock would
+    change what the stock numbers mean. DEFAULT, owner to confirm: allowed
+    while no stock exists; locked once stock exists (enforced in Phase 6).

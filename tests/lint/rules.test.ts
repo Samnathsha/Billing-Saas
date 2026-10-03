@@ -116,6 +116,11 @@ describe("permission checks: every service function starts with requirePermissio
     expect(await guardedRuleHits(code, SERVICE)).toEqual([]);
   });
 
+  it("the same rule covers any *.service.ts file", async () => {
+    const code = head + "export async function listProducts(ctx: TenantContext) {\n  return ctx;\n}";
+    expect(await guardedRuleHits(code, "src/modules/catalog/products.service.ts")).toContain("no-restricted-syntax");
+  });
+
   it("the general bans still apply in service.ts", async () => {
     expect(await guardedRuleHits(head + "export const q = (id: string) => `DELETE FROM sales WHERE id = ${id}`;", SERVICE)).toContain(
       "no-restricted-syntax",

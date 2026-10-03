@@ -19,6 +19,8 @@ const TENANT_TABLES = [
   "devices",
   "invitations",
   "memberships",
+  "product_variants",
+  "products",
   "role_permissions",
   "roles",
   "settings",

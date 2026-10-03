@@ -1,6 +1,22 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, foreignKey, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  check,
+  foreignKey,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { idColumn, mutableRowColumns, tenantIdColumn } from "@/db/columns";
+import { taxCategories } from "@/modules/tax/schema";
 import { tenants } from "@/modules/tenants/schema";
 
 // Lists that organise products (Phase 5). Archived, never deleted, so
@@ -67,5 +83,88 @@ export const units = pgTable(
     uniqueIndex("units_tenant_code_key").on(t.tenantId, sql`lower(${t.code})`),
     check("units_name_length", sql`char_length(${t.name}) between 1 and 50`),
     check("units_code_format", sql`${t.code} ~ '^[A-Za-z0-9.]{1,10}$'`),
+  ],
+);
+
+// What the shop sells, before size/colour (blueprint 6.2, 6.4). Every
+// product has at least one variant; archived, never deleted.
+export const products = pgTable(
+  "products",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    categoryId: uuid("category_id"),
+    brandId: uuid("brand_id"),
+    unitId: uuid("unit_id").notNull(),
+    // 4, 6 or 8 digits (rule 4.6; open question 16).
+    hsnCode: text("hsn_code"),
+    taxCategory: text("tax_category")
+      .notNull()
+      .references(() => taxCategories.code, { onDelete: "restrict" }),
+    // Template fields at product level (mobile: model), validated by the
+    // template's Zod schema in the service.
+    attributes: jsonb("attributes").notNull().default({}),
+    // Mobile phones: each unit has an IMEI (serial_numbers, step 5.6).
+    trackSerial: boolean("track_serial").notNull().default(false),
+    warrantyMonths: integer("warranty_months"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...mutableRowColumns(),
+  },
+  (t) => [
+    unique("products_tenant_id_id_key").on(t.tenantId, t.id),
+    index("products_tenant_name_idx").on(t.tenantId, sql`lower(${t.name})`),
+    foreignKey({ name: "products_category_fk", columns: [t.tenantId, t.categoryId], foreignColumns: [categories.tenantId, categories.id] }).onDelete("restrict"),
+    foreignKey({ name: "products_brand_fk", columns: [t.tenantId, t.brandId], foreignColumns: [brands.tenantId, brands.id] }).onDelete("restrict"),
+    foreignKey({ name: "products_unit_fk", columns: [t.tenantId, t.unitId], foreignColumns: [units.tenantId, units.id] }).onDelete("restrict"),
+    check("products_name_length", sql`char_length(${t.name}) between 1 and 200`),
+    check("products_hsn_format", sql`${t.hsnCode} ~ '^[0-9]{4}([0-9]{2}){0,2}$'`),
+    check("products_warranty_range", sql`${t.warrantyMonths} between 0 and 120`),
+    check("products_attributes_object", sql`jsonb_typeof(${t.attributes}) = 'object'`),
+  ],
+);
+
+// The thing actually stocked and sold: e.g. "Shirt, blue, M". Money is
+// integer paise (rule 1.2).
+export const productVariants = pgTable(
+  "product_variants",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    productId: uuid("product_id").notNull(),
+    sku: text("sku").notNull(),
+    // Template fields at variant level (clothing: size, colour, fabric).
+    attributes: jsonb("attributes").notNull().default({}),
+    sellingPricePaise: bigint("selling_price_paise", { mode: "number" }).notNull(),
+    // Optional (open question 25); never below the selling price (open
+    // question 30).
+    mrpPaise: bigint("mrp_paise", { mode: "number" }),
+    // Starting cost until purchases (business rules section 13); shown only
+    // to "View cost price and profit".
+    costPricePaise: bigint("cost_price_paise", { mode: "number" }),
+    // Low-stock warning level, in the product's unit.
+    reorderLevel: numeric("reorder_level", { precision: 14, scale: 3 }).notNull().default("0"),
+    // Order within the product, as entered (e.g. S, M, L).
+    position: integer("position").notNull().default(0),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    ...mutableRowColumns(),
+  },
+  (t) => [
+    unique("product_variants_tenant_id_id_key").on(t.tenantId, t.id),
+    check("product_variants_position", sql`${t.position} >= 0`),
+    uniqueIndex("product_variants_tenant_sku_key").on(t.tenantId, sql`lower(${t.sku})`),
+    index("product_variants_tenant_product_idx").on(t.tenantId, t.productId),
+    foreignKey({
+      name: "product_variants_product_fk",
+      columns: [t.tenantId, t.productId],
+      foreignColumns: [products.tenantId, products.id],
+    }).onDelete("restrict"),
+    check("product_variants_sku_format", sql`${t.sku} ~ '^[A-Za-z0-9._/-]{1,40}$'`),
+    // At least 1 paisa (open question 29), at most 1 crore rupees.
+    check("product_variants_price_range", sql`${t.sellingPricePaise} between 1 and 1000000000`),
+    check("product_variants_mrp", sql`${t.mrpPaise} IS NULL OR (${t.mrpPaise} >= ${t.sellingPricePaise} AND ${t.mrpPaise} <= 1000000000)`),
+    check("product_variants_cost", sql`${t.costPricePaise} IS NULL OR ${t.costPricePaise} between 0 and 1000000000`),
+    check("product_variants_reorder", sql`${t.reorderLevel} >= 0`),
+    check("product_variants_attributes_object", sql`jsonb_typeof(${t.attributes}) = 'object'`),
   ],
 );

@@ -262,22 +262,28 @@ Lists used to organise products. Archived, never deleted (no DELETE grant).
 - Every business starts with Piece (`pcs`, whole) and Metre (`m`,
   fractions); existing businesses got them in migration 0016.
 
-### products: Planned
+### products: Built (Phase 5, migration 0017)
 What the shop sells, before size/colour.
-- Columns: `name`, `category_id`, `brand_id`, `unit_id`, `hsn_code`,
-  `tax_category` (links to `tax_rates`), `attributes` (JSON, validated by
-  the business template: brand, model, fabric...), `track_serial` (mobile
-  phones: each unit has an IMEI), `warranty_months`, `archived_at`.
-- Rule: every product has at least one variant (a plain item has one
-  default variant).
+- Columns: `name`, `category_id`, `brand_id`, `unit_id` (composite keys
+  to the lists), `hsn_code` (4, 6 or 8 digits), `tax_category` (to
+  `tax_categories`), `attributes` (JSON, validated by the business
+  template: mobile `model`), `track_serial` (IMEI), `warranty_months`
+  (0-120), `archived_at`.
+- Rule: every product has at least one variant; the last active variant
+  cannot be archived (archive the product instead).
 
-### product_variants: Planned
+### product_variants: Built (Phase 5, migrations 0017-0018)
 The thing actually stocked and sold: e.g. "Shirt, blue, M".
-- Columns: `product_id`, `sku` (unique per business, ignoring case),
-  `attributes` (size, colour...), `selling_price_paise`, optional
-  `mrp_paise` (review question R4), `archived_at`.
-- Price changes are audited. A sale stores a snapshot of the price, so a
-  later change never alters old invoices.
+- Columns: `product_id`, `sku` (unique per business ignoring case; 1-40
+  letters, digits, `. _ / -`), `attributes` (clothing: size, colour,
+  fabric; mobile: RAM, storage, colour), `selling_price_paise` (1 paisa to
+  1 crore rupees), optional `mrp_paise` (never below the selling price),
+  optional `cost_price_paise` (starting cost, business rules 13),
+  `reorder_level` (numeric(14,3)), `position` (order as entered),
+  `archived_at`.
+- Price changes are audited with old and new values. A sale stores a
+  snapshot of the price, so a later change never alters old invoices.
+- Never deleted (no DELETE grant).
 
 ### barcodes: Planned
 - Columns: `variant_id`, `code`. Unique `(tenant_id, code)`: a scan finds

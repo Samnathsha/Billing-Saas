@@ -60,7 +60,7 @@ test("opening stock, a purchase with part payment, a refused duplicate, a void a
   await page.getByLabel("Supplier name").fill("Ravi Traders");
   await page.getByRole("button", { name: "Add supplier" }).click();
   await expect(page.getByRole("heading", { name: "Ravi Traders" })).toBeVisible();
-  await expect(page.getByLabel("Balance")).toHaveText("Settled");
+  await expect(page.getByLabel("Balance", { exact: true })).toHaveText("Settled");
 
   // A purchase: 10 shirts at ₹50 + 5% GST = ₹525; ₹200 paid now.
   await page.getByRole("link", { name: "New purchase from this supplier" }).click();
@@ -81,7 +81,7 @@ test("opening stock, a purchase with part payment, a refused duplicate, a void a
   const purchaseUrl = page.url();
 
   await page.getByRole("link", { name: "Ravi Traders" }).click();
-  await expect(page.getByLabel("Balance")).toHaveText("We owe ₹325.00");
+  await expect(page.getByLabel("Balance", { exact: true })).toHaveText("We owe ₹325.00");
   await page.goto("/inventory");
   // (2 x ₹100 + 10 x ₹50) / 12 = ₹58.33; GST is not cost for a registered business.
   await expect(shirtRow(page)).toContainText("12");
@@ -101,14 +101,16 @@ test("opening stock, a purchase with part payment, a refused duplicate, a void a
   // Void it: stock and the account go back; the ₹200 paid stays as an advance.
   await page.goto(purchaseUrl);
   await page.getByLabel("Reason").fill("Wrong price");
+  // Without the tick the browser does not send the form: nothing is voided.
   await page.getByRole("button", { name: "Void purchase" }).click();
-  await expect(page.locator(formAlert)).toHaveText("Tick the box to confirm.");
+  expect(await page.getByLabel("I understand this cannot be undone").evaluate((el) => (el as HTMLInputElement).validity.valueMissing)).toBe(true);
+  await expect(page.getByRole("heading", { name: "Bill RT/101", exact: true })).toBeVisible();
   await page.getByLabel("I understand this cannot be undone").check();
   await page.getByRole("button", { name: "Void purchase" }).click();
   await expect(page.getByRole("heading", { name: /Bill RT\/101 \(voided\)/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Void purchase" })).toHaveCount(0);
   await page.getByRole("link", { name: "Ravi Traders" }).click();
-  await expect(page.getByLabel("Balance")).toHaveText("Advance ₹200.00");
+  await expect(page.getByLabel("Balance", { exact: true })).toHaveText("Advance ₹200.00");
   await page.goto("/inventory");
   await expect(shirtRow(page)).toContainText("2");
   await expect(shirtRow(page)).toContainText("₹100.00");

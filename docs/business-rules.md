@@ -178,6 +178,23 @@ or tax advice; the accountant signs off before launch.
   balance is always the sum of its account rows: opening balance,
   purchases, payments and voids; never a typed number.
 
+### 15. Billing and POS (owner decisions 2026-10-03, Phase 7)
+
+- **Credit sales:** Phase 7 adds basic customers (name, phone, optional
+  GSTIN, credit limit). A bill may be partly or fully on credit, never
+  above the customer's limit (what they already owe counts). Customer
+  payments and full customer profiles come in Phase 8.
+- **Price at the till:** the bill always uses the product's current price.
+  The person at the till may only give a discount within their limit
+  (rule 8); prices change only on the Products page. A price sent by the
+  browser is ignored; the server recomputes everything (rule 3.6).
+- **Void window:** a Manager or above may void a bill only on the day it
+  was made (business time zone). After that, mistakes are fixed with a
+  return and credit note (Phase 8). Accountant to confirm.
+- **Conventional choices (not asked):** card and UPI are recorded, not
+  charged (no payment gateway); the bill date is always the moment of sale
+  (no back-dating); each sale comes from one branch chosen at the till.
+
 ## OPEN QUESTIONS FOR ACCOUNTANT
 
 Each question has the default the app will use until answered.
@@ -201,7 +218,11 @@ Each question has the default the app will use until answered.
    taxable value.
 7. **Bill-level discount:** how is a whole-bill discount spread across lines
    with different rates? DEFAULT, accountant to confirm: in proportion to
-   each line's value, rounded half up, remainder on the largest line.
+   each line's value after its own discount. Each line's share is rounded
+   down to the paisa; the paise left over go one at a time to the lines
+   with the largest leftover fractions (so the shares always add up exactly
+   and no line gets more than its value). (Phase 7 as built; replaces
+   "remainder on the largest line".)
 8. **Void time limit:** may an invoice be voided after its GST return
    period is filed, or must it then be a credit note? DEFAULT, accountant to
    confirm: void allowed only on the same business day; after that, credit
@@ -298,3 +319,15 @@ Each question has the default the app will use until answered.
 35. **Bill and payment dates:** may be any day from 1 July 2017 (start of
     GST) up to today in the business's time zone; not in the future.
     DEFAULT, owner to confirm.
+36. **Equal CGST and SGST:** for a same-state sale the app computes CGST
+    on the taxable value at half the rate, rounded half up, and SGST is the
+    same amount, so the two are always equal (the tax is then always an
+    even number of paise). For prices including GST, the taxable value is
+    the price minus CGST and SGST, so the line still costs exactly the
+    price shown. DEFAULT, accountant to confirm.
+37. **Bill of supply:** a composition or unregistered business charges no
+    GST on its bills (the price is the total). DEFAULT, accountant to
+    confirm (and the wording printed on such a bill, Phase 7 step 7.7).
+38. **Discount limit check:** the cashier's limit (5%) applies to the whole
+    bill's discount and also to each line's own discount, both measured
+    against the price before discount. DEFAULT, owner to confirm.

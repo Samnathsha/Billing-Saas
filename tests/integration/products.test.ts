@@ -265,7 +265,8 @@ describe("another business", () => {
     expect(await codeOf(createProduct(a, await shirt(b)))).toBe("LIST_ITEM_INVALID");
     expect(await codeOf(createProduct(a, { ...(await shirt(b)), unitId: await unitId(a, "pcs") }))).toBe("ok");
     expect((await getProduct(b, bProduct.id)).variants[0]?.sellingPricePaise).toBe(79_900);
-  });
+    // Two businesses and several products: over 30 s on the remote test DB.
+  }, 90_000);
 });
 
 describe("the database refuses bad values on its own", () => {

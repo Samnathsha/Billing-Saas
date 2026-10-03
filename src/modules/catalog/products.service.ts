@@ -622,6 +622,10 @@ export async function importProductsCsv(ctx: TenantContext, rawInput: unknown): 
     // Rules that need the database or the full product shape.
     const allSkus = products.flatMap((p) => p.variants.map((v) => v.sku)).filter((x) => x !== "");
     const taken = new Set((await repo.takenSkus(tx, allSkus, null)).map((x) => x.toLowerCase()));
+    const usedCodes = await repo.usedBarcodes(
+      tx,
+      products.flatMap((p) => p.variants.map((v) => v.barcode)).filter((c): c is string => c !== null),
+    );
     const inputs: { input: CreateProductInput; codes: string[][] }[] = [];
     // Lines that already failed to read are not checked again (one clear
     // message per problem).
@@ -630,7 +634,7 @@ export async function importProductsCsv(ctx: TenantContext, rawInput: unknown): 
       if (p.variants.some((v) => unreadable.has(v.row))) continue;
       for (const v of p.variants) {
         if (taken.has(v.sku.toLowerCase())) errors.push({ row: v.row, column: "sku", message: "This SKU is already used by another item." });
-        if (v.barcode !== null && (await repo.findActiveBarcode(tx, v.barcode)) !== undefined) {
+        if (v.barcode !== null && usedCodes.has(v.barcode)) {
           errors.push({ row: v.row, column: "barcode", message: "This barcode is already on another item." });
         }
       }
@@ -675,10 +679,47 @@ export async function importProductsCsv(ctx: TenantContext, rawInput: unknown): 
     }
     if (errors.length > 0) throw new ImportError(errors.sort((a, b) => a.row - b.row).slice(0, 200));
 
+    // Everything above was checked for the whole file (lists, tax, SKUs,
+    // barcodes, fields); the database's own constraints still apply to
+    // every row inserted here. Few round trips per product, so a large
+    // file stays quick on a remote database.
+    const actorRole = await repo.actorRoleName(tx, ctx);
     let variants = 0;
     for (const { input, codes } of inputs) {
-      await insertCheckedProduct(tx, ctx, input, codes);
-      variants += input.variants.length;
+      const productId = await repo.insertProduct(tx, ctx, {
+        name: input.name,
+        categoryId: input.categoryId ?? null,
+        brandId: input.brandId ?? null,
+        unitId: input.unitId,
+        hsnCode: input.hsnCode ?? null,
+        taxCategory: input.taxCategory,
+        attributes: parseAttributes(template, "product", input.attributes, "attributes"),
+        trackSerial: input.trackSerial,
+        warrantyMonths: input.warrantyMonths ?? null,
+      });
+      const rows = input.variants.map((v, position) => ({
+        position,
+        sku: v.sku,
+        attributes: parseAttributes(template, "variant", v.attributes, `variants.${String(position)}`),
+        sellingPricePaise: v.sellingPricePaise,
+        mrpPaise: v.mrpPaise ?? null,
+        costPricePaise: v.costPricePaise ?? null,
+        reorderLevel: v.reorderLevel ?? "0",
+      }));
+      const variantIds = await repo.insertVariants(tx, ctx, productId, rows);
+      await repo.insertBarcodes(
+        tx,
+        ctx,
+        variantIds.flatMap((variantId, i) => (codes[i] ?? []).map((code) => ({ variantId, code }))),
+      );
+      await repo.addAuditEntryAs(tx, ctx, actorRole, {
+        action: "product.created",
+        entityType: "product",
+        entityId: productId,
+        before: null,
+        after: { name: input.name, variants: rows },
+      });
+      variants += rows.length;
     }
     await audit(tx, ctx, "product.imported", "product", ctx.tenantId, null, { products: inputs.length, variants });
     return { products: inputs.length, variants };

@@ -383,3 +383,36 @@ export async function importLookups(tx: TenantTx) {
     taxCategories: new Map(taxes.flatMap((t) => [[t.code.toLowerCase(), t.code], [t.label.toLowerCase(), t.code]] as [string, string][])),
   };
 }
+
+// Batch inserts for the CSV import (one round trip each).
+export async function insertVariants(tx: TenantTx, ctx: TenantContext, productId: string, values: (NewVariant & { position: number })[]): Promise<string[]> {
+  const rows = await tx
+    .insert(productVariants)
+    .values(values.map((v) => ({ tenantId: ctx.tenantId, productId, createdBy: ctx.userId, ...v })))
+    .returning({ id: productVariants.id, position: productVariants.position });
+  return rows.sort((a, b) => a.position - b.position).map((r) => r.id);
+}
+
+export async function insertBarcodes(tx: TenantTx, ctx: TenantContext, values: { variantId: string; code: string }[]): Promise<void> {
+  if (values.length === 0) return;
+  await tx.insert(barcodes).values(values.map((v) => ({ tenantId: ctx.tenantId, createdBy: ctx.userId, ...v })));
+}
+
+export async function addAuditEntryAs(
+  tx: TenantTx,
+  ctx: TenantContext,
+  actorRole: string,
+  entry: { action: string; entityType: string; entityId: string; before: object | null; after: object | null },
+): Promise<void> {
+  await tx.insert(auditLogs).values({ tenantId: ctx.tenantId, actorUserId: ctx.userId, actorRole, ...entry });
+}
+
+// Which of these codes are already active barcodes (one query).
+export async function usedBarcodes(tx: TenantTx, codes: string[]): Promise<Set<string>> {
+  if (codes.length === 0) return new Set();
+  const rows = await tx
+    .select({ code: barcodes.code })
+    .from(barcodes)
+    .where(and(inArray(barcodes.code, codes), isNull(barcodes.archivedAt)));
+  return new Set(rows.map((r) => r.code));
+}

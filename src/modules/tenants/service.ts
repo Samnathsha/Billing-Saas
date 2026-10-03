@@ -11,14 +11,16 @@ import * as repo from "./repo";
 // Only "Business and tax settings" (Owner, Admin) may read or change them
 // here. Every change is audited with the old and new values.
 
-export type SettingsErrorCode = "CHANGED_BY_SOMEONE_ELSE" | "NOT_FOUND";
+export type SettingsErrorCode = "CHANGED_BY_SOMEONE_ELSE" | "NOT_FOUND" | "LOCKED_BY_PRODUCTS";
 
 export class SettingsError extends Error {
   constructor(public readonly code: SettingsErrorCode) {
     super(
       code === "CHANGED_BY_SOMEONE_ELSE"
         ? "Someone else changed these settings meanwhile. Please reload the page and try again."
-        : "Business settings were not found.",
+        : code === "LOCKED_BY_PRODUCTS"
+          ? "This cannot be changed once products exist (it would change what every product and price means)."
+          : "Business settings were not found.",
     );
     this.name = "SettingsError";
   }
@@ -161,6 +163,10 @@ export async function updateBusinessProfile(
     // silently overwrite someone else's change.
     if (current.version !== input.version) throw new SettingsError("CHANGED_BY_SOMEONE_ELSE");
 
+    // Open question 28: locked once products exist.
+    if (input.pricesIncludeTax !== current.pricesIncludeTax && (await repo.hasProducts(tx))) {
+      throw new SettingsError("LOCKED_BY_PRODUCTS");
+    }
     const before: Record<string, unknown> = {};
     const after: Record<string, unknown> = {};
     for (const key of EDITABLE) {
@@ -344,5 +350,52 @@ export async function reopenBranch(ctx: TenantContext, rawInput: unknown): Promi
     await repo.updateBranch(tx, branch, { archivedAt: null });
     await audit(tx, ctx, "branch.reopened", branch.id, { open: false }, { open: true });
     return { ...branchDto(branch), open: true };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Shop type (clothing / mobile): may change only until the first product
+// exists (owner decision 2026-10-02, business rules section 11).
+// ---------------------------------------------------------------------------
+
+export const changeShopTypeInput = z.strictObject({ template: z.enum(["clothing", "mobile"]), version: z.int().positive() });
+
+export async function changeShopType(ctx: TenantContext, rawInput: unknown): Promise<{ changed: boolean; version: number }> {
+  await requirePermission(ctx, "settings.manage");
+  const input = changeShopTypeInput.parse(rawInput);
+  return withTenant(ctx, async (tx) => {
+    // The settings row lock also serialises this with profile saves.
+    const current = await repo.lockProfile(tx, ctx);
+    if (current === undefined) throw new SettingsError("NOT_FOUND");
+    if (current.version !== input.version) throw new SettingsError("CHANGED_BY_SOMEONE_ELSE");
+    if (current.template === input.template) return { changed: false, version: current.version };
+    if (await repo.hasProducts(tx)) throw new SettingsError("LOCKED_BY_PRODUCTS");
+    await repo.setTemplate(tx, ctx, input.template);
+    const values: repo.ProfileValues = {
+      businessName: current.businessName,
+      addressLine1: current.addressLine1,
+      addressLine2: current.addressLine2,
+      city: current.city,
+      stateCode: current.stateCode,
+      pincode: current.pincode,
+      phone: current.phone,
+      contactEmail: current.contactEmail,
+      gstRegistration: current.gstRegistration,
+      gstin: current.gstin,
+      pricesIncludeTax: current.pricesIncludeTax,
+      invoicePrefix: current.invoicePrefix,
+      creditNotePrefix: current.creditNotePrefix,
+    };
+    // Bump the settings version, so an open settings page cannot overwrite.
+    await repo.saveProfile(tx, ctx, values, current.version + 1);
+    await repo.addAuditEntry(tx, ctx, {
+      actorRole: await repo.actorRoleName(tx, ctx),
+      action: "settings.shop_type_changed",
+      entityType: "tenant",
+      entityId: ctx.tenantId,
+      before: { template: current.template },
+      after: { template: input.template },
+    });
+    return { changed: true, version: current.version + 1 };
   });
 }

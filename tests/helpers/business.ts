@@ -13,6 +13,7 @@ import {
   productVariants,
   rolePermissions,
   roles,
+  serialNumbers,
   settings,
   subscriptions,
   syncOperations,
@@ -88,6 +89,7 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     products: randomUUID(),
     product_variants: randomUUID(),
     barcodes: randomUUID(),
+    serial_numbers: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -125,6 +127,7 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
       costPricePaise: 30_000,
     });
     await tx.insert(barcodes).values({ id: id("barcodes"), tenantId, variantId: id("product_variants"), code: "8901234567890" });
+    await tx.insert(serialNumbers).values({ id: id("serial_numbers"), tenantId, variantId: id("product_variants"), serial: "356938035643809", branchId });
     await tx.insert(invitations).values({
       id: id("invitations"),
       tenantId,

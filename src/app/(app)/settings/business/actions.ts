@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { ZodError } from "zod";
 import type { ProfileFormState } from "@/components/forms/business-profile-form";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
-import { SettingsError, updateBusinessProfile } from "@/modules/tenants";
+import { revalidatePath } from "next/cache";
+import { changeShopType, SettingsError, updateBusinessProfile } from "@/modules/tenants";
 
 // Saves the business profile. Who is saving, and for which business, comes
 // from the server session; the form only carries the values.
@@ -52,6 +53,21 @@ export async function saveBusinessProfile(_previous: ProfileFormState, form: For
       return { status: "error", message: error.message, fieldErrors: {} };
     }
     console.error("saveBusinessProfile failed", error instanceof Error ? error.name : "unknown");
+    return { status: "error", message: "Something went wrong. Please try again.", fieldErrors: {} };
+  }
+}
+
+export async function changeShopTypeAction(_previous: ProfileFormState, form: FormData): Promise<ProfileFormState> {
+  const who = await getRequestContext(await headers());
+  if (who.kind !== "member") return { status: "error", message: "Please log in again.", fieldErrors: {} };
+  try {
+    const result = await changeShopType(who.ctx, { template: form.get("template"), version: Number(form.get("version")) });
+    revalidatePath("/settings/business");
+    return { status: "saved", message: result.changed ? "Shop type changed." : "No change.", fieldErrors: {}, version: result.version };
+  } catch (error) {
+    if (error instanceof SettingsError || error instanceof PermissionDeniedError) {
+      return { status: "error", message: error.message, fieldErrors: {} };
+    }
     return { status: "error", message: "Something went wrong. Please try again.", fieldErrors: {} };
   }
 }

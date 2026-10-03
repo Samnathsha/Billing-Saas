@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
-import { auditLogs, branches, memberships, roles, settings, tenants } from "@/db/schema";
+import { auditLogs, branches, memberships, products, roles, settings, tenants } from "@/db/schema";
 
 // Database queries of the tenants module. Everything runs inside the
 // caller's withTenant transaction; row-level security limits it to the
@@ -158,4 +158,15 @@ export async function countOpenBranches(tx: TenantTx, ctx: TenantContext): Promi
     .from(branches)
     .where(and(eq(branches.tenantId, ctx.tenantId), isNull(branches.archivedAt)));
   return row?.n ?? 0;
+}
+
+// Any product at all (archived ones too): the shop type and "prices include
+// GST" are locked once one exists (business rules 11, open question 28).
+export async function hasProducts(tx: TenantTx): Promise<boolean> {
+  const rows = await tx.select({ id: products.id }).from(products).limit(1);
+  return rows.length > 0;
+}
+
+export async function setTemplate(tx: TenantTx, ctx: TenantContext, template: "clothing" | "mobile"): Promise<void> {
+  await tx.update(tenants).set({ template }).where(eq(tenants.id, ctx.tenantId));
 }

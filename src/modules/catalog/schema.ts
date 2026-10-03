@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   check,
+  date,
   foreignKey,
   index,
   integer,
@@ -17,7 +18,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { idColumn, mutableRowColumns, tenantIdColumn } from "@/db/columns";
 import { taxCategories } from "@/modules/tax/schema";
-import { tenants } from "@/modules/tenants/schema";
+import { branches, tenants } from "@/modules/tenants/schema";
 
 // Lists that organise products (Phase 5). Archived, never deleted, so
 // existing products keep them. Names unique per business, ignoring case
@@ -192,5 +193,43 @@ export const barcodes = pgTable(
       foreignColumns: [productVariants.tenantId, productVariants.id],
     }).onDelete("restrict"),
     check("barcodes_code_format", sql`${t.code} ~ '^[A-Za-z0-9-]{1,64}$'`),
+  ],
+);
+
+// One row per physical unit of a serial-tracked product (IMEI), blueprint
+// 6.3. Rows are created by purchases (Phase 6) and changed by sales and
+// returns: an IMEI can be sold only once until it is returned.
+export const serialNumbers = pgTable(
+  "serial_numbers",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    variantId: uuid("variant_id").notNull(),
+    serial: text("serial").notNull(),
+    // 'in_stock' | 'sold' | 'returned' | 'scrapped'
+    status: text("status").notNull().default("in_stock"),
+    branchId: uuid("branch_id"),
+    // Links to purchase and sale lines arrive with those tables (Phase 6-7).
+    purchaseItemId: uuid("purchase_item_id"),
+    invoiceItemId: uuid("invoice_item_id"),
+    warrantyEndsOn: date("warranty_ends_on"),
+    ...mutableRowColumns(),
+  },
+  (t) => [
+    unique("serial_numbers_tenant_id_id_key").on(t.tenantId, t.id),
+    uniqueIndex("serial_numbers_tenant_serial_key").on(t.tenantId, sql`upper(${t.serial})`),
+    index("serial_numbers_tenant_variant_idx").on(t.tenantId, t.variantId),
+    foreignKey({
+      name: "serial_numbers_variant_fk",
+      columns: [t.tenantId, t.variantId],
+      foreignColumns: [productVariants.tenantId, productVariants.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "serial_numbers_branch_fk",
+      columns: [t.tenantId, t.branchId],
+      foreignColumns: [branches.tenantId, branches.id],
+    }).onDelete("restrict"),
+    check("serial_numbers_format", sql`${t.serial} ~ '^[A-Za-z0-9-]{4,40}$'`),
+    check("serial_numbers_status_valid", sql`${t.status} in ('in_stock', 'sold', 'returned', 'scrapped')`),
   ],
 );

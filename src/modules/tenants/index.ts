@@ -10,6 +10,7 @@ export {
   type BranchDto,
   type BranchErrorCode,
   businessProfileInput,
+  changeShopType,
   getBusinessProfile,
   getPlanUsage,
   SettingsError,

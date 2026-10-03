@@ -24,6 +24,7 @@ const TENANT_TABLES = [
   "products",
   "role_permissions",
   "roles",
+  "serial_numbers",
   "settings",
   "subscriptions",
   "sync_operations",

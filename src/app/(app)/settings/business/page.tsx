@@ -6,7 +6,8 @@ import { NotAllowed } from "@/components/not-allowed";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
 import { GST_STATES } from "@/modules/tax";
 import { getBusinessProfile, getPlanUsage, type BusinessProfileDto, type PlanUsageDto } from "@/modules/tenants";
-import { saveBusinessProfile } from "./actions";
+import { ShopTypeForm } from "@/components/forms/shop-type-form";
+import { changeShopTypeAction, saveBusinessProfile } from "./actions";
 
 export const metadata: Metadata = { title: "Business settings" };
 
@@ -51,6 +52,7 @@ export default async function BusinessSettingsPage() {
     <main className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight">Business settings</h1>
       <PlanBox plan={plan} />
+      <ShopTypeForm template={profile.template} version={profile.version} action={changeShopTypeAction} />
       <BusinessProfileForm profile={profile} states={STATES} save={saveBusinessProfile} />
     </main>
   );

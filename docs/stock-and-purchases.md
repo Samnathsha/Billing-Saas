@@ -49,3 +49,27 @@ history and lists any balance that does not match. Read-only.
 - `src/modules/purchasing/maths.test.ts`, `scripts/lib/stock-replay.test.ts`
 - `tests/flows/purchases.spec.ts` (through the screens)
 - Isolation suites cover the five new tables.
+
+## Phase 6 sign-off (2026-10-03)
+
+The owner tested by hand, on the dev database: the new menu (Stock,
+Purchases, Suppliers); the stock list; opening stock for one item (5 at
+₹100); adding a supplier; a purchase of 10 at ₹50 + 5% GST (bill total
+₹525.00) with ₹200 paid in cash; the supplier balance (₹325.00 owed); and
+the new stock quantity and average cost. The owner then signed off Phase 6
+("I am satisfied with it").
+
+Covered by the automated browser test instead of by hand
+(`tests/flows/purchases.spec.ts`, passing): the same bill number refused,
+voiding a purchase (stock, cost and supplier balance restored; the money
+paid kept as an advance), a stock adjustment, "not enough stock", and what
+a cashier may and may not see.
+
+Still open: accountant questions 32–35 (`docs/business-rules.md`).
+
+Final checks (2026-10-03): unit, local database (all files) and browser
+tests pass. On Neon, 756 of 758 database tests passed; the two failures
+were "timeout exceeded when trying to connect" in the 100-simultaneous-
+sales stock test, where 100 transactions queue for 10 connections over a
+slow link. That test passes 10 runs in a row locally and runs in CI on
+every push; nothing was oversold or saved wrongly on Neon.

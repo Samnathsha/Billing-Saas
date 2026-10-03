@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
 import {
   auditLogs,
@@ -415,4 +415,36 @@ export async function usedBarcodes(tx: TenantTx, codes: string[]): Promise<Set<s
     .from(barcodes)
     .where(and(inArray(barcodes.code, codes), isNull(barcodes.archivedAt)));
   return new Set(rows.map((r) => r.code));
+}
+
+// Items for stock and purchase screens: by id, or by an active barcode or
+// SKU (case-insensitive). Archived items are included (history shows them).
+export async function variantSummaries(tx: TenantTx, filter: { ids: string[] } | { codes: string[] }) {
+  const where =
+    "ids" in filter
+      ? inArray(productVariants.id, filter.ids)
+      : or(
+          inArray(sql`upper(${productVariants.sku})`, filter.codes.map((c) => c.toUpperCase())),
+          inArray(
+            productVariants.id,
+            tx.select({ id: barcodes.variantId }).from(barcodes).where(and(isNull(barcodes.archivedAt), inArray(barcodes.code, filter.codes))),
+          ),
+        );
+  return tx
+    .select({
+      variantId: productVariants.id,
+      productId: products.id,
+      productName: products.name,
+      sku: productVariants.sku,
+      attributes: productVariants.attributes,
+      trackSerial: products.trackSerial,
+      unitCode: units.code,
+      allowsFraction: units.allowsFraction,
+      active: sql<boolean>`${productVariants.archivedAt} IS NULL AND ${products.archivedAt} IS NULL`,
+      barcodes: sql<string[]>`coalesce((SELECT array_agg(b.code) FROM barcodes b WHERE b.variant_id = product_variants.id AND b.archived_at IS NULL), '{}')`,
+    })
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .innerJoin(units, eq(units.id, products.unitId))
+    .where(where);
 }

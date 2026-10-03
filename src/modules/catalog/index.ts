@@ -32,4 +32,5 @@ export {
   type ProductErrorCode,
   type VariantDto,
 } from "./products.service";
+export { describeVariants, findVariantsByCode, type VariantSummaryDto } from "./lookup.service";
 export { variantLabel } from "./templates";

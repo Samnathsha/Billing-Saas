@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPaise, paiseToRupeesText, rupeesToPaise } from "./money";
+import { decimalPaiseToPaise, formatPaise, paiseToRupeesText, rupeesToPaise } from "./money";
 
 describe("rupeesToPaise", () => {
   it.each([
@@ -47,5 +47,24 @@ describe("display", () => {
 
   it("refuses fractions of a paisa", () => {
     expect(() => paiseToRupeesText(1.5)).toThrow();
+  });
+});
+
+describe("decimalPaiseToPaise", () => {
+  it.each([
+    ["1333.3333", 1333],
+    ["1333.5", 1334],
+    ["1333.4999", 1333],
+    ["0.5", 1],
+    ["0.4999", 0],
+    ["0", 0],
+    ["59000.0000", 59000],
+    ["99999999999999.9999", 100000000000000],
+  ])("%s -> %i", (input, expected) => {
+    expect(decimalPaiseToPaise(input)).toBe(expected);
+  });
+
+  it.each(["-1", "1.23456", "", "1e3", "abc"])("refuses %j", (input) => {
+    expect(() => decimalPaiseToPaise(input)).toThrow();
   });
 });

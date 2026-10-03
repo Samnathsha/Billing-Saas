@@ -4,6 +4,7 @@ export {
   BranchError,
   closeBranch,
   createBranch,
+  listBranchChoices,
   listBranches,
   renameBranch,
   reopenBranch,

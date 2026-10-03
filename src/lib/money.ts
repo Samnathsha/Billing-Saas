@@ -29,3 +29,14 @@ export function formatPaise(paise: number): string {
   const rest = whole.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ",");
   return `${paise < 0 ? "-" : ""}₹${rest === "" ? last3 : `${rest},${last3}`}.${fraction}`;
 }
+
+// "1333.3333" (paise with up to 4 decimals, e.g. an average cost) -> 1333,
+// rounded half up to the whole paisa, exactly (no floating point). Display
+// only; stored values keep their decimals.
+export function decimalPaiseToPaise(text: string): number {
+  const match = /^(\d{1,14})(?:\.(\d{1,4}))?$/.exec(text.trim());
+  if (match === null) throw new Error("decimalPaiseToPaise: not a paise amount");
+  const whole = Number(match[1]);
+  const firstDecimal = Number((match[2] ?? "0").charAt(0));
+  return firstDecimal >= 5 ? whole + 1 : whole;
+}

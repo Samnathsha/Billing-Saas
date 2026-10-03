@@ -17,7 +17,7 @@ import { attributesSchema, orderedAttributes, variantKey, variantLabel, type Att
 //   cost price and profit", so it never reaches their browser.
 // - Every change is audited; price changes with old and new values.
 
-const VIEW: readonly Permission[] = ["products.manage", "sales.create", "reports.view"];
+const VIEW: readonly Permission[] = ["products.manage", "sales.create", "reports.view", "stock.adjust", "purchases.create"];
 const MAX_PAISE = 1_000_000_000;
 const PAGE_SIZE = 50;
 

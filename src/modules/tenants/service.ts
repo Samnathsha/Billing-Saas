@@ -296,6 +296,14 @@ export async function listBranches(ctx: TenantContext): Promise<BranchDto[]> {
   return rows.map(branchDto);
 }
 
+// Branch names for choosing where stock goes or comes from: anyone who
+// works with stock, sales or reports (read-only; managing stays above).
+export async function listBranchChoices(ctx: TenantContext): Promise<BranchDto[]> {
+  await requirePermission(ctx, ["settings.manage", "stock.adjust", "purchases.create", "sales.create", "reports.view", "products.manage"]);
+  const rows = await withTenant(ctx, (tx) => repo.listBranches(tx));
+  return rows.map(branchDto);
+}
+
 export async function createBranch(ctx: TenantContext, rawInput: unknown): Promise<BranchDto> {
   await requirePermission(ctx, "settings.manage");
   const { name } = createBranchInput.parse(rawInput);

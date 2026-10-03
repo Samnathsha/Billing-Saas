@@ -139,7 +139,8 @@ describe("closing and reopening", () => {
       expect(results.sort()).toEqual(["LAST_OPEN_BRANCH", "ok"]);
       expect((await listBranches(ctx)).filter((b) => b.open)).toHaveLength(1);
     }
-  });
+    // Three businesses one after another: over 30 s on the remote test DB.
+  }, 90_000);
 });
 
 describe("who may manage branches", () => {

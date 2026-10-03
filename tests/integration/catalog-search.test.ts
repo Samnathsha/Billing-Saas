@@ -93,5 +93,6 @@ describe("search", () => {
     expect(await names("%")).toEqual([]);
     expect(await names("_")).toEqual([]);
     expect((await listProducts(ctx, { q: "shirt" })).total).toBe(2);
-  });
+    // Three products and seven searches: over 30 s on the remote test DB.
+  }, 90_000);
 });

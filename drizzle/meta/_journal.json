@@ -253,6 +253,13 @@
       "when": 1791088294397,
       "tag": "0035_purchase_returns",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791098604961,
+      "tag": "0036_expenses",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@
 export * from "@/modules/audit/schema";
 export * from "@/modules/auth/schema";
 export * from "@/modules/catalog/schema";
+export * from "@/modules/expenses/schema";
 export * from "@/modules/files/schema";
 export * from "@/modules/inventory/schema";
 export * from "@/modules/parties/schema";

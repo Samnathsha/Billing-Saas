@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { ZodError } from "zod";
 import { rupeesToPaise } from "@/lib/money";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
+import { ExpenseError } from "@/modules/expenses";
 import { InventoryError, StockError } from "@/modules/inventory";
 import { PartyError } from "@/modules/parties";
 import { PurchaseError } from "@/modules/purchasing";
@@ -45,6 +46,7 @@ export function errorMessage(error: unknown, names?: Map<string, string>): strin
   }
   if (
     error instanceof InventoryError ||
+    error instanceof ExpenseError ||
     error instanceof PurchaseError ||
     error instanceof SalesError ||
     error instanceof SeriesFullError ||

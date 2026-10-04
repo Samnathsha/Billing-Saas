@@ -24,6 +24,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <Link href="/inventory">Stock</Link>
           {who.permissions.includes("purchases.create") || who.permissions.includes("reports.view") ? <Link href="/purchases">Purchases</Link> : null}
           {who.permissions.includes("purchases.create") || who.permissions.includes("reports.view") ? <Link href="/suppliers">Suppliers</Link> : null}
+          {who.permissions.includes("expenses.manage") || who.permissions.includes("reports.view") ? <Link href="/expenses">Expenses</Link> : null}
           {who.permissions.includes("settings.manage") ? <Link href="/settings/business">Business settings</Link> : null}
           {who.permissions.includes("settings.manage") ? <Link href="/settings/branches">Branches</Link> : null}
           {who.permissions.includes("users.manage") ? <Link href="/settings/staff">Staff</Link> : null}

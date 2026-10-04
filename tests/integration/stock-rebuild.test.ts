@@ -9,7 +9,8 @@ import { createBusiness, getRequestContext } from "@/modules/auth";
 import { createProduct, getCatalogLists } from "@/modules/catalog";
 import { adjustStock, recordOpeningStock } from "@/modules/inventory";
 import { createSupplier } from "@/modules/parties";
-import { createPurchase, voidPurchase } from "@/modules/purchasing";
+import { createPurchase, createPurchaseReturn, getPurchaseReturnable, voidPurchase } from "@/modules/purchasing";
+import { createExchange, createReturn, createSale, getReturnable } from "@/modules/sales";
 import { createBranch, listBranches } from "@/modules/tenants";
 import { checkTenantStock } from "../../scripts/lib/stock-check";
 import { registerVerifiedUser } from "../helpers/auth";
@@ -97,6 +98,44 @@ describe("rebuilding stock from its history", () => {
     expect(result.differences).toEqual([]);
     expect(result.movements).toBeGreaterThan(20);
     expect(result.balances).toBe(3);
+  }, 90_000);
+
+  it("still matches after sales, a customer return (one resellable, one damaged), an exchange and a return to the supplier", async () => {
+    const ctx = await newShop("Rebuild phase 8");
+    await withTenant(ctx, (tx) => tx.update(settings).set({ gstRegistration: "unregistered", stateCode: "33" }));
+    const branchId = (await listBranches(ctx))[0]?.id ?? "";
+    const { id: supplierId } = await createSupplier(ctx, { name: "Rebuild 8 Traders", phone: "", gstin: "", stateCode: "" });
+    const shirt = await item(ctx);
+    const scarf = await item(ctx);
+    const bought = await createPurchase(ctx, buy(supplierId, branchId, shirt, "10", 1234, "12"));
+    await createPurchase(ctx, buy(supplierId, branchId, scarf, "6", 4321, "5"));
+    // 3 shirts + 2 scarves at ₹1,000 each (no GST: unregistered), paid in cash.
+    const first = await createSale(ctx, { idempotencyKey: randomUUID(), invoiceId: randomUUID(), branchId, lines: [{ variantId: shirt, quantity: "3" }, { variantId: scarf, quantity: "2" }], payments: [{ method: "cash", amountPaise: 500_000 }] });
+    const lines = (await getReturnable(ctx, { invoiceId: first.invoiceId })).lines;
+    await createReturn(ctx, {
+      idempotencyKey: randomUUID(),
+      creditNoteId: randomUUID(),
+      invoiceId: first.invoiceId,
+      branchId,
+      refundMethod: "cash",
+      reason: "Changed mind",
+      lines: [
+        { invoiceItemId: lines[0]?.invoiceItemId, quantity: "1", resellable: true },
+        { invoiceItemId: lines[1]?.invoiceItemId, quantity: "1", resellable: false },
+      ],
+    });
+    await createExchange(ctx, {
+      idempotencyKey: randomUUID(),
+      branchId,
+      return: { creditNoteId: randomUUID(), invoiceId: first.invoiceId, reason: "Size", lines: [{ invoiceItemId: lines[0]?.invoiceItemId, quantity: "1", resellable: true }] },
+      sale: { invoiceId: randomUUID(), lines: [{ variantId: scarf, quantity: "1" }], payments: [] },
+    });
+    const purchaseLine = (await getPurchaseReturnable(ctx, { purchaseId: bought.purchaseId })).lines[0]?.purchaseItemId;
+    await createPurchaseReturn(ctx, { idempotencyKey: randomUUID(), purchaseId: bought.purchaseId, reason: "Faulty", lines: [{ purchaseItemId: purchaseLine, quantity: "2" }] });
+
+    const result = await check(ctx);
+    expect(result.differences).toEqual([]);
+    expect(result.movements).toBeGreaterThan(5);
   }, 90_000);
 
   it("reports a balance that does not match its history", async () => {

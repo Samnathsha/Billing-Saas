@@ -79,7 +79,7 @@ describe("the default role table (blueprint 5.3)", () => {
   );
 
   it("covers every role and every permission", () => {
-    expect(cases).toHaveLength(5 * 12);
+    expect(cases).toHaveLength(5 * 13);
   });
 
   it.each(cases)("%s / %s -> %s", async (role, permission, expected) => {

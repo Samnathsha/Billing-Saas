@@ -16,6 +16,8 @@ export const PERMISSIONS = [
   "business.delete",
   // Owner decision 2026-10-02 (business rules section 13).
   "products.manage",
+  // Owner decision 2026-10-03 (business rules section 16).
+  "expenses.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -35,6 +37,7 @@ export const DEFAULT_ROLES: Readonly<Record<string, readonly Permission[]>> = {
     "costs.view",
     "reports.view",
     "products.manage",
+    "expenses.manage",
   ],
   Cashier: ["sales.create"],
   Accountant: ["costs.view", "reports.view"],

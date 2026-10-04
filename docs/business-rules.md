@@ -365,3 +365,7 @@ Each question has the default the app will use until answered.
     note number if given but does not issue its own debit note numbers.
     DEFAULT, accountant to confirm (and whether a numbered debit note is
     needed).
+43. **Expenses and GST:** an expense is recorded as one amount (what was
+    paid); any GST on it (e.g. on a repair bill) is not tracked separately
+    for input tax credit. Expenses may be dated in the past (not the
+    future). DEFAULT, accountant to confirm.

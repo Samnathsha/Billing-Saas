@@ -22,6 +22,8 @@ const TENANT_TABLES = [
   "customer_payments",
   "customers",
   "devices",
+  "expense_categories",
+  "expenses",
   "files",
   "idempotency_keys",
   "invitations",

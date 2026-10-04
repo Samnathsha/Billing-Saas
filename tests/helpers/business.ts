@@ -11,6 +11,8 @@ import {
   customerPayments,
   customers,
   devices,
+  expenseCategories,
+  expenses,
   files,
   idempotencyKeys,
   invitations,
@@ -128,6 +130,8 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     credit_note_items: randomUUID(),
     purchase_returns: randomUUID(),
     purchase_return_items: randomUUID(),
+    expense_categories: randomUUID(),
+    expenses: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -220,6 +224,18 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
       lineTaxPaise: 75,
       lineTotalPaise: 1575,
       unitCostPaise: "300",
+    });
+    await tx.insert(expenseCategories).values({ id: id("expense_categories"), tenantId, name: "Rent", createdBy: ctx.userId });
+    await tx.insert(expenses).values({
+      id: id("expenses"),
+      tenantId,
+      branchId,
+      categoryId: id("expense_categories"),
+      amountPaise: 1_000_000,
+      method: "bank",
+      paidOn: "2026-10-01",
+      description: `${name} rent`,
+      createdBy: ctx.userId,
     });
     await tx.insert(purchaseReturns).values({
       id: id("purchase_returns"),

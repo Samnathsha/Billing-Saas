@@ -209,6 +209,25 @@ or tax advice; the accountant signs off before launch.
 - Never more can be returned than was sold, counting earlier returns;
   returned IMEI items must be the ones sold on that bill.
 
+### 17. Offline selling (owner decisions 2026-10-04, Phase 10)
+
+- **No credit offline:** an offline bill must be fully paid (cash, UPI or
+  card). Credit sales need the till to be online (the latest balance and
+  limit are checked on the server).
+- **Offline returns:** only bills made on the same till in the last few days
+  (kept on that till) can be returned offline; any other return needs the
+  internet.
+- **Late checks keep the sale:** when an offline bill reaches the server and
+  something no longer fits (stock short, discount above the person's limit,
+  price changed, item archived, IMEI already sold, or the person's role
+  removed), the bill is kept as the customer paid it and **flagged** for a
+  manager to review. (This replaces the blueprint's "a deactivated user's
+  late operations are rejected": the sale really happened.) The server's
+  checks still apply to everything else.
+- Offline selling is allowed for 72 hours after the last online login
+  (business setting, blueprint 8.5). A revoked till is refused at its next
+  sync and wipes its local data after showing what was unsynced.
+
 ## OPEN QUESTIONS FOR ACCOUNTANT
 
 Each question has the default the app will use until answered.

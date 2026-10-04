@@ -78,3 +78,16 @@ totals exactly as written. Use one test item at ₹799 (TEST 5%) unless said.
 - Browser: `tests/flows/returns.spec.ts`, `purchases.spec.ts`,
   `expenses.spec.ts`, `pos.spec.ts`
 - Isolation suites cover every new table.
+
+## Phase 8 sign-off (2026-10-04)
+
+The owner signed off Phase 8 to move on ("next"), on the strength of the
+automated run of the hand test: `tests/flows/phase8-scenarios.spec.ts`
+does the setup and scenarios 1–14 and 16–20 of
+`docs/hand-tests/phase-8-hand-test.pdf` in a browser exactly as written and
+checks every amount, balance and the final stock (passing). Scenario 15 is
+covered by `tests/integration/returns.test.ts`.
+
+**Before going live:** the owner goes through the PDF by hand (about 45
+minutes) and reports anything marked "Different"; the accountant answers
+questions 9–10 and 41–43.

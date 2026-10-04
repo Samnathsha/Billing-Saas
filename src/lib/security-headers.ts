@@ -12,19 +12,28 @@ export interface Header {
 const DISABLED_FEATURES = [
   "accelerometer",
   "autoplay",
+  "bluetooth",
   "browsing-topics",
   "camera",
   "display-capture",
+  "encrypted-media",
   "geolocation",
   "gyroscope",
+  "hid",
+  "idle-detection",
+  "local-fonts",
   "magnetometer",
   "microphone",
   "midi",
+  "otp-credentials",
   "payment",
+  "picture-in-picture",
+  "publickey-credentials-create",
   "publickey-credentials-get",
   "screen-wake-lock",
   "serial",
   "usb",
+  "window-management",
   "xr-spatial-tracking",
 ];
 
@@ -37,6 +46,12 @@ export const staticSecurityHeaders: readonly Header[] = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: DISABLED_FEATURES.map((feature) => `${feature}=()`).join(", ") },
+  // Phase 11: another site's window cannot hold a handle to ours (and the
+  // reverse), and our files may not be loaded by other sites.
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "Origin-Agent-Cluster", value: "?1" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
 ];
 
 // API routes return JSON, never HTML, so they may load nothing at all.
@@ -49,7 +64,9 @@ export function createNonce(): string {
 
 // Policy from the Next.js 16 CSP guide. Development adds 'unsafe-eval' and
 // inline styles because React's error overlay needs them; production does not.
-export function buildContentSecurityPolicy(nonce: string, isDev: boolean): string {
+// `https`: the app's own address is https (any real deployment), so every
+// request is upgraded; local runs on http://localhost are not.
+export function buildContentSecurityPolicy(nonce: string, isDev: boolean, https = false): string {
   const directives = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
@@ -65,9 +82,13 @@ export function buildContentSecurityPolicy(nonce: string, isDev: boolean): strin
     "worker-src 'self'",
     "manifest-src 'self'",
     "object-src 'none'",
+    // Nothing is framed or played inside the app.
+    "frame-src 'none'",
+    "media-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
+    ...(https ? ["upgrade-insecure-requests"] : []),
   ];
   return directives.join("; ");
 }

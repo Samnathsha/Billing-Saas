@@ -74,6 +74,12 @@ describe("Content Security Policy", () => {
       expect(csp.get("default-src")).toBe("'self'");
     });
 
+    it("nothing can be framed, played or embedded", () => {
+      expect(csp.get("frame-src")).toBe("'none'");
+      expect(csp.get("media-src")).toBe("'none'");
+      expect(csp.get("object-src")).toBe("'none'");
+    });
+
     it("the till's service worker and app manifest come only from this site", () => {
       expect(csp.get("worker-src")).toBe("'self'");
       expect(csp.get("manifest-src")).toBe("'self'");
@@ -97,6 +103,18 @@ describe("Content Security Policy", () => {
     const csp = directives(buildContentSecurityPolicy(nonce, true));
     expect(csp.get("script-src")).toContain("'unsafe-eval'");
     expect(csp.get("style-src")).toBe("'self' 'unsafe-inline'");
+  });
+
+  it("an https deployment upgrades every request; local http runs do not", () => {
+    expect(buildContentSecurityPolicy(nonce, false, true)).toContain("upgrade-insecure-requests");
+    expect(buildContentSecurityPolicy(nonce, false, false)).not.toContain("upgrade-insecure-requests");
+  });
+
+  it("windows and files are kept to this site", () => {
+    const get = (key: string) => staticSecurityHeaders.find((h) => h.key === key)?.value;
+    expect(get("Cross-Origin-Opener-Policy")).toBe("same-origin");
+    expect(get("Cross-Origin-Resource-Policy")).toBe("same-origin");
+    expect(get("X-Permitted-Cross-Domain-Policies")).toBe("none");
   });
 
   it("API routes may load nothing and cannot be framed", () => {

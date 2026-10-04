@@ -4,6 +4,7 @@ import { appOrigin, isAllowedRequest } from "@/lib/origin-check";
 import { buildContentSecurityPolicy, createNonce } from "@/lib/security-headers";
 
 const ALLOWED_ORIGIN = appOrigin(env.authUrl);
+const USES_HTTPS = new URL(env.authUrl).protocol === "https:";
 
 // Runs before every page and API request.
 // 1. Refuses state-changing requests (POST, PUT, ...) from any other site
@@ -20,7 +21,7 @@ export function proxy(request: NextRequest): NextResponse {
   if (request.nextUrl.pathname.startsWith("/api/")) return NextResponse.next();
 
   const nonce = createNonce();
-  const csp = buildContentSecurityPolicy(nonce, process.env.NODE_ENV === "development");
+  const csp = buildContentSecurityPolicy(nonce, process.env.NODE_ENV === "development", USES_HTTPS);
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);

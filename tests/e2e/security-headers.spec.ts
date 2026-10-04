@@ -26,6 +26,11 @@ test("pages send every security header", async ({ page }) => {
   expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
   expect(headers["content-security-policy"]).not.toContain("unsafe-eval");
   expect(headers["x-powered-by"]).toBeUndefined();
+  // Phase 11 additions.
+  expect(headers["cross-origin-opener-policy"]).toBe("same-origin");
+  expect(headers["cross-origin-resource-policy"]).toBe("same-origin");
+  expect(headers["x-permitted-cross-domain-policies"]).toBe("none");
+  expect(headers["content-security-policy"]).toContain("frame-src 'none'");
 });
 
 test("the nonce is new on every request", async ({ request }) => {

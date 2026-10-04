@@ -9,10 +9,10 @@ import type pg from "pg";
 const SECURITY_DEFINER_ALLOWLIST: readonly string[] = [];
 
 // The only tables the login library (auth_service) may touch (ADR 0003).
-const AUTH_TABLES: readonly string[] = ["accounts", "rate_limits", "security_events", "sessions", "users", "verifications"];
+const AUTH_TABLES: readonly string[] = ["accounts", "rate_limits", "security_events", "sessions", "two_factors", "users", "verifications"];
 
 // Login secrets the app (app_user) must never be able to read.
-const LOGIN_SECRET_TABLES: readonly string[] = ["accounts", "rate_limits", "security_events", "sessions", "verifications"];
+const LOGIN_SECRET_TABLES: readonly string[] = ["accounts", "rate_limits", "security_events", "sessions", "two_factors", "verifications"];
 
 type Row = Record<string, unknown>;
 

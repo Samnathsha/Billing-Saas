@@ -17,6 +17,13 @@ const BY_CODE: ReadonlyMap<string, string> = new Map(Object.entries({
   PASSWORD_TOO_LONG: "Please use at most 128 characters.",
   PASSWORD_COMPROMISED: "This password has appeared in a data breach. Please choose a different one.",
   INVALID_TOKEN: "This link has expired or was already used. Please ask for a new one.",
+  INVALID_PASSWORD: "Wrong password.",
+  // Two-step login (Phase 11).
+  INVALID_CODE: "That code is not right. Enter the 6-digit code your authenticator app shows now.",
+  INVALID_BACKUP_CODE: "That backup code is not right, or it was already used.",
+  ACCOUNT_TEMPORARILY_LOCKED: "Too many wrong codes. Two-step login is locked for 15 minutes.",
+  INVALID_TWO_FACTOR_COOKIE: "This took too long. Please log in again.",
+  TOTP_ALREADY_ENABLED: "Two-step login is already on.",
 }));
 
 const BY_STATUS: ReadonlyMap<number, string> = new Map([

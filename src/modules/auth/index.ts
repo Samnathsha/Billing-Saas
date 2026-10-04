@@ -17,6 +17,7 @@ export {
   type OnboardingErrorCode,
 } from "./onboarding";
 export { getRequestContext, type RequestContext } from "./request-context";
+export { myTwoFactorEnabled } from "./two-factor";
 export { colleagueContext, hasPermission, PermissionDeniedError, requirePermission } from "./permissions";
 export {
   endMySession,

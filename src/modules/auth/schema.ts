@@ -29,6 +29,8 @@ export const users = pgTable(
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
     status: text("status").notNull().default("active"),
+    // Two-step login (Phase 11): set only by Better Auth's two-factor plugin.
+    twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
     ...mutableRowColumns(),
   },
   (t) => [
@@ -195,6 +197,26 @@ export const sessions = pgTable(
     ...timestamps(),
   },
   (t) => [unique("sessions_token_key").on(t.token), index("sessions_user_idx").on(t.userId)],
+);
+
+// Two-step login with an authenticator app (Phase 11; Better Auth's
+// two-factor plugin). The TOTP secret and the backup codes are stored
+// encrypted with the auth secret. auth_service only, like sessions.
+export const twoFactors = pgTable(
+  "two_factors",
+  {
+    id: idColumn(),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    verified: boolean("verified").notNull().default(true),
+    failedVerificationCount: integer("failed_verification_count").notNull().default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    ...timestamps(),
+  },
+  (t) => [index("two_factors_user_idx").on(t.userId), index("two_factors_secret_idx").on(t.secret)],
 );
 
 // How a user logs in. For email/password: provider_id = 'credential' and

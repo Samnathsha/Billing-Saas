@@ -267,6 +267,13 @@
       "when": 1791123346925,
       "tag": "0037_offline_tills",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791135834138,
+      "tag": "0038_two_factor",
+      "breakpoints": true
     }
   ]
 }

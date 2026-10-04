@@ -42,6 +42,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             {who.permissions.includes("users.manage") ? <Link href="/settings/staff">Staff</Link> : null}
           {who.permissions.includes("tills.manage") ? <Link href="/settings/tills">Tills</Link> : null}
             <Link href="/settings/devices">Your devices</Link>
+          <Link href="/settings/security">Two-step login</Link>
           </nav>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground">{who.roleName}</span>

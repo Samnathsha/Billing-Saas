@@ -4,9 +4,10 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { haveIBeenPwned } from "better-auth/plugins/haveibeenpwned";
+import { twoFactor } from "better-auth/plugins/two-factor";
 import { getAuthDb } from "@/db/auth-client";
 import { env } from "@/lib/env";
-import { accounts, rateLimits, sessions, users, verifications } from "./schema";
+import { accounts, rateLimits, sessions, twoFactors, users, verifications } from "./schema";
 import { accountLockout } from "./account-lockout";
 import { sendEmail } from "./mailer";
 import { originGuard } from "./origin-guard";
@@ -27,7 +28,7 @@ export const auth = betterAuth({
   baseURL: env.authUrl,
   database: drizzleAdapter(getAuthDb(), {
     provider: "pg",
-    schema: { user: users, session: sessions, account: accounts, verification: verifications, rateLimit: rateLimits },
+    schema: { user: users, session: sessions, account: accounts, verification: verifications, rateLimit: rateLimits, twoFactor: twoFactors },
   }),
 
   user: {
@@ -129,6 +130,11 @@ export const auth = betterAuth({
       "/reset-password": { window: 60 * 60, max: 10 },
       "/send-verification-email": { window: 60 * 60, max: 5 },
       "/change-password": { window: 60 * 60, max: 10 },
+      // Two-step login: a 6-digit code must not be guessable by trying.
+      "/two-factor/verify-totp": { window: 60, max: 5 },
+      "/two-factor/verify-backup-code": { window: 60, max: 5 },
+      "/two-factor/enable": { window: 60 * 60, max: 10 },
+      "/two-factor/disable": { window: 60 * 60, max: 10 },
     },
   },
 
@@ -155,6 +161,17 @@ export const auth = betterAuth({
     haveIBeenPwned({
       customPasswordCompromisedMessage:
         "This password has appeared in a data breach. Please choose a different one.",
+    }),
+    // Optional two-step login with an authenticator app (blueprint 5.2,
+    // Phase 11). Switching it on or off needs the password; on, a login
+    // needs the 6-digit code (or a one-time backup code) within 10 minutes
+    // of the password. Secret and backup codes are stored encrypted.
+    // 10 wrong codes in a row lock the account's two-step login for 15
+    // minutes (plus the per-IP limits above). No "trust this device".
+    twoFactor({
+      issuer: "Billing",
+      twoFactorCookieMaxAge: 10 * 60,
+      accountLockout: { enabled: true, maxFailedAttempts: 10, durationSeconds: 15 * 60 },
     }),
     // nextCookies must stay last: it lets server actions set auth cookies.
     nextCookies(),

@@ -3,9 +3,9 @@ import { confirmedAccount, logIn } from "./helpers";
 
 // A registered (GST) shop in Tamil Nadu with one product, Cotton Shirt M
 // (SKU SH-M, ₹799, TEST 5%), and 5 in stock at ₹450. Returns the owner's
-// email.
-export async function shopWithStock(page: Page): Promise<string> {
-  const email = await confirmedAccount(page, "pos-owner");
+// email. `account` makes the owner's confirmed login (by email by default).
+export async function shopWithStock(page: Page, account: (page: Page) => Promise<string> = (p) => confirmedAccount(p, "pos-owner")): Promise<string> {
+  const email = await account(page);
   await logIn(page, email);
   await page.getByLabel("Business name").fill("Till Shop");
   await page.getByRole("button", { name: "Create my business" }).click();

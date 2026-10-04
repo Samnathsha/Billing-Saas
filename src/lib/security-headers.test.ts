@@ -73,6 +73,11 @@ describe("Content Security Policy", () => {
       expect(csp.get("form-action")).toBe("'self'");
       expect(csp.get("default-src")).toBe("'self'");
     });
+
+    it("the till's service worker and app manifest come only from this site", () => {
+      expect(csp.get("worker-src")).toBe("'self'");
+      expect(csp.get("manifest-src")).toBe("'self'");
+    });
   });
 
   it("production allows no eval and no un-nonced <style> blocks", () => {

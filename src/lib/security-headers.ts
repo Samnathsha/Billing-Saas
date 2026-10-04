@@ -61,6 +61,9 @@ export function buildContentSecurityPolicy(nonce: string, isDev: boolean): strin
     "img-src 'self' blob: data:",
     "font-src 'self'",
     "connect-src 'self'",
+    // The till's service worker (decision 0006): only from this site.
+    "worker-src 'self'",
+    "manifest-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { withSerwist } from "@serwist/turbopack";
 import type { NextConfig } from "next";
 import { apiContentSecurityPolicy, staticSecurityHeaders } from "./src/lib/security-headers";
 
@@ -17,4 +18,5 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// withSerwist: lets the service worker route bundle src/serwist/sw.ts.
+export default withSerwist(nextConfig);

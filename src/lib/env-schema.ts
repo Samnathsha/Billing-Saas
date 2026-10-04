@@ -18,6 +18,9 @@ export interface Env {
   // Real email sending (Resend). Optional in development (emails then go to
   // .dev-mailbox/), required in production, never used by tests.
   email: { resendApiKey: string; from: string } | null;
+  // HEALTH_DRILL=fail: /api/health answers 503, to test that the uptime
+  // alert reaches the owner (docs/runbook.md). Never set otherwise.
+  healthDrill: boolean;
 }
 
 export class EnvError extends Error {
@@ -70,11 +73,18 @@ const emailFromValue = z
   });
 const emailFrom = z.preprocess(emptyIsMissing, emailFromValue);
 
+// Error monitoring (Phase 11): Sentry's project address. Optional; not a
+// secret (it only allows sending reports), but checked like the rest.
+const sentryDsnValue = z.url({ protocol: /^https$/, error: "must be the https:// address Sentry shows (Client Keys / DSN)" });
+
 const shared = {
   BETTER_AUTH_SECRET: authSecret,
   BETTER_AUTH_URL: appUrl,
   RESEND_API_KEY: optional(resendApiKeyValue),
   EMAIL_FROM: optional(emailFromValue),
+  SENTRY_DSN: optional(sentryDsnValue),
+  NEXT_PUBLIC_SENTRY_DSN: optional(sentryDsnValue),
+  HEALTH_DRILL: optional(z.enum(["fail"], { error: 'may only be "fail" (or left out)' })),
 };
 
 // Each mode requires its own databases. The other mode's URLs are optional,
@@ -144,5 +154,6 @@ export function parseEnv(source: Readonly<Record<string, string | undefined>>): 
     authSecret: result.data.BETTER_AUTH_SECRET,
     authUrl: result.data.BETTER_AUTH_URL,
     email: apiKey !== undefined && from !== undefined && mode !== "test" ? { resendApiKey: apiKey, from } : null,
+    healthDrill: result.data.HEALTH_DRILL === "fail",
   };
 }

@@ -32,6 +32,7 @@ describe("parseEnv: valid settings", () => {
       authSecret: SECRET,
       authUrl: URL_,
       email: null,
+      healthDrill: false,
     });
   });
 
@@ -172,5 +173,21 @@ describe("parseEnv: never reveals values", () => {
     }
     expect(message).not.toBe("");
     expect(message).not.toContain(marker);
+  });
+});
+
+describe("error monitoring address (Phase 11)", () => {
+  it("is optional, and must be an https address when given", () => {
+    expect(() => parseEnv({ ...devEnv })).not.toThrow();
+    expect(() => parseEnv({ ...devEnv, SENTRY_DSN: "https://abc@o1.ingest.sentry.io/2" })).not.toThrow();
+    expect(problemsOf({ ...devEnv, SENTRY_DSN: "http://abc@o1.ingest.sentry.io/2" })).toEqual(["SENTRY_DSN must be the https:// address Sentry shows (Client Keys / DSN)"]);
+  });
+});
+
+describe("health drill switch (Phase 11)", () => {
+  it("off by default; only the word fail switches it on", () => {
+    expect(parseEnv({ ...devEnv }).healthDrill).toBe(false);
+    expect(parseEnv({ ...devEnv, HEALTH_DRILL: "fail" }).healthDrill).toBe(true);
+    expect(problemsOf({ ...devEnv, HEALTH_DRILL: "yes" })).toEqual(['HEALTH_DRILL may only be "fail" (or left out)']);
   });
 });

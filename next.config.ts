@@ -1,4 +1,5 @@
 import path from "node:path";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import { withSerwist } from "@serwist/turbopack";
 import type { NextConfig } from "next";
 import { apiContentSecurityPolicy, staticSecurityHeaders } from "./src/lib/security-headers";
@@ -19,4 +20,13 @@ const nextConfig: NextConfig = {
 };
 
 // withSerwist: lets the service worker route bundle src/serwist/sw.ts.
-export default withSerwist(nextConfig);
+// withSentryConfig (Phase 11): browser error reports go through this site's
+// /monitoring route; no source maps are uploaded and no build telemetry is
+// sent.
+export default withSentryConfig(withSerwist(nextConfig), {
+  tunnelRoute: "/monitoring",
+  silent: true,
+  telemetry: false,
+  sourcemaps: { disable: true },
+  widenClientFileUpload: false,
+});

@@ -1,0 +1,35 @@
+# Uptime check (Phase 11; blueprint 13.3): every 15 minutes, the live app's
+# /api/health must answer {"status":"ok"}. A failed run emails the
+# repository owner. Set the repository variable APP_URL (e.g.
+# https://app.example.in) to switch it on. An external monitor (UptimeRobot
+# or Better Stack, free) is recommended as well (docs/runbook.md); this one
+# is the fallback that lives in the repository.
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: GET /api/health
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "::notice title=Uptime check not set up::Set the repository variable APP_URL."
+            exit 0
+          fi
+          for attempt in 1 2 3; do
+            body="$(curl -fsS --max-time 20 "$APP_URL/api/health" || true)"
+            if [ "$body" = '{"status":"ok"}' ]; then echo "Healthy."; exit 0; fi
+            sleep 20
+          done
+          echo "::error title=App is down::$APP_URL/api/health did not answer ok three times."
+          exit 1

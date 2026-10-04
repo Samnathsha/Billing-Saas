@@ -16,7 +16,9 @@ export default defineConfig({
   // well over the default 5 s on a busy machine; this waits for screens to
   // appear, it does not loosen any check.
   expect: { timeout: 20_000 },
-  use: { baseURL: `http://localhost:${String(PORT)}`, trace: "retain-on-failure" },
+  // actionTimeout: a click on something that never appears fails after 30 s
+  // instead of waiting for the whole test's time limit.
+  use: { baseURL: `http://localhost:${String(PORT)}`, trace: "retain-on-failure", actionTimeout: 30_000 },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     command: `npx next dev -p ${String(PORT)}`,

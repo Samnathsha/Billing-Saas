@@ -48,3 +48,35 @@ test("return one of two shirts for cash: credit note, stock back, no void afterw
   await page.getByRole("link", { name: "Return items" }).click();
   await expect(page.getByRole("table", { name: "Returnable items" })).toContainText("1");
 });
+
+test("exchange: two shirts back, one out; the difference goes back in cash; the new bill is paid by the exchange", async ({ page }) => {
+  test.slow();
+  await shopWithStock(page);
+  await page.goto("/pos");
+  await page.getByLabel(/Scan a barcode/).fill("SH-M");
+  await page.getByLabel(/Scan a barcode/).press("Enter");
+  await page.getByLabel("Quantity of Cotton Shirt · M").fill("2");
+  await page.getByLabel("Cash received (₹)").fill("1598");
+  await page.getByRole("button", { name: /Save bill/ }).click();
+  await expect(page.getByRole("heading", { name: "Tax Invoice" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Exchange" }).click();
+  await page.getByLabel("Return quantity of Cotton Shirt · M").fill("2");
+  await page.getByLabel("Scan or type the new item's SKU").fill("SH-M");
+  await page.getByLabel("Scan or type the new item's SKU").press("Enter");
+  await expect(page.getByLabel("New Cotton Shirt · M", { exact: true })).toBeVisible();
+  const totals = page.getByLabel("Exchange totals");
+  await expect(totals).toContainText("Value coming back₹1,598.00");
+  await expect(totals).toContainText("New bill₹799.00");
+  await expect(totals).toContainText("Customer pays₹0.00");
+  await expect(totals).toContainText("Customer gets back₹799.00");
+  await page.getByLabel("Reason").fill("Bought one too many");
+  await page.getByRole("button", { name: "Save exchange" }).click();
+
+  await expect(page.getByRole("heading", { name: "Tax Invoice" })).toBeVisible();
+  await expect(page.getByRole("article", { name: "Bill" })).toContainText(/No\. INV\/\d{2}-\d{2}\/00002/);
+  await expect(page.getByLabel("Totals")).toContainText("Paid by Exchange (returned items)₹799.00");
+  await expect(page.getByRole("button", { name: "Void bill" })).toHaveCount(0);
+  // 5 - 2 sold + 2 back - 1 out
+  expect(await stockOf(page)).toBe("4");
+});

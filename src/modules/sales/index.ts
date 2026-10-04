@@ -12,13 +12,13 @@ export {
   createSaleInput,
   getInvoice,
   listInvoices,
-  SalesError,
   voidInvoice,
   voidInvoiceInput,
   type InvoiceDto,
   type InvoiceListItemDto,
-  type SalesErrorCode,
 } from "./service";
+export { SalesError, type SalesErrorCode } from "./errors";
 export { getPosSetup, priceItemsForSale, priceItemsInput, type PosItemDto, type PosSetupDto } from "./pos.service";
 export { customerPaymentInput, listCustomerPayments, recordCustomerPayment, type CustomerPaymentDto } from "./payments.service";
 export { createReturn, createReturnInput, getCreditNote, getReturnable, type CreditNoteDto, type ReturnableDto, type ReturnableLineDto } from "./returns.service";
+export { createExchange, createExchangeInput } from "./exchange.service";

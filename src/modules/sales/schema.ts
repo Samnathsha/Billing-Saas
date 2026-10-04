@@ -168,7 +168,8 @@ export const invoicePayments = pgTable(
     id: idColumn(),
     tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
     invoiceId: uuid("invoice_id").notNull(),
-    // 'cash' | 'card' | 'upi'
+    // 'cash' | 'card' | 'upi' | 'exchange' (paid with returned items; the
+    // reference is the credit note)
     method: text("method").notNull(),
     amountPaise: bigint("amount_paise", { mode: "number" }).notNull(),
     reference: text("reference"),
@@ -181,7 +182,7 @@ export const invoicePayments = pgTable(
     unique("invoice_payments_tenant_id_id_key").on(t.tenantId, t.id),
     index("invoice_payments_invoice_idx").on(t.tenantId, t.invoiceId),
     foreignKey({ name: "invoice_payments_invoice_fk", columns: [t.tenantId, t.invoiceId], foreignColumns: [invoices.tenantId, invoices.id] }).onDelete("restrict"),
-    check("invoice_payments_method", sql`${t.method} in ('cash', 'card', 'upi')`),
+    check("invoice_payments_method", sql`${t.method} in ('cash', 'card', 'upi', 'exchange')`),
     check("invoice_payments_kind", sql`(${t.kind} = 'sale' AND ${t.amountPaise} > 0) OR (${t.kind} = 'void' AND ${t.amountPaise} < 0)`),
     check("invoice_payments_amount", sql`abs(${t.amountPaise}) <= 100000000000`),
     check("invoice_payments_reference_length", sql`char_length(${t.reference}) <= 100`),
@@ -235,8 +236,12 @@ export const creditNotes = pgTable(
     sequenceNumber: integer("sequence_number").notNull(),
     creditNoteDate: date("credit_note_date").notNull(),
     customerId: uuid("customer_id"),
-    // 'cash' | 'card' | 'upi' (money back) | 'store_credit'
+    // How the refund goes back: 'cash' | 'card' | 'upi' | 'store_credit', or
+    // 'exchange' when all of it paid for new items (business rules 16).
     refundMethod: text("refund_method").notNull(),
+    // An exchange: the new bill, and how much of the refund paid it.
+    exchangeInvoiceId: uuid("exchange_invoice_id"),
+    exchangePaise: bigint("exchange_paise", { mode: "number" }).notNull().default(0),
     reason: text("reason").notNull(),
     // After the return window: allowed for Manager and above, flagged.
     outsideWindow: boolean("outside_window").notNull(),
@@ -260,7 +265,12 @@ export const creditNotes = pgTable(
     foreignKey({ name: "credit_notes_invoice_fk", columns: [t.tenantId, t.invoiceId], foreignColumns: [invoices.tenantId, invoices.id] }).onDelete("restrict"),
     foreignKey({ name: "credit_notes_branch_fk", columns: [t.tenantId, t.branchId], foreignColumns: [branches.tenantId, branches.id] }).onDelete("restrict"),
     foreignKey({ name: "credit_notes_customer_fk", columns: [t.tenantId, t.customerId], foreignColumns: [customers.tenantId, customers.id] }).onDelete("restrict"),
-    check("credit_notes_method", sql`${t.refundMethod} in ('cash', 'card', 'upi', 'store_credit')`),
+    foreignKey({ name: "credit_notes_exchange_invoice_fk", columns: [t.tenantId, t.exchangeInvoiceId], foreignColumns: [invoices.tenantId, invoices.id] }).onDelete("restrict"),
+    check("credit_notes_method", sql`${t.refundMethod} in ('cash', 'card', 'upi', 'store_credit', 'exchange')`),
+    check(
+      "credit_notes_exchange",
+      sql`${t.exchangePaise} >= 0 AND ${t.exchangePaise} <= ${t.refundPaise} AND (${t.exchangePaise} = 0 OR ${t.exchangeInvoiceId} IS NOT NULL) AND (${t.refundMethod} <> 'exchange' OR (${t.exchangeInvoiceId} IS NOT NULL AND ${t.exchangePaise} = ${t.refundPaise}))`,
+    ),
     check("credit_notes_store_credit_needs_customer", sql`${t.refundMethod} <> 'store_credit' OR ${t.customerId} IS NOT NULL`),
     check("credit_notes_number_format", sql`char_length(${t.number}) <= 16 AND ${t.sequenceNumber} between 1 and 99999`),
     check("credit_notes_reason_length", sql`char_length(${t.reason}) between 3 and 500`),

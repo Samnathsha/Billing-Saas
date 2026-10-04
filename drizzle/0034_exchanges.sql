@@ -1,0 +1,8 @@
+ALTER TABLE "credit_notes" DROP CONSTRAINT "credit_notes_method";--> statement-breakpoint
+ALTER TABLE "invoice_payments" DROP CONSTRAINT "invoice_payments_method";--> statement-breakpoint
+ALTER TABLE "credit_notes" ADD COLUMN "exchange_invoice_id" uuid;--> statement-breakpoint
+ALTER TABLE "credit_notes" ADD COLUMN "exchange_paise" bigint DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "credit_notes" ADD CONSTRAINT "credit_notes_exchange_invoice_fk" FOREIGN KEY ("tenant_id","exchange_invoice_id") REFERENCES "public"."invoices"("tenant_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "credit_notes" ADD CONSTRAINT "credit_notes_exchange" CHECK ("credit_notes"."exchange_paise" >= 0 AND "credit_notes"."exchange_paise" <= "credit_notes"."refund_paise" AND ("credit_notes"."exchange_paise" = 0 OR "credit_notes"."exchange_invoice_id" IS NOT NULL) AND ("credit_notes"."refund_method" <> 'exchange' OR ("credit_notes"."exchange_invoice_id" IS NOT NULL AND "credit_notes"."exchange_paise" = "credit_notes"."refund_paise")));--> statement-breakpoint
+ALTER TABLE "credit_notes" ADD CONSTRAINT "credit_notes_method" CHECK ("credit_notes"."refund_method" in ('cash', 'card', 'upi', 'store_credit', 'exchange'));--> statement-breakpoint
+ALTER TABLE "invoice_payments" ADD CONSTRAINT "invoice_payments_method" CHECK ("invoice_payments"."method" in ('cash', 'card', 'upi', 'exchange'));

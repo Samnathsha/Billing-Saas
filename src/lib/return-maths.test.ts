@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { returnAmounts } from "./returns-maths";
+import { returnAmounts } from "./return-maths";
 
 describe("returnAmounts", () => {
   // The cash-sale line from the sales tests: 2 x ₹799 incl. 5%.

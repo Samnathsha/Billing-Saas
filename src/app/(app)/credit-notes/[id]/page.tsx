@@ -12,7 +12,7 @@ import { GST_STATES } from "@/modules/tax";
 
 export const metadata: Metadata = { title: "Credit note" };
 
-const REFUND: Record<string, string> = { cash: "Cash", card: "Card", upi: "UPI", store_credit: "Store credit (customer's account)" };
+const REFUND: Record<string, string> = { cash: "Cash", card: "Card", upi: "UPI", store_credit: "Store credit (customer's account)", exchange: "Exchanged for new items" };
 const stateName = (code: string): string => `${GST_STATES.get(code) ?? "?"} (${code})`;
 
 // The credit note as printed: from its own saved rows and the original
@@ -154,8 +154,20 @@ export default async function CreditNotePage({ params, searchParams }: PageProps
           ) : null}
           <dt className="font-semibold">Refund</dt>
           <dd className="text-right font-semibold tabular-nums">{formatPaise(note.refundPaise)}</dd>
-          <dt>Paid back as</dt>
-          <dd className="text-right">{REFUND[note.refundMethod] ?? note.refundMethod}</dd>
+          {note.exchange === null ? null : (
+            <>
+              <dt>Used for new bill</dt>
+              <dd className="text-right tabular-nums">
+                <Link href={`/sales/${note.exchange.invoiceId}`} className="underline print:no-underline">{formatPaise(note.exchange.paise)}</Link>
+              </dd>
+            </>
+          )}
+          {note.refundMethod === "exchange" ? null : (
+            <>
+              <dt>{note.exchange === null ? "Paid back as" : "Rest paid back as"}</dt>
+              <dd className="text-right">{REFUND[note.refundMethod] ?? note.refundMethod}</dd>
+            </>
+          )}
         </dl>
         <p className="mt-6 text-right text-sm">For {note.seller.name} · Authorised signatory</p>
       </article>

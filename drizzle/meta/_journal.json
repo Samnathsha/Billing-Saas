@@ -239,6 +239,13 @@
       "when": 1791050607773,
       "tag": "0033_credit_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791053384350,
+      "tag": "0034_exchanges",
+      "breakpoints": true
     }
   ]
 }

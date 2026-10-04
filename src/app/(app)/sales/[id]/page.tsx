@@ -15,7 +15,7 @@ import { voidInvoiceAction } from "@/app/(app)/sales/actions";
 
 export const metadata: Metadata = { title: "Bill" };
 
-const METHODS: Record<string, string> = { cash: "Cash", card: "Card", upi: "UPI" };
+const METHODS: Record<string, string> = { cash: "Cash", card: "Card", upi: "UPI", exchange: "Exchange (returned items)" };
 const stateName = (code: string): string => `${GST_STATES.get(code) ?? "?"} (${code})`;
 
 // The bill as printed (business rules 4, 6; open questions 17, 37). Everything
@@ -36,7 +36,10 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
     if (error instanceof SalesError) notFound();
     throw error;
   }
-  const canVoid = bill.status === "posted" && returns.length === 0 && who.permissions.includes("invoices.void") && bill.invoiceDate === todayInIndia();
+  // Not after a return, and not for a bill paid with returned items (the
+  // server refuses both; the button is not offered).
+  const paidByExchange = bill.payments.some((p) => p.method === "exchange");
+  const canVoid = bill.status === "posted" && returns.length === 0 && !paidByExchange && who.permissions.includes("invoices.void") && bill.invoiceDate === todayInIndia();
   const canReturn = bill.status === "posted" && who.permissions.includes("sales.create");
   const received = bill.payments.filter((p) => p.kind === "sale");
   const refunded = bill.payments.filter((p) => p.kind === "void");
@@ -46,7 +49,10 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
         <Link href="/sales" className="text-sm underline">← Bills</Link>
         <div className="flex gap-2">
           {canReturn ? (
-            <Link href={`/sales/${bill.id}/return`} className="inline-flex h-8 items-center rounded-lg border px-3 text-sm">Return items</Link>
+            <>
+              <Link href={`/sales/${bill.id}/return`} className="inline-flex h-8 items-center rounded-lg border px-3 text-sm">Return items</Link>
+              <Link href={`/sales/${bill.id}/exchange`} className="inline-flex h-8 items-center rounded-lg border px-3 text-sm">Exchange</Link>
+            </>
           ) : null}
           {who.permissions.includes("sales.create") ? (
             <Link href="/pos" className="inline-flex h-8 items-center rounded-lg border px-3 text-sm">New bill</Link>

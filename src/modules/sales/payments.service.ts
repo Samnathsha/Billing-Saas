@@ -6,7 +6,7 @@ import { requirePermission, type Permission } from "@/modules/auth";
 import { bookCustomerEntry, lockCustomerForSale } from "@/modules/parties";
 import { claimIdempotencyKey } from "@/modules/sync";
 import * as repo from "./repo";
-import { SalesError } from "./service";
+import { SalesError } from "./errors";
 
 // A customer paying what they owe (business rules 16): one transaction with
 // an idempotency key; the payment row and a negative ledger row (append-

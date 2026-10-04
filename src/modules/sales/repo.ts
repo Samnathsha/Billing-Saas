@@ -85,7 +85,19 @@ export async function itemsOf(tx: TenantTx, invoiceId: string) {
 }
 
 export async function paymentsOf(tx: TenantTx, invoiceId: string) {
-  return tx.select().from(invoicePayments).where(eq(invoicePayments.invoiceId, invoiceId)).orderBy(invoicePayments.createdAt, invoicePayments.id);
+  // Saved in one moment, so ordered by meaning: what was received, then
+  // refunds; the exchange credit first; then by method.
+  return tx
+    .select()
+    .from(invoicePayments)
+    .where(eq(invoicePayments.invoiceId, invoiceId))
+    .orderBy(
+      sql`${invoicePayments.kind} = 'void'`,
+      sql`${invoicePayments.method} <> 'exchange'`,
+      sql`array_position(ARRAY['cash', 'upi', 'card']::text[], ${invoicePayments.method})`,
+      invoicePayments.createdAt,
+      invoicePayments.id,
+    );
 }
 
 export async function markVoided(tx: TenantTx, ctx: TenantContext, id: string, reason: string): Promise<void> {

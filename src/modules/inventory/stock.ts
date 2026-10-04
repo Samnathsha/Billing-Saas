@@ -10,7 +10,10 @@ import type { MovementType } from "./schema";
 // - balances are locked in a fixed order (variant, then branch) so two
 //   operations can never deadlock;
 // - stock out succeeds only if enough remains (never below zero online,
-//   rule 7.1), as one statement on the locked row;
+//   rule 7.1), as one statement on the locked row. The one exception is an
+//   offline sale reaching the server (decision 0006, `offlineSale`): the
+//   goods already left, so it may go below zero, and an IMEI item whose
+//   number is no longer available still goes out (the caller flags both);
 // - stock in updates the weighted average cost (rule 7.3) in the
 //   database's exact decimals; each movement stores its unit cost;
 // - whole-piece units take whole quantities; IMEI items move one unit at a
@@ -91,7 +94,7 @@ export async function assertStockTargets(tx: TenantTx, variantIds: string[], bra
 
 const ADDS_AT_COST: ReadonlySet<MovementType> = new Set(["PURCHASE_IN", "OPENING_STOCK", "SALE_RETURN_IN", "TRANSFER_IN", "ADJUSTMENT_IN"]);
 
-export async function postMovements(tx: TenantTx, ctx: TenantContext, rawInputs: MovementInput[]): Promise<string[]> {
+export async function postMovements(tx: TenantTx, ctx: TenantContext, rawInputs: MovementInput[], opts: { offlineSale?: boolean } = {}): Promise<string[]> {
   const inputs = rawInputs.map((m) => movementInput.parse(m));
   const facts = new Map((await repo.variantFacts(tx, [...new Set(inputs.map((m) => m.variantId))])).map((f) => [f.variantId, f]));
   const open = await repo.openBranchIds(tx, [...new Set(inputs.map((m) => m.branchId))]);
@@ -101,7 +104,8 @@ export async function postMovements(tx: TenantTx, ctx: TenantContext, rawInputs:
     if (fact === undefined) throw new StockError("VARIANT_NOT_FOUND", m.variantId);
     if (!open.has(m.branchId)) throw new StockError("BRANCH_CLOSED");
     if (!fact.allowsFraction && m.quantity.includes(".") && !/\.0+$/.test(m.quantity)) throw new StockError("WHOLE_UNITS_ONLY", m.variantId);
-    if (fact.trackSerial && (m.serialNumberId === undefined || !/^-?1(\.0+)?$/.test(m.quantity))) {
+    const serialMayBeMissing = opts.offlineSale === true && m.type === "SALE_OUT";
+    if (fact.trackSerial && ((m.serialNumberId === undefined && !serialMayBeMissing) || !/^-?1(\.0+)?$/.test(m.quantity))) {
       throw new StockError("SERIAL_REQUIRED", m.variantId);
     }
     if (!fact.trackSerial && m.serialNumberId !== undefined) throw new StockError("SERIAL_NOT_ALLOWED", m.variantId);
@@ -130,7 +134,7 @@ export async function postMovements(tx: TenantTx, ctx: TenantContext, rawInputs:
     const ok =
       incoming || m.type === "VOID_REVERSAL"
         ? await repo.addAtCost(tx, balance.id, m.quantity, unitCost)
-        : await repo.takeOut(tx, balance.id, m.quantity);
+        : await repo.takeOut(tx, balance.id, m.quantity, opts.offlineSale === true && m.type === "SALE_OUT");
     if (!ok) throw new StockError("INSUFFICIENT_STOCK", m.variantId);
     try {
       ids.push(
@@ -159,4 +163,10 @@ export async function postMovements(tx: TenantTx, ctx: TenantContext, rawInputs:
     if (updated !== undefined) balances.set(`${m.variantId}|${m.branchId}`, { ...balance, quantity: updated.quantity, averageCostPaise: updated.averageCostPaise });
   }
   return ids;
+}
+
+// Items of a branch whose stock is now below zero (after an offline sale).
+export async function belowZero(tx: TenantTx, branchId: string, variantIds: string[]): Promise<Set<string>> {
+  const rows = await repo.balancesOf(tx, [...new Set(variantIds)]);
+  return new Set(rows.filter((r) => r.branchId === branchId && r.quantity.startsWith("-")).map((r) => r.variantId));
 }

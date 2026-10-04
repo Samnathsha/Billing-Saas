@@ -1,7 +1,7 @@
 import "server-only";
-import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, count, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
-import { auditLogs, branches, invoiceSequences, memberships, products, roles, settings, tenants } from "@/db/schema";
+import { auditLogs, branches, devices, invoiceSequences, memberships, products, roles, settings, tenants } from "@/db/schema";
 
 // Database queries of the tenants module. Everything runs inside the
 // caller's withTenant transaction; row-level security limits it to the
@@ -180,4 +180,11 @@ export async function seriesStarted(tx: TenantTx, series: { kind: string; prefix
     .where(and(eq(invoiceSequences.series, series.kind), eq(invoiceSequences.prefix, series.prefix), eq(invoiceSequences.financialYear, series.financialYear)))
     .limit(1);
   return rows.length > 0;
+}
+
+// Registered tills' prefixes (decision 0006), revoked ones included: their
+// series stay theirs.
+export async function tillPrefixes(tx: TenantTx): Promise<string[]> {
+  const rows = await tx.select({ prefix: devices.prefix }).from(devices).where(isNotNull(devices.prefix));
+  return rows.flatMap((r) => (r.prefix === null ? [] : [r.prefix]));
 }

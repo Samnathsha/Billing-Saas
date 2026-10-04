@@ -37,6 +37,7 @@ import {
   subscriptions,
   supplierPayments,
   suppliers,
+  syncFlags,
   syncOperations,
   tenants,
   units,
@@ -132,6 +133,7 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     purchase_return_items: randomUUID(),
     expense_categories: randomUUID(),
     expenses: randomUUID(),
+    sync_flags: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -405,6 +407,14 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
       clientOpId: randomUUID(),
       operation: "sale.create",
       status: "applied",
+    });
+    await tx.insert(syncFlags).values({
+      id: id("sync_flags"),
+      tenantId,
+      deviceId: id("devices"),
+      invoiceId: id("invoices"),
+      code: "stock_short",
+      detail: { item: `${name} private item` },
     });
   });
   return { ctx, branchId, rowIds };

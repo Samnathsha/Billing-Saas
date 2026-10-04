@@ -44,7 +44,7 @@ export async function createExchange(ctx: TenantContext, rawInput: unknown): Pro
     const sale = await postSale(
       tx,
       ctx,
-      { ...input.sale, idempotencyKey: input.idempotencyKey, branchId: input.branchId, customerId: input.sale.customerId ?? plan.invoice.customerId },
+      { ...input.sale, idempotencyKey: input.idempotencyKey, branchId: input.branchId, customerId: input.sale.customerId ?? plan.invoice.customerId, tillId: null },
       { unlimitedDiscount, exchange: { creditPaise: plan.refundPaise, reference: plan.creditNote.formatted } },
     );
     const leftover = plan.refundPaise - sale.exchangeAppliedPaise;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { financialYearLabel, financialYearStart, formatDocumentNumber, MAX_LENGTH } from "./numbering";
+import { financialYearLabel, financialYearOfDay, financialYearStart, formatDocumentNumber, MAX_LENGTH, parseDocumentNumber, TILL_PREFIX_PATTERN, tillCreditNotePrefix } from "./document-number";
 
 const KOLKATA = "Asia/Kolkata";
 
@@ -45,5 +45,30 @@ describe("bill numbers: PREFIX/YY-YY/NNNNN", () => {
 
   it.each(["", "INVOI", "inv", "IN-V", "IN/V", "IN V", "₹"])("refuses prefix %j", (prefix) => {
     expect(() => formatDocumentNumber(prefix, "26-27", 1)).toThrow();
+  });
+});
+
+describe("offline till numbering (decision 0006)", () => {
+  it("financial year of a day", () => {
+    expect(financialYearOfDay("2026-10-04", 4)).toBe("26-27");
+    expect(financialYearOfDay("2027-03-31", 4)).toBe("26-27");
+    expect(financialYearOfDay("2027-04-01", 4)).toBe("27-28");
+    expect(financialYearOfDay("2026-01-01", 1)).toBe("2026");
+    expect(() => financialYearOfDay("4 Oct", 4)).toThrow();
+  });
+
+  it("till prefixes and their credit notes", () => {
+    expect(TILL_PREFIX_PATTERN.test("T1")).toBe(true);
+    expect(TILL_PREFIX_PATTERN.test("T123")).toBe(false);
+    expect(tillCreditNotePrefix("T1")).toBe("T1R");
+    expect(formatDocumentNumber(tillCreditNotePrefix("ABC"), "26-27", 99_999)).toHaveLength(16);
+  });
+
+  it("reads a number back", () => {
+    expect(parseDocumentNumber("T1/26-27/00012")).toEqual({ prefix: "T1", financialYear: "26-27", number: 12 });
+    expect(parseDocumentNumber("T1R/2026/00001")).toEqual({ prefix: "T1R", financialYear: "2026", number: 1 });
+    expect(parseDocumentNumber("T1/26-27/00000")).toBeNull();
+    expect(parseDocumentNumber("t1/26-27/00001")).toBeNull();
+    expect(parseDocumentNumber("T1/26-27/0001")).toBeNull();
   });
 });

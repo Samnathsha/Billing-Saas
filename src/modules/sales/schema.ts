@@ -3,7 +3,7 @@ import { bigint, boolean, check, date, foreignKey, index, integer, numeric, pgTa
 import { createdAtColumn, idColumn, mutableRowColumns, tenantIdColumn } from "@/db/columns";
 import { productVariants, serialNumbers } from "@/modules/catalog/schema";
 import { customers } from "@/modules/parties/schema";
-import { branches, tenants } from "@/modules/tenants/schema";
+import { branches, devices, tenants } from "@/modules/tenants/schema";
 
 // Bill and credit-note counters (business rules 5.3 and 12). One row per
 // business, series, prefix and financial year. The next number is taken
@@ -86,9 +86,18 @@ export const invoices = pgTable(
     voidedBy: uuid("voided_by"),
     createdBy: uuid("created_by").notNull(),
     createdAt: createdAtColumn(),
+    // The registered till it was made on (null: not recorded). Offline
+    // bills (decision 0006) also keep the till's clock time (information
+    // only; the server's time is the authority) and who sent them.
+    deviceId: uuid("device_id"),
+    offlineAt: timestamp("offline_at", { withTimezone: true }),
+    syncedBy: uuid("synced_by"),
   },
   (t) => [
     unique("invoices_tenant_id_id_key").on(t.tenantId, t.id),
+    foreignKey({ name: "invoices_device_fk", columns: [t.tenantId, t.deviceId], foreignColumns: [devices.tenantId, devices.id] }).onDelete("restrict"),
+    index("invoices_device_date_idx").on(t.tenantId, t.deviceId, t.invoiceDate),
+    check("invoices_offline_fields", sql`(${t.offlineAt} IS NULL) = (${t.syncedBy} IS NULL) AND (${t.offlineAt} IS NULL OR ${t.deviceId} IS NOT NULL)`),
     unique("invoices_number_key").on(t.tenantId, t.number),
     unique("invoices_sequence_key").on(t.tenantId, t.prefix, t.financialYear, t.sequenceNumber),
     index("invoices_tenant_date_idx").on(t.tenantId, t.invoiceDate),
@@ -255,9 +264,15 @@ export const creditNotes = pgTable(
     refundPaise: bigint("refund_paise", { mode: "number" }).notNull(),
     createdBy: uuid("created_by").notNull(),
     createdAt: createdAtColumn(),
+    // As on bills (decision 0006).
+    deviceId: uuid("device_id"),
+    offlineAt: timestamp("offline_at", { withTimezone: true }),
+    syncedBy: uuid("synced_by"),
   },
   (t) => [
     unique("credit_notes_tenant_id_id_key").on(t.tenantId, t.id),
+    foreignKey({ name: "credit_notes_device_fk", columns: [t.tenantId, t.deviceId], foreignColumns: [devices.tenantId, devices.id] }).onDelete("restrict"),
+    check("credit_notes_offline_fields", sql`(${t.offlineAt} IS NULL) = (${t.syncedBy} IS NULL) AND (${t.offlineAt} IS NULL OR ${t.deviceId} IS NOT NULL)`),
     unique("credit_notes_number_key").on(t.tenantId, t.number),
     unique("credit_notes_sequence_key").on(t.tenantId, t.prefix, t.financialYear, t.sequenceNumber),
     index("credit_notes_invoice_idx").on(t.tenantId, t.invoiceId),

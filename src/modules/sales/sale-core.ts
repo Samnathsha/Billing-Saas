@@ -32,7 +32,7 @@ export const todayIn = (timeZone: string): string =>
 
 // YYYY-MM-DD plus whole months, keeping the day where it exists (31 Jan +
 // 1 month = 28/29 Feb).
-function addMonths(day: string, months: number): string {
+export function addMonths(day: string, months: number): string {
   const [y = 0, m = 1, d = 1] = day.split("-").map(Number);
   const target = new Date(Date.UTC(y, m - 1 + months, 1));
   const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
@@ -41,19 +41,19 @@ function addMonths(day: string, months: number): string {
 }
 
 // "12 Market Road, Near Bus Stand, Chennai 600001 · Phone +91 98400 00000"
-function sellerAddress(b: { addressLine1: string | null; addressLine2: string | null; city: string | null; pincode: string | null; phone: string | null }): string | null {
+export function sellerAddress(b: { addressLine1: string | null; addressLine2: string | null; city: string | null; pincode: string | null; phone: string | null }): string | null {
   const place = [b.city, b.pincode].filter((p): p is string => p !== null && p !== "").join(" ");
   const address = [b.addressLine1, b.addressLine2, place].filter((p): p is string => p !== null && p !== "").join(", ");
   const text = [address, b.phone === null || b.phone === "" ? "" : `Phone ${b.phone}`].filter((p) => p !== "").join(" · ");
   return text === "" ? null : text;
 }
 
-const isUniqueViolation = (error: unknown): boolean => {
+export const isUniqueViolation = (error: unknown): boolean => {
   const cause = error instanceof Error && error.cause instanceof Error ? error.cause : error;
   return cause instanceof Error && "code" in cause && cause.code === "23505";
 };
 
-function bill(lines: BillLineInput[], options: { pricesIncludeTax: boolean; chargesGst: boolean; interState: boolean; billDiscountPaise: number }) {
+export function bill(lines: BillLineInput[], options: { pricesIncludeTax: boolean; chargesGst: boolean; interState: boolean; billDiscountPaise: number }) {
   try {
     return computeBill({ lines, ...options, roundOff: true });
   } catch (error) {
@@ -166,6 +166,7 @@ export async function postSale(
       payablePaise: result.payablePaise,
       paidPaise,
       creditPaise,
+      deviceId: input.tillId,
     });
   } catch (error) {
     // The same bill id sent again under a different key.

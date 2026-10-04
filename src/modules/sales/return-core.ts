@@ -5,7 +5,7 @@ import { quantityToMilli } from "@/lib/bill-maths";
 import { postMovements, returnSerial, type MovementInput } from "@/modules/inventory";
 import { bookCustomerEntry } from "@/modules/parties";
 import { SalesError } from "./errors";
-import { financialYearLabel, financialYearStart } from "./numbering";
+import { financialYearLabel, financialYearStart, formatDocumentNumber } from "./numbering";
 import * as repo from "./repo";
 import { returnAmounts, type ReturnAmounts } from "@/lib/return-maths";
 import { todayIn } from "./sale-core";
@@ -44,11 +44,13 @@ export async function planReturn(
   tx: TenantTx,
   ctx: TenantContext,
   input: { invoiceId: string; lines: { invoiceItemId: string; quantity: string; resellable: boolean }[] },
-  opts: { mayPassWindow: boolean },
+  // An offline return (decision 0006) brings its own day and its number
+  // from the till's series (already claimed by the caller).
+  opts: { mayPassWindow: boolean; today?: string; creditNote?: { prefix: string; financialYear: string; number: number } },
 ): Promise<ReturnPlan> {
   const settings = await repo.saleSettings(tx);
   if (settings === undefined) throw new SalesError("SETTINGS_INCOMPLETE");
-  const today = todayIn(settings.timeZone);
+  const today = opts.today ?? todayIn(settings.timeZone);
   // Locked: two returns against the same bill happen one after the other.
   const invoice = await repo.lockInvoice(tx, input.invoiceId);
   if (invoice === undefined) throw new SalesError("NOT_FOUND");
@@ -73,10 +75,14 @@ export async function planReturn(
   const sum = (pick: (a: ReturnAmounts) => number): number => lines.reduce((s, l) => s + pick(l.amounts), 0);
   const totalPaise = sum((a) => a.totalPaise);
   const roundOffPaise = Number(((2n * BigInt(totalPaise) + 100n) / 200n) * 100n) - totalPaise;
-  const financialYear = financialYearLabel(financialYearStart(new Date(), settings.timeZone, settings.financialYearStartMonth), settings.financialYearStartMonth);
+  const financialYear = opts.creditNote?.financialYear ?? financialYearLabel(financialYearStart(new Date(), settings.timeZone, settings.financialYearStartMonth), settings.financialYearStartMonth);
+  const prefix = opts.creditNote?.prefix ?? settings.creditNotePrefix;
   // Taken here (row lock; given back if anything fails) so an exchange can
   // name the credit note on the new bill's payment.
-  const number = await takeNextNumber(tx, ctx, { kind: "credit_note", prefix: settings.creditNotePrefix, financialYear });
+  const number =
+    opts.creditNote === undefined
+      ? await takeNextNumber(tx, ctx, { kind: "credit_note", prefix, financialYear })
+      : { number: opts.creditNote.number, formatted: formatDocumentNumber(prefix, financialYear, opts.creditNote.number) };
   return {
     invoice,
     today,
@@ -90,7 +96,7 @@ export async function planReturn(
     totalPaise,
     roundOffPaise,
     refundPaise: totalPaise + roundOffPaise,
-    creditNote: { prefix: settings.creditNotePrefix, financialYear, number: number.number, formatted: number.formatted },
+    creditNote: { prefix, financialYear, number: number.number, formatted: number.formatted },
   };
 }
 
@@ -106,6 +112,8 @@ export async function writeReturn(
     // it paid the new bill).
     refundMethod: "cash" | "card" | "upi" | "store_credit" | "exchange";
     exchange?: { invoiceId: string; appliedPaise: number };
+    // Made offline on a registered till (decision 0006).
+    offline?: { deviceId: string; offlineAt: Date; syncedBy: string };
   },
 ): Promise<void> {
   const { invoice } = plan;
@@ -135,6 +143,9 @@ export async function writeReturn(
     refundPaise: plan.refundPaise,
     exchangeInvoiceId: options.exchange?.invoiceId ?? null,
     exchangePaise: options.exchange?.appliedPaise ?? 0,
+    deviceId: options.offline?.deviceId ?? null,
+    offlineAt: options.offline?.offlineAt ?? null,
+    syncedBy: options.offline?.syncedBy ?? null,
   });
   await repo.insertCreditNoteItems(
     tx,

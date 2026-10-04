@@ -18,6 +18,7 @@ const BLUEPRINT_5_3: Record<string, [string, boolean, boolean, boolean, boolean,
   // Not in the original table: owner decision 2026-10-02 (business rules 13).
   "Manage products": ["products.manage", true, true, true, false, false],
   "Record expenses": ["expenses.manage", true, true, true, false, false],
+  "Manage tills and offline flags": ["tills.manage", true, true, true, false, false],
 };
 const COLUMNS = ["Owner", "Admin", "Manager", "Cashier", "Accountant"] as const;
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
 import { auditLogs, branches, memberships, products, productVariants, roles, serialNumbers, stockBalances, stockMovements } from "@/db/schema";
 
@@ -74,9 +74,14 @@ export async function insertMovement(tx: TenantTx, ctx: TenantContext, m: Moveme
 // Stock in (or a reversal at a known cost): weighted average cost, computed
 // in the database's exact decimals, rounded to 4 decimal places of a paisa.
 export async function addAtCost(tx: TenantTx, balanceId: string, quantity: string, unitCostPaise: string): Promise<boolean> {
+  // Stock in is always accepted, even onto a balance below zero (only an
+  // offline sale can cause that, decision 0006); there the incoming cost
+  // becomes the average, as nothing is left to average with. Stock out at
+  // cost (a reversal) must leave at least zero.
   const rows = await tx.execute(sql`
     UPDATE stock_balances
        SET average_cost_paise = CASE
+             WHEN ${quantity}::numeric > 0 AND quantity <= 0 THEN round(${unitCostPaise}::numeric, 4)
              WHEN quantity + ${quantity}::numeric > 0
              THEN greatest(round((quantity * average_cost_paise + ${quantity}::numeric * ${unitCostPaise}::numeric)
                                  / (quantity + ${quantity}::numeric), 4), 0)
@@ -84,18 +89,19 @@ export async function addAtCost(tx: TenantTx, balanceId: string, quantity: strin
            quantity = quantity + ${quantity}::numeric,
            version = version + 1,
            updated_at = now()
-     WHERE id = ${balanceId} AND quantity + ${quantity}::numeric >= 0
+     WHERE id = ${balanceId} AND (${quantity}::numeric > 0 OR quantity + ${quantity}::numeric >= 0)
      RETURNING id`);
   return (rows.rowCount ?? 0) > 0;
 }
 
 // Stock out at the current average cost: succeeds only if enough remains
-// (the check and the change are one statement on a locked row).
-export async function takeOut(tx: TenantTx, balanceId: string, quantity: string): Promise<boolean> {
+// (the check and the change are one statement on a locked row), unless the
+// caller allows going below zero (an offline sale, decision 0006).
+export async function takeOut(tx: TenantTx, balanceId: string, quantity: string, allowNegative = false): Promise<boolean> {
   const rows = await tx.execute(sql`
     UPDATE stock_balances
        SET quantity = quantity + ${quantity}::numeric, version = version + 1, updated_at = now()
-     WHERE id = ${balanceId} AND quantity + ${quantity}::numeric >= 0
+     WHERE id = ${balanceId} AND (${allowNegative} OR quantity + ${quantity}::numeric >= 0)
      RETURNING id`);
   return (rows.rowCount ?? 0) > 0;
 }
@@ -275,4 +281,13 @@ export async function serialsOfPurchaseItem(tx: TenantTx, purchaseItemId: string
     .from(serialNumbers)
     .where(and(eq(serialNumbers.purchaseItemId, purchaseItemId), eq(serialNumbers.status, "in_stock")))
     .orderBy(serialNumbers.serial);
+}
+
+export async function inStockSerialsAt(tx: TenantTx, branchId: string, limit: number) {
+  return tx
+    .select({ serial: serialNumbers.serial, variantId: serialNumbers.variantId })
+    .from(serialNumbers)
+    .where(and(eq(serialNumbers.branchId, branchId), eq(serialNumbers.status, "in_stock")))
+    .orderBy(asc(serialNumbers.serial))
+    .limit(limit);
 }

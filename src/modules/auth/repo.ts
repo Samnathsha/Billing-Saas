@@ -133,6 +133,12 @@ export async function loadRole(
 
 // Does this user's active membership in this (active) business carry the
 // permission through its role? Read fresh on every call, never cached.
+// A membership of this business (row-level security), whatever its status.
+export async function wasMember(tx: TenantTx, userId: string): Promise<boolean> {
+  const rows = await tx.select({ userId: memberships.userId }).from(memberships).where(eq(memberships.userId, userId)).limit(1);
+  return rows.length > 0;
+}
+
 export async function memberHasPermission(tx: TenantTx, ctx: TenantContext, permission: string): Promise<boolean> {
   const [row] = await tx
     .select({ userId: memberships.userId })

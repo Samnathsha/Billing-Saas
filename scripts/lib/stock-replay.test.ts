@@ -83,8 +83,20 @@ describe("replay matches the database rules", () => {
     });
   });
 
-  it("notices stock that went below zero", () => {
-    expect(result([m("PURCHASE_IN", "1", "100"), m("SALE_OUT", "-2", "100"), m("PURCHASE_IN", "5", "100")])?.wentBelowZero).toBe(true);
+  it("notices stock that anything but a sale took below zero", () => {
+    expect(result([m("PURCHASE_IN", "1", "100"), m("ADJUSTMENT_OUT", "-2", "100"), m("PURCHASE_IN", "5", "100")])?.wentBelowZero).toBe(true);
+    expect(result([m("PURCHASE_IN", "1", "100"), m("PURCHASE_RETURN_OUT", "-2", "100")])?.wentBelowZero).toBe(true);
+    // Going further down from below zero is a fault too.
+    expect(result([m("SALE_OUT", "-1", "0"), m("ADJUSTMENT_OUT", "-1", "0")])?.wentBelowZero).toBe(true);
+  });
+
+  it("an offline sale may take stock below zero; stock coming in then sets the average to its cost (decision 0006)", () => {
+    // 1 at ₹4.50, 3 sold offline -> -2; 5 bought at ₹5.00 -> 3 at ₹5.00 (not a mix with the old ₹4.50).
+    expect(result([m("PURCHASE_IN", "1", "450"), m("SALE_OUT", "-3", "450"), m("PURCHASE_IN", "5", "500")])).toEqual({ quantity: "3.000", average: "500.0000", wentBelowZero: false });
+    // Still below zero after stock in (-5 + 3 = -2): the average is that cost, never 0.
+    expect(result([m("SALE_OUT", "-5", "0"), m("PURCHASE_IN", "3", "700")])).toEqual({ quantity: "-2.000", average: "700.0000", wentBelowZero: false });
+    // A return onto a negative balance (resellable) also sets the average.
+    expect(result([m("SALE_OUT", "-1", "0"), m("SALE_RETURN_IN", "1", "450")])).toEqual({ quantity: "0.000", average: "450.0000", wentBelowZero: false });
   });
 
   it("keeps items and branches apart", () => {

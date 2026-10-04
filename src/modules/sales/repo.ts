@@ -1,7 +1,7 @@
 import "server-only";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
-import { auditLogs, creditNoteItems, creditNotes, customerPayments, invoiceItems, invoicePayments, invoices, memberships, roles, serialNumbers, settings, tenants } from "@/db/schema";
+import { auditLogs, creditNoteItems, creditNotes, customerPayments, invoiceItems, invoicePayments, invoiceSequences, invoices, memberships, roles, serialNumbers, settings, tenants } from "@/db/schema";
 
 // Database queries of the sales module, inside the caller's transaction.
 
@@ -231,4 +231,78 @@ export async function creditNotesOfInvoice(tx: TenantTx, invoiceId: string) {
     .from(creditNotes)
     .where(eq(creditNotes.invoiceId, invoiceId))
     .orderBy(creditNotes.createdAt);
+}
+
+// --- Offline tills (decision 0006) ------------------------------------------
+
+// A till's own number arriving with its offline bill (or credit note): the
+// series row is locked and moved on to this number. Returns the number
+// before it (0 for the first), so the caller can refuse a number already
+// used and notice a gap.
+export async function claimTillNumber(
+  tx: TenantTx,
+  ctx: TenantContext,
+  series: { kind: "invoice" | "credit_note"; prefix: string; financialYear: string },
+  number: number,
+): Promise<number> {
+  const inserted = await tx.execute<{ last_number: number }>(sql`
+    INSERT INTO invoice_sequences (tenant_id, series, prefix, financial_year, last_number, created_by)
+    VALUES (${ctx.tenantId}, ${series.kind}, ${series.prefix}, ${series.financialYear}, ${number}, ${ctx.userId})
+    ON CONFLICT (tenant_id, series, prefix, financial_year) DO NOTHING
+    RETURNING last_number`);
+  if (inserted.rows.length > 0) return 0;
+  const [row] = await tx
+    .select({ last: invoiceSequences.lastNumber })
+    .from(invoiceSequences)
+    .where(and(eq(invoiceSequences.series, series.kind), eq(invoiceSequences.prefix, series.prefix), eq(invoiceSequences.financialYear, series.financialYear)))
+    .for("update");
+  if (row === undefined) throw new Error("till series row missing");
+  if (number > row.last) {
+    await tx
+      .update(invoiceSequences)
+      .set({ lastNumber: number, version: sql`${invoiceSequences.version} + 1`, updatedAt: new Date() })
+      .where(and(eq(invoiceSequences.series, series.kind), eq(invoiceSequences.prefix, series.prefix), eq(invoiceSequences.financialYear, series.financialYear)));
+  }
+  return row.last;
+}
+
+// The last numbers the server has seen in a till's series, so a till whose
+// local store was cleared continues after them.
+export async function lastNumbersOf(tx: TenantTx, prefixes: string[]) {
+  if (prefixes.length === 0) return [];
+  return tx
+    .select({ series: invoiceSequences.series, prefix: invoiceSequences.prefix, financialYear: invoiceSequences.financialYear, last: invoiceSequences.lastNumber })
+    .from(invoiceSequences)
+    .where(inArray(invoiceSequences.prefix, prefixes));
+}
+
+// A till's posted bills from `fromDay` on (for its offline returns).
+export async function recentBillsOf(tx: TenantTx, deviceId: string, fromDay: string, limit: number) {
+  return tx
+    .select({ id: invoices.id, number: invoices.number, invoiceDate: invoices.invoiceDate, payablePaise: invoices.payablePaise, interState: invoices.interState })
+    .from(invoices)
+    .where(and(eq(invoices.deviceId, deviceId), eq(invoices.status, "posted"), gte(invoices.invoiceDate, fromDay)))
+    .orderBy(desc(invoices.invoiceDate), desc(invoices.createdAt))
+    .limit(limit);
+}
+
+export async function itemsOfMany(tx: TenantTx, invoiceIds: string[]) {
+  if (invoiceIds.length === 0) return [];
+  return tx.select().from(invoiceItems).where(inArray(invoiceItems.invoiceId, invoiceIds)).orderBy(invoiceItems.invoiceId, invoiceItems.lineNumber);
+}
+
+export async function returnedQuantitiesOfMany(tx: TenantTx, invoiceIds: string[]): Promise<Map<string, string>> {
+  if (invoiceIds.length === 0) return new Map();
+  const rows = await tx
+    .select({ invoiceItemId: creditNoteItems.invoiceItemId, quantity: sql<string>`sum(${creditNoteItems.quantity})::text` })
+    .from(creditNoteItems)
+    .innerJoin(creditNotes, eq(creditNotes.id, creditNoteItems.creditNoteId))
+    .where(inArray(creditNotes.invoiceId, invoiceIds))
+    .groupBy(creditNoteItems.invoiceItemId);
+  return new Map(rows.map((r) => [r.invoiceItemId, r.quantity]));
+}
+
+export async function offlineWindowHours(tx: TenantTx): Promise<number> {
+  const [row] = await tx.select({ hours: settings.offlineWindowHours }).from(settings);
+  return row?.hours ?? 72;
 }

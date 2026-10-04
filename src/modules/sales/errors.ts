@@ -21,7 +21,17 @@ export type SalesErrorCode =
   | "RETURN_TOO_MANY"
   | "STORE_CREDIT_NEEDS_CUSTOMER"
   | "CREDIT_NOTE_NOT_FOUND"
-  | "EXCHANGE_BILL";
+  | "EXCHANGE_BILL"
+  // Offline tills (decision 0006).
+  | "OFFLINE_BAD_NUMBER"
+  | "OFFLINE_NUMBER_USED"
+  | "OFFLINE_TOTAL_MISMATCH"
+  | "OFFLINE_NOT_FULLY_PAID"
+  | "OFFLINE_BAD_RATE"
+  | "OFFLINE_GST_REGISTRATION_CHANGED"
+  | "OFFLINE_UNKNOWN_SELLER"
+  | "OFFLINE_NOT_THIS_TILL"
+  | "OFFLINE_SALE_NOT_SYNCED";
 
 const MESSAGES: Record<SalesErrorCode, string> = {
   SETTINGS_INCOMPLETE: "Set the business's state and GST registration in Business settings before billing.",
@@ -45,6 +55,15 @@ const MESSAGES: Record<SalesErrorCode, string> = {
   STORE_CREDIT_NEEDS_CUSTOMER: "Store credit needs a customer on the bill. Give the money back instead.",
   CREDIT_NOTE_NOT_FOUND: "This credit note was not found.",
   EXCHANGE_BILL: "This bill was paid with returned items (an exchange), so it cannot be voided. Use a return instead.",
+  OFFLINE_BAD_NUMBER: "The bill number does not belong to this till's series or does not match its date.",
+  OFFLINE_NUMBER_USED: "This till already sent a bill with this number. Export it and show it to a manager.",
+  OFFLINE_TOTAL_MISMATCH: "The bill's total does not add up. Export it and show it to a manager.",
+  OFFLINE_NOT_FULLY_PAID: "An offline bill must be fully paid (no credit offline).",
+  OFFLINE_BAD_RATE: "A GST rate on this bill is not one of the item's rates.",
+  OFFLINE_GST_REGISTRATION_CHANGED: "The business's GST registration changed after this bill was made. A manager must enter it again.",
+  OFFLINE_UNKNOWN_SELLER: "The person who made this bill is not a member of this business.",
+  OFFLINE_NOT_THIS_TILL: "Only bills made on this till can be returned offline.",
+  OFFLINE_SALE_NOT_SYNCED: "The bill being returned has not reached the server yet. It will be sent first.",
 };
 
 export class SalesError extends Error {

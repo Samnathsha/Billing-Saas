@@ -50,6 +50,10 @@ export const createSaleInput = z.strictObject({
     )
     .max(5)
     .default([]),
+  // The registered till this bill is made on, if any (decision 0006), so
+  // that till can return it offline later. A label only: the database keeps
+  // it inside this business.
+  tillId: z.uuid().nullable().default(null),
   // What the till showed. If the server's total differs (a price or rate
   // changed meanwhile), the sale is refused rather than charging a surprise.
   expectedPayablePaise: z.int().min(0).max(MAX_PAISE).nullable().default(null),

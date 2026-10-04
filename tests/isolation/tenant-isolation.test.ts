@@ -48,6 +48,7 @@ const TENANT_TABLES = [
   "subscriptions",
   "supplier_payments",
   "suppliers",
+  "sync_flags",
   "sync_operations",
   "units",
 ] as const;
@@ -86,7 +87,9 @@ async function countAs(ctx: TenantContext, query: SQL): Promise<number> {
 // the attack got further than it should, so it fails the test.
 // "only voided": posted purchases refuse any change but a void (migration
 // 0025), checked before row-level security sees the row.
-const REFUSED = /row-level security|permission denied|append-only|cannot be changed, only voided/;
+// "only resolved": a sync flag refuses any change but resolving it
+// (migration 0037), so moving it is refused by that trigger first.
+const REFUSED = /row-level security|permission denied|append-only|cannot be changed, only voided|cannot be changed, only resolved/;
 
 async function outcome(work: Promise<unknown>): Promise<string> {
   try {

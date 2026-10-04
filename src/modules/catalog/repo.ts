@@ -473,3 +473,20 @@ export async function variantsForSale(tx: TenantTx, ids: string[]) {
     .innerJoin(units, eq(units.id, products.unitId))
     .where(inArray(productVariants.id, ids));
 }
+
+// Every sellable variant (product and variant not archived), for a till's
+// offline copy (decision 0006). At most `limit` rows.
+export async function activeVariantIds(tx: TenantTx, limit: number): Promise<string[]> {
+  const rows = await tx
+    .select({ id: productVariants.id })
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .where(and(isNull(productVariants.archivedAt), isNull(products.archivedAt)))
+    .orderBy(asc(productVariants.id))
+    .limit(limit);
+  return rows.map((r) => r.id);
+}
+
+export async function allActiveBarcodes(tx: TenantTx) {
+  return tx.select({ variantId: barcodes.variantId, code: barcodes.code }).from(barcodes).where(isNull(barcodes.archivedAt));
+}

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { withTenant, type TenantContext, type TenantTx } from "@/db/with-tenant";
 import { requirePermission } from "@/modules/auth";
 import { limitOf, readPlanUsage, requireCapacity } from "@/modules/plans";
+import { tillCreditNotePrefix } from "@/lib/document-number";
 import { financialYearLabel, financialYearStart, PREFIX_PATTERN } from "@/modules/sales";
 import { GST_REGISTRATIONS, GST_STATES, gstinProblem, isGstStateCode, needsGstin, normaliseGstin } from "@/modules/tax";
 import * as repo from "./repo";
@@ -11,7 +12,7 @@ import * as repo from "./repo";
 // Only "Business and tax settings" (Owner, Admin) may read or change them
 // here. Every change is audited with the old and new values.
 
-export type SettingsErrorCode = "CHANGED_BY_SOMEONE_ELSE" | "NOT_FOUND" | "LOCKED_BY_PRODUCTS" | "PREFIX_LOCKED";
+export type SettingsErrorCode = "CHANGED_BY_SOMEONE_ELSE" | "NOT_FOUND" | "LOCKED_BY_PRODUCTS" | "PREFIX_LOCKED" | "PREFIX_USED_BY_TILL";
 
 export class SettingsError extends Error {
   constructor(public readonly code: SettingsErrorCode) {
@@ -22,7 +23,9 @@ export class SettingsError extends Error {
           ? "This cannot be changed once products exist (it would change what every product and price means)."
           : code === "PREFIX_LOCKED"
             ? "Bills (or credit notes) have already been numbered with this prefix this financial year. It can be changed from 1 April."
-            : "Business settings were not found.",
+            : code === "PREFIX_USED_BY_TILL"
+              ? "A till uses this prefix (or it is a till's credit-note prefix). Choose another."
+              : "Business settings were not found.",
     );
     this.name = "SettingsError";
   }
@@ -178,6 +181,11 @@ export async function updateBusinessProfile(
     for (const change of prefixChanges) {
       if (await repo.seriesStarted(tx, { kind: change.kind, prefix: change.from, financialYear })) throw new SettingsError("PREFIX_LOCKED");
     }
+    // A till's series (decision 0006): its prefix and prefix + R.
+    if (prefixChanges.length > 0) {
+      const tillSeries = new Set((await repo.tillPrefixes(tx)).flatMap((p) => [p, tillCreditNotePrefix(p)]));
+      if (prefixChanges.some((c) => tillSeries.has(c.to))) throw new SettingsError("PREFIX_USED_BY_TILL");
+    }
     const before: Record<string, unknown> = {};
     const after: Record<string, unknown> = {};
     for (const key of EDITABLE) {
@@ -310,7 +318,7 @@ export async function listBranches(ctx: TenantContext): Promise<BranchDto[]> {
 // Branch names for choosing where stock goes or comes from: anyone who
 // works with stock, sales or reports (read-only; managing stays above).
 export async function listBranchChoices(ctx: TenantContext): Promise<BranchDto[]> {
-  await requirePermission(ctx, ["settings.manage", "stock.adjust", "purchases.create", "sales.create", "reports.view", "products.manage"]);
+  await requirePermission(ctx, ["settings.manage", "stock.adjust", "purchases.create", "sales.create", "reports.view", "products.manage", "tills.manage"]);
   const rows = await withTenant(ctx, (tx) => repo.listBranches(tx));
   return rows.map(branchDto);
 }

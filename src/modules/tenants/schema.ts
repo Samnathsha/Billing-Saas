@@ -53,6 +53,9 @@ export const branches = pgTable(
 );
 
 // A till or phone that sells. Offline sync and invoice prefixes attach here.
+// A registered till (decision 0006) has its own bill prefix (1-3 letters
+// or digits; its credit notes use the prefix + "R") and a random token,
+// of which only the SHA-256 hash is kept. Revoking is final.
 export const devices = pgTable(
   "devices",
   {
@@ -62,6 +65,10 @@ export const devices = pgTable(
     name: text("name").notNull(),
     status: text("status").notNull().default("active"),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    prefix: text("prefix"),
+    tokenHash: text("token_hash"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedBy: uuid("revoked_by"),
     ...mutableRowColumns(),
   },
   (t) => [
@@ -72,8 +79,15 @@ export const devices = pgTable(
       foreignColumns: [branches.tenantId, branches.id],
     }).onDelete("restrict"),
     index("devices_tenant_branch_idx").on(t.tenantId, t.branchId),
+    // A prefix is never reused, even after the till is revoked.
+    unique("devices_tenant_prefix_key").on(t.tenantId, t.prefix),
+    uniqueIndex("devices_token_hash_key").on(t.tokenHash),
     check("devices_name_length", sql`char_length(${t.name}) between 1 and 100`),
     check("devices_status_valid", sql`${t.status} in ('active', 'revoked')`),
+    check("devices_prefix_format", sql`${t.prefix} ~ '^[A-Z0-9]{1,3}$'`),
+    check("devices_token_hash_format", sql`${t.tokenHash} ~ '^[0-9a-f]{64}$'`),
+    check("devices_registered", sql`(${t.prefix} IS NULL) = (${t.tokenHash} IS NULL)`),
+    check("devices_revoked_fields", sql`(${t.status} = 'revoked') = (${t.revokedAt} IS NOT NULL)`),
   ],
 );
 
@@ -95,6 +109,9 @@ export const settings = pgTable(
     // Business rules 16: returns within this many days of the bill; later
     // only Manager and above.
     returnWindowDays: integer("return_window_days").notNull().default(7),
+    // Business rules 17 / blueprint 8.5: a till sells offline only this many
+    // hours after its last online contact.
+    offlineWindowHours: integer("offline_window_hours").notNull().default(72),
     // Business profile (printed on invoices). Empty until the owner fills it.
     addressLine1: text("address_line1"),
     addressLine2: text("address_line2"),
@@ -140,6 +157,7 @@ export const settings = pgTable(
     check("settings_fy_start_month_range", sql`${t.financialYearStartMonth} between 1 and 12`),
     check("settings_cashier_discount_range", sql`${t.cashierDiscountLimitBps} between 0 and 10000`),
     check("settings_return_window_range", sql`${t.returnWindowDays} between 0 and 365`),
+    check("settings_offline_window_range", sql`${t.offlineWindowHours} between 1 and 720`),
   ],
 );
 

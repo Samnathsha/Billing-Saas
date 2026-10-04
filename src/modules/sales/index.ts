@@ -22,3 +22,5 @@ export { getPosSetup, priceItemsForSale, priceItemsInput, type PosItemDto, type 
 export { customerPaymentInput, listCustomerPayments, recordCustomerPayment, type CustomerPaymentDto } from "./payments.service";
 export { createReturn, createReturnInput, getCreditNote, getReturnable, type CreditNoteDto, type ReturnableDto, type ReturnableLineDto } from "./returns.service";
 export { createExchange, createExchangeInput } from "./exchange.service";
+export { applyOfflineOperation, getTillSnapshot, type OfflineResultDto } from "./offline.service";
+export type { OfflineOperation, OfflineReturnOp, OfflineSaleOp, TillSnapshotDto } from "./offline-core";

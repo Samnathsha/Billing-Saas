@@ -104,8 +104,8 @@ export const stockBalances = pgTable(
     unique("stock_balances_variant_branch_key").on(t.tenantId, t.variantId, t.branchId),
     foreignKey({ name: "stock_balances_branch_fk", columns: [t.tenantId, t.branchId], foreignColumns: [branches.tenantId, branches.id] }).onDelete("restrict"),
     foreignKey({ name: "stock_balances_variant_fk", columns: [t.tenantId, t.variantId], foreignColumns: [productVariants.tenantId, productVariants.id] }).onDelete("restrict"),
-    // Never below zero (rule 7.1); offline overselling arrives with Phase 10.
-    check("stock_balances_not_negative", sql`${t.quantity} >= 0`),
+    // Never below zero online (rule 7.1), enforced by the stock service; only
+    // an offline sale reaching the server may take it below (decision 0006).
     check("stock_balances_cost", sql`${t.averageCostPaise} >= 0`),
   ],
 );

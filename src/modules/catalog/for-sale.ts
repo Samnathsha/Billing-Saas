@@ -45,3 +45,16 @@ export async function variantsForSale(tx: TenantTx, variantIds: string[]): Promi
     ]),
   );
 }
+
+// A till's offline copy of the catalog (decision 0006): every sellable item
+// with its selling price, tax category and the codes it is scanned by (SKU
+// and barcodes). Never cost prices (blueprint 8.5).
+export const TILL_CATALOG_LIMIT = 20_000;
+
+export async function catalogForTill(tx: TenantTx): Promise<(VariantForSale & { codes: string[] })[]> {
+  const ids = await repo.activeVariantIds(tx, TILL_CATALOG_LIMIT);
+  const items = await variantsForSale(tx, ids);
+  const codes = new Map<string, string[]>();
+  for (const b of await repo.allActiveBarcodes(tx)) codes.set(b.variantId, [...(codes.get(b.variantId) ?? []), b.code]);
+  return [...items.values()].map((item) => ({ ...item, codes: [item.sku, ...(codes.get(item.variantId) ?? [])] }));
+}

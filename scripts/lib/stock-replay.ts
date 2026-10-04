@@ -2,10 +2,12 @@
 // stored balances (blueprint Phase 6). Integer fixed-point arithmetic
 // (BigInt) only: quantities in thousandths, costs in ten-thousandths of a
 // paisa, mirroring the SQL in src/modules/inventory/repo.ts:
-// - stock in (and any VOID_REVERSAL): average = round((q*avg + d*cost) /
-//   (q + d), 4), never below 0; 0 when nothing is left;
+// - stock in onto a balance at or below zero: average = that cost;
+// - other stock in (and any VOID_REVERSAL): average = round((q*avg + d*cost)
+//   / (q + d), 4), never below 0; 0 when nothing is left;
 // - stock out: quantity goes down, average unchanged;
-// - quantity never below zero.
+// - only a sale may take the quantity below zero (an offline sale reaching
+//   the server, decision 0006); anything else going below zero is a fault.
 
 export interface ReplayMovement {
   variantId: string;
@@ -67,9 +69,11 @@ export function replay(movements: Iterable<ReplayMovement>, into = new Map<strin
     const state = into.get(key) ?? { quantity: 0n, average: 0n, wentBelowZero: false };
     const d = toScaled(m.quantity, 3);
     const next = state.quantity + d;
-    if (next < 0n) state.wentBelowZero = true;
+    if (next < 0n && d < 0n && m.movementType !== "SALE_OUT") state.wentBelowZero = true;
     if (ADDS_AT_COST.has(m.movementType)) {
-      if (next > 0n) {
+      if (d > 0n && state.quantity <= 0n) {
+        state.average = toScaled(m.unitCostPaise, 4);
+      } else if (next > 0n) {
         const average = divRound(state.quantity * state.average + d * toScaled(m.unitCostPaise, 4), next);
         state.average = average > 0n ? average : 0n;
       } else {
@@ -88,7 +92,7 @@ export function compare(expected: Map<string, Running>, stored: StoredBalance[])
   for (const [key, state] of expected) {
     const [variantId = "", branchId = ""] = key.split("|");
     const where = { variantId, branchId };
-    if (state.wentBelowZero) differences.push({ ...where, problem: "went_below_zero", expected: "never below 0", found: "below 0 at some point" });
+    if (state.wentBelowZero) differences.push({ ...where, problem: "went_below_zero", expected: "only a sale goes below 0", found: "below 0 at some point" });
     const row = byKey.get(key);
     byKey.delete(key);
     if (row === undefined) {

@@ -1,5 +1,5 @@
 import "server-only";
-import { withTenant, type TenantContext } from "@/db/with-tenant";
+import { createTenantContext, withTenant, type TenantContext } from "@/db/with-tenant";
 import { PERMISSIONS, type Permission } from "./default-roles";
 import * as repo from "./repo";
 
@@ -43,4 +43,16 @@ export async function requirePermission(ctx: TenantContext, permission: Permissi
 export async function hasPermission(ctx: TenantContext, permission: Permission): Promise<boolean> {
   if (!KNOWN.has(permission)) throw new Error("hasPermission: unknown permission code");
   return withTenant(ctx, (tx) => repo.memberHasPermission(tx, ctx, permission));
+}
+
+// The context of another person of the caller's business: an offline bill
+// is recorded as made by the person who sold it, who may not be the one
+// whose session sends it (decision 0006). Only someone who is or was a
+// member of THIS business (active or not); undefined otherwise. The caller
+// has already checked its own permission; this grants nothing by itself
+// (each check still reads that person's current role).
+export async function colleagueContext(ctx: TenantContext, userId: string): Promise<TenantContext | undefined> {
+  if (userId === ctx.userId) return ctx;
+  const member = await withTenant(ctx, (tx) => repo.wasMember(tx, userId));
+  return member ? createTenantContext({ tenantId: ctx.tenantId, userId }) : undefined;
 }

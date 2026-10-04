@@ -92,6 +92,16 @@ export async function takeSerialsForSale(tx: TenantTx, input: { variantId: strin
   });
 }
 
+// An offline sale reaching the server (decision 0006): the IMEI if it is
+// still in stock in this branch for this item (locked), or null when it is
+// not (sold by another till, mistyped...): the caller keeps the sale and
+// flags it. Never throws for an unavailable number.
+export async function takeSerialIfAvailable(tx: TenantTx, input: { variantId: string; branchId: string; serial: string }): Promise<{ id: string; version: number } | null> {
+  const [row] = await repo.lockSerialsWithPlace(tx, [input.serial]);
+  if (row === undefined || row.status !== "in_stock" || row.variantId !== input.variantId || row.branchId !== input.branchId) return null;
+  return { id: row.id, version: row.version };
+}
+
 // After the bill lines exist: link each sold unit to its line and set the
 // warranty end date (blueprint 7.5 step 9).
 export async function markSerialsSold(tx: TenantTx, sold: { serial: { id: string; version: number }; invoiceItemId: string; warrantyEndsOn: string | null }[]): Promise<void> {
@@ -131,4 +141,10 @@ export async function sendSerialsBack(tx: TenantTx, input: { purchaseItemId: str
 
 export async function inStockSerialsOfPurchaseItem(tx: TenantTx, purchaseItemId: string): Promise<string[]> {
   return (await repo.serialsOfPurchaseItem(tx, purchaseItemId)).map((r) => r.serial);
+}
+
+// The IMEIs in stock in a branch, for a till's offline copy (decision
+// 0006): the till warns about a number it does not know.
+export async function inStockSerialsAt(tx: TenantTx, branchId: string): Promise<{ serial: string; variantId: string }[]> {
+  return repo.inStockSerialsAt(tx, branchId, 50_000);
 }

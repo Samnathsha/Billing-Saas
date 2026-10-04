@@ -1,0 +1,70 @@
+# Nightly encrypted database backup (Phase 11; blueprint 13.2;
+# docs/backups.md). 02:00 India time, and on demand ("Run workflow").
+# Needs, in Settings -> Secrets and variables -> Actions:
+#   secrets:   BACKUP_DATABASE_URL (backup_reader, production)
+#              R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT
+#   variables: R2_BUCKET, BACKUP_AGE_RECIPIENT (the age PUBLIC key)
+# Until they exist the job only says so. A failed run emails the repository
+# owner (GitHub's workflow notifications).
+name: Backup
+
+on:
+  schedule:
+    - cron: "30 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Is backup set up?
+        id: setup
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          if [ -z "$BACKUP_DATABASE_URL" ]; then
+            echo "::notice title=Backup not set up yet::Add the secrets and variables listed in docs/backups.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.setup.outputs.ready == 'true'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.setup.outputs.ready == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install tools (pg_dump 18 like Neon, age)
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common age
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          npm ci --ignore-scripts
+      - name: Dump, encrypt, upload, keep 30 daily and 12 monthly
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          BACKUP_DIR: ${{ runner.temp }}/backup
+        run: ./scripts/backup.sh

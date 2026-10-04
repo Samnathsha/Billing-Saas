@@ -123,7 +123,7 @@ async function main(): Promise<void> {
   const ownerUrl = valueOf(lines, ownerKey) ?? valueOf(lines, appKey);
   if (ownerUrl === undefined) fail(`${appKey} is missing from ${ENV_FILE}.`);
 
-  const passwords: Record<RoleName, string> = {
+  const passwords: Record<Exclude<RoleName, "backup_reader">, string> = {
     app_user: randomBytes(32).toString("base64url"),
     migrator: randomBytes(32).toString("base64url"),
     auth_service: randomBytes(32).toString("base64url"),

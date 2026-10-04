@@ -1,7 +1,7 @@
 // Pure helpers for scripts/set-db-passwords.ts, kept separate so they can be
 // unit-tested without a database or a real .env.local.
 
-export type RoleName = "app_user" | "migrator" | "auth_service";
+export type RoleName = "app_user" | "migrator" | "auth_service" | "backup_reader";
 
 function isNeon(url: URL): boolean {
   return url.hostname.endsWith(".neon.tech");

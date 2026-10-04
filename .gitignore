@@ -55,3 +55,6 @@ next-env.d.ts
 
 # Local stand-in for private file storage (R2 in production)
 /.local-files/
+
+# Encrypted backups made locally (scripts/backup.sh)
+/backups-out/

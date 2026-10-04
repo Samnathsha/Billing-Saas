@@ -112,3 +112,23 @@ export async function returnSerial(tx: TenantTx, serialNumberId: string, to: { b
   if (row?.status !== "sold") throw new InventoryError("SERIAL_NOT_IN_STOCK", "already returned");
   await repo.setSerialPlace(tx, row, { status: to.resellable ? "in_stock" : "scrapped", branchId: to.branchId });
 }
+
+// Phones going back to the supplier: each must have come in on that
+// purchase line and still be in stock in this branch. Marked 'returned'.
+export async function sendSerialsBack(tx: TenantTx, input: { purchaseItemId: string; variantId: string; branchId: string; serials: string[] }): Promise<string[]> {
+  const rows = new Map((await repo.lockSerialsWithPurchase(tx, input.serials)).map((r) => [r.serial.toUpperCase(), r]));
+  const ids: string[] = [];
+  for (const serial of input.serials) {
+    const row = rows.get(serial.toUpperCase());
+    if (row === undefined || row.status !== "in_stock" || row.variantId !== input.variantId || row.branchId !== input.branchId || row.purchaseItemId !== input.purchaseItemId) {
+      throw new InventoryError("SERIAL_NOT_IN_STOCK", serial);
+    }
+    await repo.setSerialStatus(tx, row, "returned");
+    ids.push(row.id);
+  }
+  return ids;
+}
+
+export async function inStockSerialsOfPurchaseItem(tx: TenantTx, purchaseItemId: string): Promise<string[]> {
+  return (await repo.serialsOfPurchaseItem(tx, purchaseItemId)).map((r) => r.serial);
+}

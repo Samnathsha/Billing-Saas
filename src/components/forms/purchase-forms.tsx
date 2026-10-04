@@ -4,6 +4,7 @@ import { useActionState, useState, useRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatQuantity } from "@/lib/quantity";
 import { BranchSelect, EMPTY, Result, selectClass, useKeptForm, type BranchChoice, type FormAction } from "./stock-forms";
 import { MethodSelect } from "./supplier-forms";
 
@@ -137,6 +138,57 @@ export function VoidPurchaseForm(props: { purchaseId: string; idempotencyKey: st
       <Result state={state} />
       <Button type="submit" variant="destructive" disabled={pending} className="self-start">
         Void purchase
+      </Button>
+    </form>
+  );
+}
+
+// Goods back to the supplier: per line, how many (or which phones). The
+// server checks every quantity again and works out the amounts.
+export function PurchaseReturnForm(props: {
+  purchaseId: string;
+  idempotencyKey: string;
+  lines: { purchaseItemId: string; name: string; remaining: string; serialsInStock: string[] }[];
+  save: FormAction;
+}): ReactNode {
+  const [state, action, pending] = useActionState(props.save, EMPTY);
+  const formRef = useRef<HTMLFormElement>(null);
+  const onSubmit = useKeptForm(state, action, formRef);
+  return (
+    <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-4">
+      <input type="hidden" name="purchaseId" value={props.purchaseId} />
+      <input type="hidden" name="idempotencyKey" value={props.idempotencyKey} />
+      {props.lines.map((l) => (
+        <fieldset key={l.purchaseItemId} className="flex flex-col gap-2 rounded-lg border p-3" aria-label={l.name}>
+          <legend className="px-1 text-sm font-medium">
+            {l.name} · can go back: {formatQuantity(l.remaining)}
+          </legend>
+          {l.serialsInStock.length === 0 ? (
+            <Input aria-label={`Quantity of ${l.name} going back`} name={`qty-${l.purchaseItemId}`} inputMode="decimal" className="w-28" maxLength={16} />
+          ) : (
+            <div className="flex flex-wrap gap-3 text-sm">
+              {l.serialsInStock.map((serial) => (
+                <label key={serial} className="flex items-center gap-1">
+                  <input type="checkbox" name={`serial-${l.purchaseItemId}`} value={serial} /> {serial}
+                </label>
+              ))}
+            </div>
+          )}
+        </fieldset>
+      ))}
+      <div className="flex flex-wrap gap-3">
+        <div className="flex flex-1 flex-col gap-1">
+          <Label htmlFor="return-reason">Reason</Label>
+          <Input id="return-reason" name="reason" required minLength={3} maxLength={500} placeholder="e.g. damaged in transit" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="return-reference">Supplier&apos;s note number (optional)</Label>
+          <Input id="return-reference" name="reference" maxLength={40} className="w-44" />
+        </div>
+      </div>
+      <Result state={state} />
+      <Button type="submit" disabled={pending} className="self-start">
+        Send back
       </Button>
     </form>
   );

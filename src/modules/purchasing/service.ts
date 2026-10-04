@@ -242,6 +242,7 @@ export async function voidPurchase(ctx: TenantContext, rawInput: unknown): Promi
     const purchase = await repo.lockPurchase(tx, input.purchaseId);
     if (purchase === undefined) throw new PurchaseError("NOT_FOUND");
     if (purchase.status !== "posted") throw new PurchaseError("ALREADY_VOIDED");
+    if (await repo.hasReturns(tx, purchase.id)) throw new PurchaseError("RETURNS_EXIST");
     // Refused (and nothing changes) if any of this stock is no longer there.
     await reverseStockOf(tx, ctx, { sourceType: "purchase", sourceId: purchase.id, reversalSourceType: "purchase_void", note: input.reason });
     if (purchase.totalPaise > 0) {

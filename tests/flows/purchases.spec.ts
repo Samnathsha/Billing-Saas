@@ -146,3 +146,32 @@ test("opening stock, a purchase with part payment, a refused duplicate, a void a
     await expect(till.getByRole("heading", { name: "Not allowed" })).toBeVisible();
   }
 });
+
+test("send goods back to the supplier: what we owe and the stock go down", async ({ page }) => {
+  test.slow();
+  await registeredShopWithShirt(page);
+  await page.goto("/suppliers");
+  await page.getByLabel("Supplier name").fill("Return Traders");
+  await page.getByRole("button", { name: "Add supplier" }).click();
+  await page.getByRole("link", { name: "New purchase from this supplier" }).click();
+  await page.getByLabel("Supplier bill number").fill("RT/9");
+  const line = page.getByRole("group", { name: "Line 1" });
+  await line.getByLabel("SKU or barcode").fill("SH-M");
+  await line.getByLabel("Quantity").fill("10");
+  await line.getByLabel("Price per unit before GST (₹)").fill("50");
+  await line.getByLabel("GST %").fill("5");
+  await page.getByRole("button", { name: "Save purchase" }).click();
+  await expect(page.getByLabel("Totals")).toContainText("Bill total₹525.00");
+
+  await page.getByRole("link", { name: "Return goods to the supplier" }).click();
+  await page.getByLabel("Quantity of Cotton Shirt · M going back").fill("4");
+  await page.getByLabel("Reason").fill("Damaged in transit");
+  await page.getByRole("button", { name: "Send back" }).click();
+  await expect(page.getByRole("status")).toContainText("Goods sent back");
+  await expect(page.getByRole("region", { name: "Returned to supplier" })).toContainText("₹210.00 · Damaged in transit");
+  await expect(page.getByRole("button", { name: "Void purchase" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Return Traders" }).click();
+  await expect(page.getByLabel("Balance", { exact: true })).toHaveText("We owe ₹315.00");
+  await page.goto("/inventory");
+  await expect(shirtRow(page)).toContainText("6");
+});

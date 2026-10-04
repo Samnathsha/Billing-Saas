@@ -246,6 +246,13 @@
       "when": 1791053384350,
       "tag": "0034_exchanges",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1791088294397,
+      "tag": "0035_purchase_returns",
+      "breakpoints": true
     }
   ]
 }

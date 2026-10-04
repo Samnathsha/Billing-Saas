@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { findVariantsByCode } from "@/modules/catalog";
-import { createPurchase, voidPurchase } from "@/modules/purchasing";
+import { createPurchase, createPurchaseReturn, voidPurchase } from "@/modules/purchasing";
 import { errorMessage, formRupees, formSerials, formString, LOGGED_OUT, memberCtx, type ActionState } from "@/app/(app)/_shared/action-result";
 
 // Purchase screens. The services check permission and every value; this
@@ -69,4 +69,39 @@ export async function voidPurchaseAction(_previous: ActionState, form: FormData)
   revalidatePath("/suppliers", "layout");
   revalidatePath("/inventory");
   return { error: null, done: "Purchase voided." };
+}
+
+export async function purchaseReturnAction(_previous: ActionState, form: FormData): Promise<ActionState> {
+  const ctx = await memberCtx();
+  if (ctx === null) return LOGGED_OUT;
+  const lines = new Map<string, { quantity: string; serials: string[] }>();
+  for (const [key, value] of form.entries()) {
+    if (typeof value !== "string") continue;
+    const qty = /^qty-([0-9a-f-]{36})$/.exec(key);
+    if (qty?.[1] !== undefined && value.trim() !== "" && value.trim() !== "0") lines.set(qty[1], { quantity: value.trim(), serials: [] });
+    const serial = /^serial-([0-9a-f-]{36})$/.exec(key);
+    if (serial?.[1] !== undefined) {
+      const line = lines.get(serial[1]) ?? { quantity: "0", serials: [] };
+      line.serials.push(value);
+      line.quantity = String(line.serials.length);
+      lines.set(serial[1], line);
+    }
+  }
+  if (lines.size === 0) return { error: "Enter what goes back on at least one line.", done: null };
+  const purchaseId = formString(form, "purchaseId");
+  try {
+    await createPurchaseReturn(ctx, {
+      idempotencyKey: formString(form, "idempotencyKey"),
+      purchaseId,
+      reason: formString(form, "reason"),
+      reference: formString(form, "reference"),
+      lines: [...lines].map(([purchaseItemId, l]) => ({ purchaseItemId, quantity: l.quantity, serials: l.serials })),
+    });
+  } catch (error) {
+    return { error: errorMessage(error), done: null };
+  }
+  revalidatePath("/purchases", "layout");
+  revalidatePath("/suppliers", "layout");
+  revalidatePath("/inventory");
+  redirect(`/purchases/${purchaseId}?returned=1`);
 }

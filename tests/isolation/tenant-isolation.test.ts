@@ -34,6 +34,8 @@ const TENANT_TABLES = [
   "product_variants",
   "products",
   "purchase_items",
+  "purchase_return_items",
+  "purchase_returns",
   "purchases",
   "role_permissions",
   "roles",

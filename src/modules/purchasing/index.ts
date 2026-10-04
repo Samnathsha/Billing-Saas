@@ -13,3 +13,4 @@ export {
   type PurchaseDetailDto,
   type PurchaseDto,
 } from "./service";
+export { createPurchaseReturn, createPurchaseReturnInput, getPurchaseReturnable, type PurchaseReturnableDto } from "./returns.service";

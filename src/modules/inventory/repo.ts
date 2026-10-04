@@ -250,3 +250,29 @@ export async function setSerialPlace(tx: TenantTx, row: { id: string; version: n
     .set({ ...values, version: row.version + 1 })
     .where(eq(serialNumbers.id, row.id));
 }
+
+export async function lockSerialsWithPurchase(tx: TenantTx, serials: string[]) {
+  if (serials.length === 0) return [];
+  return tx
+    .select({
+      id: serialNumbers.id,
+      serial: serialNumbers.serial,
+      variantId: serialNumbers.variantId,
+      branchId: serialNumbers.branchId,
+      purchaseItemId: serialNumbers.purchaseItemId,
+      status: serialNumbers.status,
+      version: serialNumbers.version,
+    })
+    .from(serialNumbers)
+    .where(inArray(sql`upper(${serialNumbers.serial})`, serials.map((x) => x.toUpperCase())))
+    .for("update");
+}
+
+// IMEIs of a purchase line still in stock (for choosing what goes back).
+export async function serialsOfPurchaseItem(tx: TenantTx, purchaseItemId: string) {
+  return tx
+    .select({ serial: serialNumbers.serial })
+    .from(serialNumbers)
+    .where(and(eq(serialNumbers.purchaseItemId, purchaseItemId), eq(serialNumbers.status, "in_stock")))
+    .orderBy(serialNumbers.serial);
+}

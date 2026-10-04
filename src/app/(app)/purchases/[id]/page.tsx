@@ -9,7 +9,7 @@ import { decimalPaiseToPaise, formatPaise } from "@/lib/money";
 import { formatQuantity } from "@/lib/quantity";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
 import { describeVariants, type VariantSummaryDto } from "@/modules/catalog";
-import { getPurchase, PurchaseError, type PurchaseDetailDto } from "@/modules/purchasing";
+import { getPurchase, getPurchaseReturnable, PurchaseError, type PurchaseDetailDto, type PurchaseReturnableDto } from "@/modules/purchasing";
 import { voidPurchaseAction } from "@/app/(app)/purchases/actions";
 
 export const metadata: Metadata = { title: "Purchase" };
@@ -22,15 +22,18 @@ export default async function PurchasePage({ params, searchParams }: PageProps<"
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   let purchase: PurchaseDetailDto;
   let items: Map<string, VariantSummaryDto>;
+  let returns: PurchaseReturnableDto["returns"];
   try {
     purchase = await getPurchase(who.ctx, { purchaseId: id });
+    returns = (await getPurchaseReturnable(who.ctx, { purchaseId: id })).returns;
     items = await describeVariants(who.ctx, { variantIds: purchase.items.map((i) => i.variantId) });
   } catch (error) {
     if (error instanceof PermissionDeniedError) return <NotAllowed />;
     if (error instanceof PurchaseError) notFound();
     throw error;
   }
-  const canVoid = purchase.status === "posted" && who.permissions.includes("purchases.create") && who.permissions.includes("invoices.void");
+  const canVoid = purchase.status === "posted" && returns.length === 0 && who.permissions.includes("purchases.create") && who.permissions.includes("invoices.void");
+  const canReturn = purchase.status === "posted" && who.permissions.includes("purchases.create");
   const showCost = purchase.items.some((i) => i.unitCostPaise !== undefined);
   return (
     <main className="flex max-w-4xl flex-col gap-4">
@@ -97,6 +100,27 @@ export default async function PurchasePage({ params, searchParams }: PageProps<"
       <p className="text-xs text-muted-foreground">
         {purchase.costBasis === "excludes_tax" ? "Stock cost excludes GST (claimed back as input tax credit)." : "Stock cost includes the GST paid."}
       </p>
+      {sp.returned === "1" ? (
+        <p role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">
+          Goods sent back. The supplier&apos;s balance went down.
+        </p>
+      ) : null}
+      {returns.length > 0 ? (
+        <section className="flex flex-col gap-1 text-sm" aria-label="Returned to supplier">
+          <h2 className="font-medium">Sent back to the supplier</h2>
+          {returns.map((r) => (
+            <p key={r.id}>
+              {r.returnDate} · {formatPaise(r.totalPaise)} · {r.reason}
+              {r.reference === null ? "" : ` · note ${r.reference}`}
+            </p>
+          ))}
+        </section>
+      ) : null}
+      {canReturn ? (
+        <Link href={`/purchases/${purchase.id}/return`} className="self-start text-sm underline">
+          Return goods to the supplier
+        </Link>
+      ) : null}
       {canVoid ? <VoidPurchaseForm purchaseId={purchase.id} idempotencyKey={randomUUID()} save={voidPurchaseAction} /> : null}
     </main>
   );

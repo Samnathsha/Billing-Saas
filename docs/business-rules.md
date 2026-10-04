@@ -358,3 +358,10 @@ Each question has the default the app will use until answered.
     back-dating); paying more than owed leaves an advance on the
     customer's account, used by later credit sales; any cashier may take a
     payment. DEFAULT, owner and accountant to confirm.
+42. **Goods sent back to a supplier:** the amount comes off what we owe at
+    the purchase line's own price and GST (partial returns add up exactly
+    to the line). The goods leave stock at the current average cost (rule
+    7.3), not at that purchase's price. The app records the supplier's own
+    note number if given but does not issue its own debit note numbers.
+    DEFAULT, accountant to confirm (and whether a numbered debit note is
+    needed).

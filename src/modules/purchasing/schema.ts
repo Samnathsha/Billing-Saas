@@ -111,3 +111,64 @@ export const supplierPayments = pgTable(
     check("supplier_payments_reference_length", sql`char_length(${t.reference}) <= 100`),
   ],
 );
+
+// Goods sent back to a supplier against one purchase (business rules 16):
+// never more than bought minus earlier returns; amounts reverse the
+// purchase's own lines (src/lib/return-maths); what we owe goes down.
+// Never changed once saved: both tables are append-only.
+export const purchaseReturns = pgTable(
+  "purchase_returns",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    purchaseId: uuid("purchase_id").notNull(),
+    supplierId: uuid("supplier_id").notNull(),
+    branchId: uuid("branch_id").notNull(),
+    returnDate: date("return_date").notNull(),
+    // The supplier's debit/credit note number, if they gave one.
+    reference: text("reference"),
+    reason: text("reason").notNull(),
+    subtotalPaise: bigint("subtotal_paise", { mode: "number" }).notNull(),
+    taxPaise: bigint("tax_paise", { mode: "number" }).notNull(),
+    totalPaise: bigint("total_paise", { mode: "number" }).notNull(),
+    createdBy: uuid("created_by").notNull(),
+    createdAt: createdAtColumn(),
+  },
+  (t) => [
+    unique("purchase_returns_tenant_id_id_key").on(t.tenantId, t.id),
+    index("purchase_returns_purchase_idx").on(t.tenantId, t.purchaseId),
+    foreignKey({ name: "purchase_returns_purchase_fk", columns: [t.tenantId, t.purchaseId], foreignColumns: [purchases.tenantId, purchases.id] }).onDelete("restrict"),
+    foreignKey({ name: "purchase_returns_supplier_fk", columns: [t.tenantId, t.supplierId], foreignColumns: [suppliers.tenantId, suppliers.id] }).onDelete("restrict"),
+    foreignKey({ name: "purchase_returns_branch_fk", columns: [t.tenantId, t.branchId], foreignColumns: [branches.tenantId, branches.id] }).onDelete("restrict"),
+    check("purchase_returns_totals", sql`${t.subtotalPaise} >= 0 AND ${t.taxPaise} >= 0 AND ${t.totalPaise} = ${t.subtotalPaise} + ${t.taxPaise}`),
+    check("purchase_returns_text_lengths", sql`char_length(${t.reason}) between 3 and 500 AND char_length(${t.reference}) <= 40`),
+  ],
+);
+
+export const purchaseReturnItems = pgTable(
+  "purchase_return_items",
+  {
+    id: idColumn(),
+    tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "restrict" }),
+    purchaseReturnId: uuid("purchase_return_id").notNull(),
+    lineNumber: smallint("line_number").notNull(),
+    purchaseItemId: uuid("purchase_item_id").notNull(),
+    variantId: uuid("variant_id").notNull(),
+    quantity: numeric("quantity", { precision: 14, scale: 3 }).notNull(),
+    subtotalPaise: bigint("subtotal_paise", { mode: "number" }).notNull(),
+    taxPaise: bigint("tax_paise", { mode: "number" }).notNull(),
+    totalPaise: bigint("total_paise", { mode: "number" }).notNull(),
+    createdAt: createdAtColumn(),
+  },
+  (t) => [
+    unique("purchase_return_items_tenant_id_id_key").on(t.tenantId, t.id),
+    unique("purchase_return_items_line_key").on(t.tenantId, t.purchaseReturnId, t.lineNumber),
+    index("purchase_return_items_item_idx").on(t.tenantId, t.purchaseItemId),
+    foreignKey({ name: "purchase_return_items_return_fk", columns: [t.tenantId, t.purchaseReturnId], foreignColumns: [purchaseReturns.tenantId, purchaseReturns.id] }).onDelete("restrict"),
+    foreignKey({ name: "purchase_return_items_item_fk", columns: [t.tenantId, t.purchaseItemId], foreignColumns: [purchaseItems.tenantId, purchaseItems.id] }).onDelete("restrict"),
+    foreignKey({ name: "purchase_return_items_variant_fk", columns: [t.tenantId, t.variantId], foreignColumns: [productVariants.tenantId, productVariants.id] }).onDelete("restrict"),
+    check("purchase_return_items_line_number", sql`${t.lineNumber} between 1 and 200`),
+    check("purchase_return_items_quantity", sql`${t.quantity} > 0`),
+    check("purchase_return_items_totals", sql`${t.subtotalPaise} >= 0 AND ${t.taxPaise} >= 0 AND ${t.totalPaise} = ${t.subtotalPaise} + ${t.taxPaise}`),
+  ],
+);

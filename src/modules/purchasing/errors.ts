@@ -9,7 +9,9 @@ export type PurchaseErrorCode =
   | "PAYMENT_ABOVE_TOTAL"
   | "SERIAL_COUNT"
   | "TOTAL_TOO_LARGE"
-  | "ZERO_QUANTITY";
+  | "ZERO_QUANTITY"
+  | "RETURN_TOO_MANY"
+  | "RETURNS_EXIST";
 
 const MESSAGES: Record<PurchaseErrorCode, string> = {
   REGISTRATION_NOT_SET: "Set your GST registration in Business settings first: it decides how purchase cost is counted.",
@@ -21,6 +23,8 @@ const MESSAGES: Record<PurchaseErrorCode, string> = {
   SERIAL_COUNT: "Enter one IMEI/serial number per unit.",
   TOTAL_TOO_LARGE: "This bill total is too large.",
   ZERO_QUANTITY: "Enter a quantity above zero.",
+  RETURN_TOO_MANY: "That is more than was bought on this bill (earlier returns count), or a line is listed twice.",
+  RETURNS_EXIST: "Goods from this purchase were already sent back, so it cannot be voided. Send the rest back instead.",
 };
 
 export class PurchaseError extends Error {

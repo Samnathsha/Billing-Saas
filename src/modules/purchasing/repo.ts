@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
-import { auditLogs, memberships, purchaseItems, purchases, roles, settings, supplierPayments, suppliers } from "@/db/schema";
+import { auditLogs, memberships, purchaseItems, purchaseReturnItems, purchaseReturns, purchases, roles, settings, supplierPayments, suppliers } from "@/db/schema";
 
 // Database queries of the purchasing module, inside the caller's transaction.
 
@@ -42,7 +42,7 @@ export async function insertPayment(
 
 export async function lockPurchase(tx: TenantTx, id: string) {
   const [row] = await tx
-    .select({ id: purchases.id, supplierId: purchases.supplierId, status: purchases.status, totalPaise: purchases.totalPaise, supplierInvoiceNumber: purchases.supplierInvoiceNumber })
+    .select({ id: purchases.id, supplierId: purchases.supplierId, branchId: purchases.branchId, status: purchases.status, totalPaise: purchases.totalPaise, supplierInvoiceNumber: purchases.supplierInvoiceNumber })
     .from(purchases)
     .where(eq(purchases.id, id))
     .for("update");
@@ -117,4 +117,35 @@ export async function addAuditEntry(
     .innerJoin(roles, and(eq(roles.tenantId, memberships.tenantId), eq(roles.id, memberships.roleId)))
     .where(eq(memberships.userId, ctx.userId));
   await tx.insert(auditLogs).values({ tenantId: ctx.tenantId, actorUserId: ctx.userId, actorRole: role?.name ?? "unknown", ...entry });
+}
+
+export async function returnedQuantities(tx: TenantTx, purchaseId: string): Promise<Map<string, string>> {
+  const rows = await tx
+    .select({ purchaseItemId: purchaseReturnItems.purchaseItemId, quantity: sql<string>`sum(${purchaseReturnItems.quantity})::text` })
+    .from(purchaseReturnItems)
+    .innerJoin(purchaseReturns, eq(purchaseReturns.id, purchaseReturnItems.purchaseReturnId))
+    .where(eq(purchaseReturns.purchaseId, purchaseId))
+    .groupBy(purchaseReturnItems.purchaseItemId);
+  return new Map(rows.map((r) => [r.purchaseItemId, r.quantity]));
+}
+
+export async function hasReturns(tx: TenantTx, purchaseId: string): Promise<boolean> {
+  const rows = await tx.select({ id: purchaseReturns.id }).from(purchaseReturns).where(eq(purchaseReturns.purchaseId, purchaseId)).limit(1);
+  return rows.length > 0;
+}
+
+export async function insertReturn(tx: TenantTx, ctx: TenantContext, values: Omit<typeof purchaseReturns.$inferInsert, "tenantId" | "createdBy">): Promise<void> {
+  await tx.insert(purchaseReturns).values({ ...values, tenantId: ctx.tenantId, createdBy: ctx.userId });
+}
+
+export async function insertReturnItems(tx: TenantTx, ctx: TenantContext, items: Omit<typeof purchaseReturnItems.$inferInsert, "tenantId">[]): Promise<void> {
+  if (items.length > 0) await tx.insert(purchaseReturnItems).values(items.map((i) => ({ ...i, tenantId: ctx.tenantId })));
+}
+
+export async function returnsOf(tx: TenantTx, purchaseId: string) {
+  return tx
+    .select({ id: purchaseReturns.id, returnDate: purchaseReturns.returnDate, totalPaise: purchaseReturns.totalPaise, reason: purchaseReturns.reason, reference: purchaseReturns.reference })
+    .from(purchaseReturns)
+    .where(eq(purchaseReturns.purchaseId, purchaseId))
+    .orderBy(purchaseReturns.createdAt);
 }

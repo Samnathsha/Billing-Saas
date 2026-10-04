@@ -23,6 +23,8 @@ import {
   products,
   productVariants,
   purchaseItems,
+  purchaseReturnItems,
+  purchaseReturns,
   purchases,
   rolePermissions,
   roles,
@@ -124,6 +126,8 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
     customer_payments: randomUUID(),
     credit_notes: randomUUID(),
     credit_note_items: randomUUID(),
+    purchase_returns: randomUUID(),
+    purchase_return_items: randomUUID(),
   };
   const id = (table: string): string => {
     const value = rowIds[table];
@@ -216,6 +220,31 @@ export async function createFullTestBusiness(name: string): Promise<FullTestBusi
       lineTaxPaise: 75,
       lineTotalPaise: 1575,
       unitCostPaise: "300",
+    });
+    await tx.insert(purchaseReturns).values({
+      id: id("purchase_returns"),
+      tenantId,
+      purchaseId: id("purchases"),
+      supplierId: id("suppliers"),
+      branchId,
+      returnDate: "2026-04-02",
+      reason: "Fixture return",
+      subtotalPaise: 300,
+      taxPaise: 15,
+      totalPaise: 315,
+      createdBy: ctx.userId,
+    });
+    await tx.insert(purchaseReturnItems).values({
+      id: id("purchase_return_items"),
+      tenantId,
+      purchaseReturnId: id("purchase_returns"),
+      lineNumber: 1,
+      purchaseItemId: id("purchase_items"),
+      variantId: id("product_variants"),
+      quantity: "1",
+      subtotalPaise: 300,
+      taxPaise: 15,
+      totalPaise: 315,
     });
     await tx.insert(partyLedgerEntries).values({
       id: id("party_ledger_entries"),

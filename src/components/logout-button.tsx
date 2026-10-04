@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { forgetSession, outboxSummary } from "@/lib/till/store";
+import { forgetOnLogout, outboxSummary } from "@/lib/till/store";
 import { existingTillDb } from "@/components/till/till-hooks";
 
 // Logging out. On a till with bills not yet sent, a warning comes first
 // (blueprint 8.4): the bills stay on this computer and are sent when
 // someone logs in here again. Logging out also ends offline billing for
-// this person and removes the till page kept by the browser.
+// this person and removes the shop's copy, held bills and the till page
+// kept by the browser (OWASP ASVS 8.2.3).
 export function LogoutButton(): ReactNode {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -21,8 +22,14 @@ export function LogoutButton(): ReactNode {
     setPending(true);
     const db = await existingTillDb();
     await authClient.signOut();
-    if (db !== null) await forgetSession(db);
+    if (db !== null) await forgetOnLogout(db);
     if (typeof caches !== "undefined") await caches.delete("till-pages");
+    // Held (unsaved) bills belong to the person who held them.
+    try {
+      window.localStorage.removeItem("pos-held-carts");
+    } catch {
+      // Storage blocked: nothing was held.
+    }
     router.replace("/login");
     router.refresh();
   }

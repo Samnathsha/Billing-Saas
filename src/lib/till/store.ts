@@ -76,9 +76,19 @@ export async function markRevoked(db: TillDb): Promise<void> {
   if (till !== undefined) await db.meta.put({ ...till, revoked: true });
 }
 
-// Logging out: the next person must log in online before selling offline.
-export async function forgetSession(db: TillDb): Promise<void> {
-  await db.meta.delete("session");
+// Logging out (OWASP ASVS 8.2.3): who may sell and the shop's copy
+// (items, prices, rates, IMEIs, settings, confirmed bills) are removed from
+// this browser. Kept: the till itself, its numbers, and everything not yet
+// sent (the outbox and its bills), which must never be lost. The next
+// person logs in online, which downloads the copy again.
+export async function forgetOnLogout(db: TillDb): Promise<void> {
+  await db.transaction("rw", [db.meta, db.items, db.rates, db.serials, db.bills], async () => {
+    await db.meta.bulkDelete(["session", "settings"]);
+    await db.items.clear();
+    await db.rates.clear();
+    await db.serials.clear();
+    await db.bills.filter((b) => !b.pending).delete();
+  });
 }
 
 export type OfflineReadiness =
@@ -92,11 +102,11 @@ export async function offlineReadiness(db: TillDb, now: number): Promise<Offline
   const till = await readMeta(db, "till");
   if (till === undefined) return { ok: false, reason: "not_registered" };
   if (till.revoked) return { ok: false, reason: "revoked" };
+  const session = await readMeta(db, "session");
+  if (session === undefined) return { ok: false, reason: "not_logged_in" };
   const settings = await readMeta(db, "settings");
   if (settings === undefined) return { ok: false, reason: "no_copy" };
   if (!settings.ready) return { ok: false, reason: "settings_incomplete" };
-  const session = await readMeta(db, "session");
-  if (session === undefined) return { ok: false, reason: "not_logged_in" };
   if (now - session.lastOnlineAt > settings.offlineWindowHours * 3_600_000) return { ok: false, reason: "window_expired", hoursAllowed: settings.offlineWindowHours };
   return { ok: true, till, settings, session };
 }

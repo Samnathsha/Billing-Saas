@@ -93,3 +93,11 @@ test("static files get the fixed headers", async ({ request }) => {
   expect(headers["x-content-type-options"]).toBe("nosniff");
   expect(headers["x-frame-options"]).toBe("DENY");
 });
+
+// OWASP ASVS 8.2.1: pages are never stored by browsers or shared caches.
+test("pages and API answers are not cached", async ({ request }) => {
+  const page = await request.get("/login");
+  expect(page.headers()["cache-control"]).toMatch(/no-store/);
+  const api = await request.get("/api/health");
+  expect(api.headers()["cache-control"] ?? "").toMatch(/no-store|no-cache|max-age=0/);
+});

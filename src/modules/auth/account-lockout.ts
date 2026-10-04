@@ -68,9 +68,12 @@ export function accountLockout(): BetterAuthPlugin {
               return;
             }
 
+            // The password was right: the failure count starts again, also
+            // when two-step login still asks for a code (that success is
+            // logged by security-notices.ts).
+            await repo.clearLoginFailures(lockoutKey(email));
             const userId = ctx.context.newSession?.user.id;
             if (userId === undefined) return;
-            await repo.clearLoginFailures(lockoutKey(email));
             await repo.addSecurityEvent({ event: "auth.login_succeeded", userId, ip, userAgent, details: null });
           }),
         },

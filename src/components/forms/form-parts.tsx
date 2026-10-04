@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordField } from "./password-field";
 
 // Small shared pieces for the login screens.
 
@@ -12,6 +13,7 @@ export function Field(props: {
   minLength?: number;
   maxLength?: number;
 }): ReactNode {
+  if (props.type === "password") return <PasswordField id={props.id} label={props.label} autoComplete={props.autoComplete} minLength={props.minLength} maxLength={props.maxLength} />;
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={props.id}>{props.label}</Label>

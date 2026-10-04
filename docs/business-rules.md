@@ -418,3 +418,7 @@ Each question has the default the app will use until answered.
     purchase. Stock coming in onto zero or below takes its own cost as
     the average (nothing left to average with). DEFAULT, accountant to
     confirm.
+49. **Two-step login for Owner and Admin:** offered to everyone and
+    recommended for Owner and Admin, but optional (blueprint 5.2). OWASP
+    ASVS 4.3.1 expects it for administrators. DEFAULT optional, owner to
+    decide whether to make it compulsory for Owner and Admin.

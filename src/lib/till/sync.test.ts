@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { TillDb } from "./db";
 import type { TillSnapshotDto } from "./snapshot";
-import { offlineReadiness, outboxSummary, rememberTill, retryFailed, saveOfflineReturn, saveOfflineSale, saveSnapshot, unsyncedExport } from "./store";
+import { forgetOnLogout, offlineReadiness, outboxSummary, rememberTill, retryFailed, saveOfflineReturn, saveOfflineSale, saveSnapshot, unsyncedExport } from "./store";
 import { backoffMs, refreshSnapshot, syncOutbox, type SyncDeps } from "./sync";
 
 // The till's local store and sync engine (decision 0006; blueprint 8.2 and
@@ -107,6 +107,22 @@ describe("the local store", () => {
     expect(back).toMatchObject({ number: "T1R/26-27/00001", refundPaise: 79_900 });
     expect((await db.bills.get(saved.invoiceId))?.lines[0]?.returned).toBe("1.000");
     await expect(saveOfflineReturn(db, { at: new Date(clock), madeBy: "user-1", invoiceId: saved.invoiceId, lines: [{ invoiceItemId: line?.invoiceItemId ?? "", quantity: "2", resellable: true }], refundMethod: "cash", reason: "Again" })).rejects.toThrow("more than was sold");
+  });
+});
+
+describe("logging out", () => {
+  it("removes the shop's copy and who may sell; keeps the till, its numbers and what is not sent", async () => {
+    const saved = await sell();
+    await forgetOnLogout(db);
+    expect(await db.items.count()).toBe(0);
+    expect(await db.rates.count()).toBe(0);
+    expect(await db.meta.get("session")).toBeUndefined();
+    expect(await db.meta.get("settings")).toBeUndefined();
+    expect(await db.meta.get("till")).toBeDefined();
+    expect(await db.counters.get("invoice|26-27")).toEqual({ key: "invoice|26-27", last: 5 });
+    expect(await outboxSummary(db)).toMatchObject({ pending: 1 });
+    expect(await db.bills.get(saved.invoiceId)).toMatchObject({ pending: true });
+    expect(await offlineReadiness(db, NOW)).toEqual({ ok: false, reason: "not_logged_in" });
   });
 });
 

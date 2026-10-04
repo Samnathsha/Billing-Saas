@@ -8,6 +8,7 @@ import { users } from "@/db/schema";
 import { withTenant } from "@/db/with-tenant";
 import { createBusiness, getRequestContext } from "@/modules/auth";
 import { auth } from "@/modules/auth/better-auth";
+import { sentTestEmails } from "@/modules/auth/mailer";
 import { registerVerifiedUser, TEST_PASSWORD } from "../helpers/auth";
 
 // Two-step login with an authenticator app (blueprint 5.2, Phase 11),
@@ -48,6 +49,25 @@ async function passwordStep(email: string) {
   const { headers, response } = await auth.api.signInEmail({ body: { email, password: TEST_PASSWORD }, returnHeaders: true });
   return { pending: cookiesOf(headers), response: response as { twoFactorRedirect?: boolean } };
 }
+
+const subjectsTo = (email: string): string[] => sentTestEmails().filter((m) => m.to === email).map((m) => m.subject);
+
+describe("security emails (ASVS 2.2.3)", () => {
+  it("switching two-step login on and off, and changing the password, each email the person", async () => {
+    const user = await enabledUser("2fa notices");
+    expect(subjectsTo(user.email)).toContain("Two-step login is now on");
+    const { pending } = await passwordStep(user.email);
+    const { headers } = await auth.api.verifyTOTP({ body: { code: await createOTP(user.secret).totp() }, headers: pending, returnHeaders: true });
+    // Logging in with a code is not a change: no email for it.
+    expect(subjectsTo(user.email).filter((s) => s === "Two-step login is now on")).toHaveLength(1);
+    await auth.api.disableTwoFactor({ body: { password: TEST_PASSWORD }, headers: cookiesOf(headers) });
+    expect(subjectsTo(user.email)).toContain("Two-step login was turned off");
+    const plain = await registerVerifiedUser("pw notice");
+    await auth.api.changePassword({ body: { currentPassword: TEST_PASSWORD, newPassword: "another long passphrase 2026" }, headers: plain.headers });
+    expect(subjectsTo(plain.email)).toContain("Your password was changed");
+    expect(sentTestEmails().find((m) => m.to === plain.email && m.subject === "Your password was changed")?.text).toContain("If this was not you");
+  });
+});
 
 describe("two-step login", () => {
   it("is off until a correct code confirms it; the password alone then no longer logs in", async () => {

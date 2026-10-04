@@ -1,0 +1,17 @@
+# Weekly update proposals (blueprint 5.4): packages and the CI actions.
+# Each arrives as a pull request that must pass CI; nothing merges itself.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Patch and minor updates in one PR per week; majors one by one.
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

@@ -13,6 +13,7 @@ import { sendEmail } from "./mailer";
 import { originGuard } from "./origin-guard";
 import { uniformSignUp } from "./uniform-sign-up";
 import { isUserActive } from "./repo";
+import { securityNotices, sendSecurityNotice } from "./security-notices";
 import { secureCookiesFor, SESSION_POLICY } from "./session-policy";
 
 // Better Auth (ADR 0002), running on its own restricted database role
@@ -62,6 +63,10 @@ export const auth = betterAuth({
     // A password reset logs the account out everywhere.
     revokeSessionsOnPasswordReset: true,
     resetPasswordTokenExpiresIn: 60 * 60,
+    // ASVS 2.2.3: the person is told by email (security-notices.ts).
+    onPasswordReset: async ({ user }) => {
+      await sendSecurityNotice(user.email, "password_reset");
+    },
     password: {
       hash: (password) => hash(password, ARGON2ID),
       verify: ({ hash: stored, password }) => verify(stored, password),
@@ -158,6 +163,8 @@ export const auth = betterAuth({
     // reached, the action is refused ("try again later"), never let through.
     // Per-account login limit with growing delay, and the login security log.
     accountLockout(),
+    // Emails and log entries for password and two-step login changes.
+    securityNotices(),
     haveIBeenPwned({
       customPasswordCompromisedMessage:
         "This password has appeared in a data breach. Please choose a different one.",

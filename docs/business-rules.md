@@ -369,3 +369,9 @@ Each question has the default the app will use until answered.
     paid); any GST on it (e.g. on a repair bill) is not tracked separately
     for input tax credit. Expenses may be dated in the past (not the
     future). DEFAULT, accountant to confirm.
+44. **Profit in reports:** net sales without GST, minus the cost of goods
+    sold (the weighted average cost at each sale, rule 7.3), minus the cost
+    of resellable returns; damaged returns stay counted as cost (the goods
+    are lost). Net profit then subtracts the period's expenses. GST is not
+    profit or cost for a registered business. DEFAULT, accountant to
+    confirm.

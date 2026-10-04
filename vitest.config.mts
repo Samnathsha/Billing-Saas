@@ -36,6 +36,19 @@ export default defineConfig({
           fileParallelism: false,
         },
       },
+      {
+        // `npm run test:perf`: speed checks with large data (local database
+        // only); never part of the normal runs.
+        extends: true,
+        test: {
+          name: "perf",
+          include: ["tests/perf/**/*.test.ts"],
+          setupFiles: ["tests/setup-db-env.ts"],
+          testTimeout: 900_000,
+          hookTimeout: 900_000,
+          fileParallelism: false,
+        },
+      },
     ],
   },
 });

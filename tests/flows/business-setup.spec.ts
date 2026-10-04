@@ -11,7 +11,8 @@ test("first login leads to business setup, then the dashboard; logout leaves the
   await page.getByLabel("Mobile phone shop").check();
   await page.getByRole("button", { name: "Create my business" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  // The owner's dashboard shows today's figures.
+  await expect(page.getByRole("heading", { name: /^Today, \d{4}-\d{2}-\d{2}$/ })).toBeVisible();
   await expect(page.getByRole("banner")).toContainText("Owner");
 
   // Setup is done: going back there leads to the dashboard.

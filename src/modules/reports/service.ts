@@ -339,3 +339,23 @@ export async function getDashboard(ctx: TenantContext): Promise<DashboardDto> {
     };
   });
 }
+
+export const EXPORTS_PER_MINUTE = 10;
+
+export class ExportLimitError extends Error {
+  constructor() {
+    super(`At most ${String(EXPORTS_PER_MINUTE)} downloads a minute. Please wait a moment.`);
+    this.name = "ExportLimitError";
+  }
+}
+
+// Before a CSV download: rate limited per person and audited (blueprint
+// Phase 9). The report itself is then read with its own permission check.
+export async function recordExport(ctx: TenantContext, rawInput: unknown): Promise<void> {
+  await requirePermission(ctx, "reports.view");
+  const input = z.strictObject({ report: z.string().regex(/^[a-z_]{1,30}$/), from: day.nullable(), to: day.nullable() }).parse(rawInput);
+  await withTenant(ctx, async (tx) => {
+    if ((await repo.recentExports(tx, ctx.userId)) >= EXPORTS_PER_MINUTE) throw new ExportLimitError();
+    await repo.addExportAudit(tx, ctx.tenantId, ctx.userId, input);
+  });
+}

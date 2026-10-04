@@ -285,3 +285,20 @@ export async function auditEntries(tx: TenantTx, filter: { from: string; to: str
          LIMIT 101 OFFSET ${filter.offset}`,
   );
 }
+
+export async function recentExports(tx: TenantTx, userId: string): Promise<number> {
+  const [row] = await rows<{ n: number }>(
+    tx,
+    sql`SELECT count(*)::int AS n FROM audit_logs
+         WHERE actor_user_id = ${userId} AND action = 'reports.exported' AND created_at > now() - interval '1 minute'`,
+  );
+  return row?.n ?? 0;
+}
+
+export async function addExportAudit(tx: TenantTx, tenantId: string, userId: string, after: object): Promise<void> {
+  await tx.execute(sql`
+    INSERT INTO audit_logs (tenant_id, actor_user_id, actor_role, action, entity_type, after)
+    VALUES (${tenantId}, ${userId},
+            (SELECT r.name FROM memberships m JOIN roles r ON r.tenant_id = m.tenant_id AND r.id = m.role_id WHERE m.user_id = ${userId} LIMIT 1),
+            'reports.exported', 'report', ${JSON.stringify(after)}::jsonb)`);
+}

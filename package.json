@@ -18,6 +18,7 @@
     "db:migrate:test": "DB_TARGET=test drizzle-kit migrate",
     "db:check": "drizzle-kit check",
     "test:db": "vitest run --project db",
+    "test:perf": "vitest run --project perf",
     "db:check-rls": "tsx scripts/check-rls.ts test",
     "db:check-rls:dev": "tsx scripts/check-rls.ts dev",
     "dev:add-member": "tsx scripts/dev-add-member.ts",

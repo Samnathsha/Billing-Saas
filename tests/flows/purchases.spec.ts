@@ -44,7 +44,7 @@ test("opening stock, a purchase with part payment, a refused duplicate, a void a
   const ownerEmail = await registeredShopWithShirt(page);
 
   // Opening stock: 2 shirts at ₹100.
-  await page.getByRole("link", { name: "Stock" }).click();
+  await page.getByRole("navigation").getByRole("link", { name: "Stock" }).click();
   await page.getByRole("link", { name: "Opening stock" }).click();
   await page.getByLabel("SKU or barcode").fill("sh-m");
   await page.getByLabel("Quantity").fill("2");
@@ -136,7 +136,7 @@ test("opening stock, a purchase with part payment, a refused duplicate, a void a
   await addMember(ownerEmail, cashierEmail, "Cashier");
   await logIn(till, cashierEmail);
   await expect(till).toHaveURL(/\/dashboard$/);
-  await till.getByRole("link", { name: "Stock" }).click();
+  await till.getByRole("navigation").getByRole("link", { name: "Stock" }).click();
   await expect(till.getByRole("row", { name: "Cotton Shirt M" })).toContainText("1");
   await expect(till.locator("main")).not.toContainText("Average cost");
   await expect(till.getByRole("link", { name: "Purchases" })).toHaveCount(0);

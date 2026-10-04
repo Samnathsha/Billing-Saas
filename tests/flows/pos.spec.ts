@@ -12,7 +12,7 @@ test("a bill at the till, printed numbers, stock, a same-day void; a cashier sel
   const ownerEmail = await shopWithStock(page);
 
   // Scan (a scanner types the code and presses Enter).
-  await page.getByRole("link", { name: "New bill" }).click();
+  await page.getByRole("navigation").getByRole("link", { name: "New bill" }).click();
   await page.getByLabel(/Scan a barcode/).fill("sh-m");
   await page.getByLabel(/Scan a barcode/).press("Enter");
   const line = page.getByRole("table", { name: "Cart lines" }).getByRole("row", { name: "Cotton Shirt · M" });
@@ -49,7 +49,7 @@ test("a bill at the till, printed numbers, stock, a same-day void; a cashier sel
   await addMember(ownerEmail, cashierEmail, "Cashier");
   await logIn(till, cashierEmail);
   await expect(till).toHaveURL(/\/dashboard$/);
-  await till.getByRole("link", { name: "New bill" }).click();
+  await till.getByRole("navigation").getByRole("link", { name: "New bill" }).click();
   await till.getByLabel(/Scan a barcode/).fill("SH-M");
   await till.getByLabel(/Scan a barcode/).press("Enter");
   // Over the cashier's 5% limit: refused on screen before saving.
@@ -89,7 +89,7 @@ test("a customer with a credit limit buys partly on credit; the rest shows on th
   await expect(page.getByRole("heading", { name: "Meena" })).toBeVisible();
   await expect(page.getByLabel("Credit", { exact: true })).toHaveText("Credit limit ₹1,000.00; ₹1,000.00 left.");
 
-  await page.getByRole("link", { name: "New bill" }).click();
+  await page.getByRole("navigation").getByRole("link", { name: "New bill" }).click();
   await page.getByLabel(/Scan a barcode/).fill("SH-M");
   await page.getByLabel(/Scan a barcode/).press("Enter");
   await page.getByLabel("Customer (phone or name, optional)").fill("77777");
@@ -117,7 +117,7 @@ test("a customer with a credit limit buys partly on credit; the rest shows on th
   await expect(page.getByRole("table", { name: "Customer payments" })).toContainText("UTR 555");
 
   // Over the limit: refused by the server, nothing saved.
-  await page.getByRole("link", { name: "New bill" }).click();
+  await page.getByRole("navigation").getByRole("link", { name: "New bill" }).click();
   await page.getByLabel(/Scan a barcode/).fill("SH-M");
   await page.getByLabel(/Scan a barcode/).press("Enter");
   await page.getByLabel("Customer (phone or name, optional)").fill("Meena");

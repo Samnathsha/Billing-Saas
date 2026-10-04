@@ -2,6 +2,9 @@
 // "@/modules/reports", never from files inside this folder.
 export {
   dateRangeInput,
+  EXPORTS_PER_MINUTE,
+  ExportLimitError,
+  recordExport,
   getAgeing,
   getDashboard,
   getLowStock,

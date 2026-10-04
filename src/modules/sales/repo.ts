@@ -220,7 +220,14 @@ export async function creditNoteItemsOf(tx: TenantTx, creditNoteId: string) {
 
 export async function creditNotesOfInvoice(tx: TenantTx, invoiceId: string) {
   return tx
-    .select({ id: creditNotes.id, number: creditNotes.number, creditNoteDate: creditNotes.creditNoteDate, refundPaise: creditNotes.refundPaise, refundMethod: creditNotes.refundMethod })
+    .select({
+      id: creditNotes.id,
+      number: creditNotes.number,
+      creditNoteDate: creditNotes.creditNoteDate,
+      refundPaise: creditNotes.refundPaise,
+      refundMethod: creditNotes.refundMethod,
+      exchangePaise: creditNotes.exchangePaise,
+    })
     .from(creditNotes)
     .where(eq(creditNotes.invoiceId, invoiceId))
     .orderBy(creditNotes.createdAt);

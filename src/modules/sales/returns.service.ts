@@ -69,7 +69,8 @@ export interface ReturnableDto {
   daysSince: number;
   windowDays: number;
   lines: ReturnableLineDto[];
-  creditNotes: { id: string; number: string; creditNoteDate: string; refundPaise: number; refundMethod: string }[];
+  // exchangePaise: the part that paid a new bill (an exchange).
+  creditNotes: { id: string; number: string; creditNoteDate: string; refundPaise: number; refundMethod: string; exchangePaise: number }[];
 }
 
 export interface CreditNoteDto {

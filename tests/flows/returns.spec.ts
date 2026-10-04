@@ -59,6 +59,7 @@ test("exchange: two shirts back, one out; the difference goes back in cash; the 
   await page.getByLabel("Cash received (₹)").fill("1598");
   await page.getByRole("button", { name: /Save bill/ }).click();
   await expect(page.getByRole("heading", { name: "Tax Invoice" })).toBeVisible();
+  const firstBillUrl = page.url();
 
   await page.getByRole("link", { name: "Exchange" }).click();
   await page.getByLabel("Return quantity of Cotton Shirt · M").fill("2");
@@ -79,4 +80,6 @@ test("exchange: two shirts back, one out; the difference goes back in cash; the 
   await expect(page.getByRole("button", { name: "Void bill" })).toHaveCount(0);
   // 5 - 2 sold + 2 back - 1 out
   expect(await stockOf(page)).toBe("4");
+  await page.goto(firstBillUrl);
+  await expect(page.getByRole("region", { name: "Returns" })).toContainText("₹1,598.00: ₹799.00 exchanged for new items, ₹799.00 refunded (Cash)");
 });

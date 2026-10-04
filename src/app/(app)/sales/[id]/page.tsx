@@ -220,7 +220,9 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
           <h2 className="font-medium">Returns against this bill</h2>
           {returns.map((r) => (
             <p key={r.id}>
-              <Link href={`/credit-notes/${r.id}`} className="underline">{r.number}</Link> · {r.creditNoteDate} · {formatPaise(r.refundPaise)} {r.refundMethod === "store_credit" ? "store credit" : `refunded (${METHODS[r.refundMethod] ?? r.refundMethod})`}
+              <Link href={`/credit-notes/${r.id}`} className="underline">{r.number}</Link> · {r.creditNoteDate} · {formatPaise(r.refundPaise)}
+              {r.exchangePaise > 0 ? `: ${formatPaise(r.exchangePaise)} exchanged for new items` : ""}
+              {r.refundMethod === "exchange" ? "" : `${r.exchangePaise > 0 ? `, ${formatPaise(r.refundPaise - r.exchangePaise)}` : ""} ${r.refundMethod === "store_credit" ? "store credit" : `refunded (${METHODS[r.refundMethod] ?? r.refundMethod})`}`}
             </p>
           ))}
         </section>

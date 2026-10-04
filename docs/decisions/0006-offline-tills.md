@@ -74,3 +74,16 @@ server confirms it.
   screen and correct it (count correction or purchase).
 - New dependencies: `serwist`, `@serwist/turbopack`, `dexie` (and
   `fake-indexeddb` for tests). All free and open source.
+
+## As built (2026-10-04)
+
+- Tills are the existing `devices` rows with a prefix (1-3 characters) and
+  the token's SHA-256; the till's credit notes use the prefix + "R".
+  Permission "Manage tills" (`tills.manage`: Owner, Admin, Manager).
+- An offline bill is recorded as made by the person who sold on the till
+  (if they are or were a member of the business), with who sent it
+  (`synced_by`) and the till's clock time (`offline_at`).
+- Offline bills are walk-in only (no saved customer): open question 47.
+- The till's offline copy is refreshed on every page while online (every
+  5 minutes) and counts as its online contact.
+- Details and tests: `docs/offline.md`.

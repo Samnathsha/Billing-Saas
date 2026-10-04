@@ -393,4 +393,28 @@ Each question has the default the app will use until answered.
     of resellable returns; damaged returns stay counted as cost (the goods
     are lost). Net profit then subtracts the period's expenses. GST is not
     profit or cost for a registered business. DEFAULT, accountant to
+    confirm.45. **Offline bill numbers:** each registered till numbers its OFFLINE
+    bills from its own series, e.g. `T1/26-27/00001`, and its offline
+    credit notes `T1R/26-27/00001` (till prefix 1-3 characters, never the
+    same as another series). Online bills keep the business series. Each
+    till series restarts every financial year and has no gaps on that till
+    (a gap reaching the server is flagged for a manager). DEFAULT (decision
+    0006), accountant to confirm that parallel series per till are
+    acceptable for GST (see question 3).
+46. **Date of an offline bill:** the bill keeps the date printed on it (the
+    till's own date in the business's time zone), as long as that date is
+    possible (not before the till was registered, not after today). A
+    till clock that was wrong gives today's date instead, and the bill is
+    flagged. The server's time is recorded beside it. DEFAULT, accountant
+    to confirm.
+47. **Offline bills are for walk-in customers:** a bill made without
+    internet cannot name a saved customer (no GSTIN, no credit, no store
+    credit); B2B and credit sales need the internet. Offline returns give
+    money back by cash, UPI or card only. DEFAULT, owner to confirm.
+48. **What an offline bill keeps:** the price and GST rate the customer
+    actually paid, even if the server's price or rate changed meanwhile
+    (the difference is flagged, blueprint 8.3). Stock may go below zero
+    only through such a bill; a manager corrects it with a count or a
+    purchase. Stock coming in onto zero or below takes its own cost as
+    the average (nothing left to average with). DEFAULT, accountant to
     confirm.

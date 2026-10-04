@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:offline-check": "next build && RESEND_API_KEY=re_local_check_not_a_key EMAIL_FROM=\"Local check <local@test.invalid>\" next start",
     "lint": "eslint --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run --project unit",

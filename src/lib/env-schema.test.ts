@@ -33,6 +33,7 @@ describe("parseEnv: valid settings", () => {
       authUrl: URL_,
       email: null,
       healthDrill: false,
+      cronSecret: null,
     });
   });
 

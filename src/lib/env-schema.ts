@@ -21,6 +21,8 @@ export interface Env {
   // HEALTH_DRILL=fail: /api/health answers 503, to test that the uptime
   // alert reaches the owner (docs/runbook.md). Never set otherwise.
   healthDrill: boolean;
+  // Key for /api/maintenance/compact; null: that route is switched off.
+  cronSecret: string | null;
 }
 
 export class EnvError extends Error {
@@ -85,6 +87,8 @@ const shared = {
   SENTRY_DSN: optional(sentryDsnValue),
   NEXT_PUBLIC_SENTRY_DSN: optional(sentryDsnValue),
   HEALTH_DRILL: optional(z.enum(["fail"], { error: 'may only be "fail" (or left out)' })),
+  // The nightly maintenance call's key (Phase 11; runbook). Optional.
+  CRON_SECRET: optional(z.string().min(32, { error: "must be at least 32 characters (run: npm run auth:secret)" })),
 };
 
 // Each mode requires its own databases. The other mode's URLs are optional,
@@ -155,5 +159,6 @@ export function parseEnv(source: Readonly<Record<string, string | undefined>>): 
     authUrl: result.data.BETTER_AUTH_URL,
     email: apiKey !== undefined && from !== undefined && mode !== "test" ? { resendApiKey: apiKey, from } : null,
     healthDrill: result.data.HEALTH_DRILL === "fail",
+    cronSecret: result.data.CRON_SECRET ?? null,
   };
 }

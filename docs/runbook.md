@@ -23,6 +23,14 @@ current.
    - Also set the GitHub repository variable `APP_URL`. The Uptime
      workflow then checks every 15 minutes and emails you on failure.
 3. **Backups:** see `docs/backups.md`. A failed nightly run emails you.
+4. **Nightly maintenance** (keeps the free database small; migration 0040):
+   - Generate a key with `npm run auth:secret`.
+   - Set it as `CRON_SECRET` in the hosting platform and as a GitHub
+     secret.
+   - The hosting platform's cron, or the Maintenance workflow (with
+     `APP_URL` set), then calls `/api/maintenance/compact` every night.
+   - It removes repeat-protection rows older than 90 days and login
+     counters older than 1 day; nothing else.
 
 ### Alert drill (do once after setup, then every few months)
 

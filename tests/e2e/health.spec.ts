@@ -20,3 +20,10 @@ test("other methods are refused", async ({ request, baseURL }) => {
     expect(response.status(), method).toBe(405);
   }
 });
+
+// Phase 11: the nightly maintenance route exists only with CRON_SECRET set
+// (not in this test build), and never without the key.
+test("the maintenance route is off without its key", async ({ request }) => {
+  expect((await request.get("/api/maintenance/compact")).status()).toBe(404);
+  expect((await request.get("/api/maintenance/compact", { headers: { Authorization: "Bearer guess" } })).status()).toBe(404);
+});

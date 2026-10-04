@@ -218,6 +218,22 @@ External header scan (Mozilla Observatory / securityheaders.com): **At
 deployment**. It needs a public https address (Phase 12). Expected grade:
 A or better; all headers are checked by `security-headers.spec.ts`.
 
+## Note: the one owner-rights database function
+
+`app_compact_old_rows()` (migration 0040) is the only SECURITY DEFINER
+function, and it is on the reviewed allow-list in `check-rls`. Its limits:
+
+- no arguments and fixed ages;
+- it deletes only `sync_operations` and `idempotency_keys` rows older than
+  90 days, and `rate_limits` counters older than 1 day;
+- it puts forced row-level security back before it returns
+  (`maintenance.test.ts`);
+- the app reaches it only through `/api/maintenance/compact`, which needs
+  `CRON_SECRET` (compared in constant time) and does not exist without it.
+
+The alternative would have kept the table owner's password in GitHub or
+the host's cron.
+
 ## OWASP Top 10 (2021)
 
 | Risk | Status | Main controls (see the ASVS rows) |

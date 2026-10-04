@@ -1,0 +1,29 @@
+# Nightly maintenance (Phase 11): removes old technical rows to keep the free
+# database plan small (migration 0040). 03:30 India time. Needs the
+# repository variable APP_URL and the secret CRON_SECRET (the same value as
+# in the hosting platform). Until then it only says so. Not needed if the
+# hosting platform's own cron calls /api/maintenance/compact.
+name: Maintenance
+
+on:
+  schedule:
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  compact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Remove old technical rows
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::notice title=Maintenance not set up::Set APP_URL (variable) and CRON_SECRET (secret)."
+            exit 0
+          fi
+          curl -fsS --max-time 60 -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/maintenance/compact"

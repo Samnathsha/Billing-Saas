@@ -6,7 +6,12 @@ import type pg from "pg";
 
 // SECURITY DEFINER functions run with their owner's rights and so can skip
 // RLS. None are allowed unless listed here after review (with a reason).
-const SECURITY_DEFINER_ALLOWLIST: readonly string[] = [];
+const SECURITY_DEFINER_ALLOWLIST: readonly string[] = [
+  // Phase 11 (migration 0040): no arguments, fixed ages; deletes only old
+  // rows of sync_operations, idempotency_keys and rate_limits (technical
+  // repeat protection and login counters). Called nightly by the app.
+  "app_compact_old_rows",
+];
 
 // The only tables the login library (auth_service) may touch (ADR 0003).
 const AUTH_TABLES: readonly string[] = ["accounts", "rate_limits", "security_events", "sessions", "two_factors", "users", "verifications"];

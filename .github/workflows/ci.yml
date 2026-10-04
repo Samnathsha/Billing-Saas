@@ -77,7 +77,8 @@ jobs:
       - name: Random auth secret for this run (masked)
         run: |
           secret="$(openssl rand -base64 32)"
-          echo "::add-mask::$secret"
+          # Reviewed (Phase 11): a random throwaway value, never input from a user.
+          echo "::add-mask::$secret" # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
           echo "BETTER_AUTH_SECRET=$secret" >> "$GITHUB_ENV"
       - name: Create roles (scripts/db-roles.sql, as on Neon)
         run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d billing_test -v ON_ERROR_STOP=1 < scripts/db-roles.sql
@@ -113,7 +114,8 @@ jobs:
       - name: Random auth secret for this run (masked)
         run: |
           secret="$(openssl rand -base64 32)"
-          echo "::add-mask::$secret"
+          # Reviewed (Phase 11): a random throwaway value, never input from a user.
+          echo "::add-mask::$secret" # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
           echo "BETTER_AUTH_SECRET=$secret" >> "$GITHUB_ENV"
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
@@ -148,6 +150,26 @@ jobs:
           if ! npm audit; then
             echo "::warning title=npm audit (dev tools)::Developer-tool vulnerabilities found. See ADR 0001; review them, but they do not fail the build."
           fi
+
+  semgrep:
+    name: Code scan (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install Semgrep (pinned version)
+        run: python -m pip install "semgrep==1.136.0"
+      - name: Scan with the community security rules (fails on any finding)
+        run: >
+          semgrep scan --error --metrics=off
+          --config p/javascript --config p/typescript --config p/react --config p/nextjs
+          --config p/owasp-top-ten --config p/secrets --config p/github-actions
+          src scripts tests .github drizzle
 
   secrets:
     name: Secret scan (gitleaks)

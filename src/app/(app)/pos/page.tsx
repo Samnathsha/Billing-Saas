@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { NotAllowed } from "@/components/not-allowed";
-import { PosScreen } from "@/components/pos/pos-screen";
+import { TillMode } from "@/components/till/till-mode";
 import { getRequestContext } from "@/modules/auth";
 import { getPosSetup } from "@/modules/sales";
 import { listBranchChoices } from "@/modules/tenants";
@@ -24,7 +24,7 @@ export default async function PosPage() {
         <h1 className="text-2xl font-semibold tracking-tight">New bill</h1>
         <Link href="/sales" className="text-sm underline">Today&apos;s bills</Link>
       </div>
-      <PosScreen
+      <TillMode
         setup={setup}
         branches={branches}
         actions={{ priceItems: priceItemsAction, searchItems: searchItemsAction, findCustomers: findCustomersAction, addCustomer: addCustomerAction, sale: saleAction }}

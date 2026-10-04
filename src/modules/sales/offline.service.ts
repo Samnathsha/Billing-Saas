@@ -3,7 +3,8 @@ import { withTenant, type TenantContext } from "@/db/with-tenant";
 import { colleagueContext, hasPermission, requirePermission } from "@/modules/auth";
 import { addTillAudit, earlierTillResult, lockActiveTill, recordFlags, recordTillOperation } from "@/modules/sync";
 import { SalesError } from "./errors";
-import { applyOfflineReturn, applyOfflineSale, buildTillSnapshot, offlineOperation, type TillSnapshotDto } from "./offline-core";
+import type { TillSnapshotDto } from "@/lib/till/snapshot";
+import { applyOfflineReturn, applyOfflineSale, buildTillSnapshot, offlineOperation } from "./offline-core";
 
 // The server side of offline tills (decision 0006). Both calls need the
 // logged-in session (the business comes ONLY from it) AND the till's token

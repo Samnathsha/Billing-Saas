@@ -9,7 +9,8 @@ import { PartyError } from "@/modules/parties";
 import { PurchaseError } from "@/modules/purchasing";
 import { SalesError, SeriesFullError } from "@/modules/sales";
 import { TaxRateError } from "@/modules/tax";
-import { IdempotencyError } from "@/modules/sync";
+import { IdempotencyError, TillError } from "@/modules/sync";
+import { PlanLimitError } from "@/modules/plans";
 
 // Shared by the stock, supplier and purchase screen actions. Who and which
 // business always come from the session, never from the form.
@@ -36,6 +37,7 @@ const CHOOSE: Record<string, string> = {
   method: "Choose how it was paid.",
   reasonCode: "Choose a reason.",
   direction: "Choose whether stock goes in or out.",
+  tillId: "Choose a till.",
 };
 
 // A message safe to show. `names` turns an item id into what the user typed.
@@ -53,6 +55,8 @@ export function errorMessage(error: unknown, names?: Map<string, string>): strin
     error instanceof TaxRateError ||
     error instanceof PartyError ||
     error instanceof IdempotencyError ||
+    error instanceof TillError ||
+    error instanceof PlanLimitError ||
     error instanceof PermissionDeniedError
   ) {
     return error.message;

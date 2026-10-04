@@ -7,6 +7,7 @@ import { catalogForTill, variantsForSale } from "@/modules/catalog";
 import { belowZero, inStockSerialsAt, markSerialsSold, postMovements, takeSerialIfAvailable, unitCostsOf, type MovementInput } from "@/modules/inventory";
 import type { ActiveTill } from "@/modules/sync";
 import { pickTaxRate, taxRatesFor, type TaxRateRow } from "@/modules/tax";
+import type { TillSnapshotDto } from "@/lib/till/snapshot";
 import { SalesError } from "./errors";
 import * as repo from "./repo";
 import { milliText, planReturn, writeReturn } from "./return-core";
@@ -377,38 +378,6 @@ export async function applyOfflineReturn(
 }
 
 // --- The till's offline copy (decision 0006; blueprint 8.5) -------------------
-
-export interface TillSnapshotDto {
-  serverTime: string;
-  till: { id: string; name: string; prefix: string; creditNotePrefix: string; branchId: string; branchName: string };
-  user: { id: string; mayGiveAnyDiscount: boolean; mayReturnAfterWindow: boolean };
-  settings: {
-    ready: boolean;
-    businessName: string;
-    sellerAddress: string | null;
-    gstin: string | null;
-    stateCode: string | null;
-    pricesIncludeTax: boolean;
-    chargesGst: boolean;
-    discountLimitBps: number;
-    timeZone: string;
-    financialYearStartMonth: number;
-    returnWindowDays: number;
-    offlineWindowHours: number;
-  };
-  // Never cost prices.
-  items: { variantId: string; name: string; sku: string; codes: string[]; hsnCode: string | null; unitCode: string; allowsFraction: boolean; trackSerial: boolean; pricePaise: number; taxCategory: string }[];
-  taxRates: Record<string, TaxRateRow[]>;
-  serials: { serial: string; variantId: string }[];
-  lastNumbers: { series: "invoice" | "credit_note"; financialYear: string; last: number }[];
-  recentBills: {
-    invoiceId: string;
-    number: string;
-    invoiceDate: string;
-    payablePaise: number;
-    lines: { invoiceItemId: string; lineNumber: number; name: string; sku: string; serial: string | null; unitCode: string; sold: string; returned: string; taxablePaise: number; cgstPaise: number; igstPaise: number; totalPaise: number }[];
-  }[];
-}
 
 const RECENT_BILLS = 300;
 

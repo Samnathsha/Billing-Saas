@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
+import { TillEngine } from "@/components/till/till-engine";
 import { getRequestContext } from "@/modules/auth";
 
 // Every page inside the app needs a logged-in member of a business. The
@@ -39,6 +40,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             {who.permissions.includes("settings.manage") ? <Link href="/settings/business">Business settings</Link> : null}
             {who.permissions.includes("settings.manage") ? <Link href="/settings/branches">Branches</Link> : null}
             {who.permissions.includes("users.manage") ? <Link href="/settings/staff">Staff</Link> : null}
+          {who.permissions.includes("tills.manage") ? <Link href="/settings/tills">Tills</Link> : null}
             <Link href="/settings/devices">Your devices</Link>
           </nav>
           <div className="flex items-center gap-3 text-sm">
@@ -47,6 +49,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
         <div className="flex flex-1 flex-col px-4 py-6 print:p-0">{children}</div>
+        {/* Sends a registered till's offline bills whenever it is online. */}
+        <TillEngine />
       </div>
     </SerwistProvider>
   );

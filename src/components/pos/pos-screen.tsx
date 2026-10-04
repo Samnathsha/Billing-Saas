@@ -90,7 +90,9 @@ function writeHeld(held: { at: string; cart: Cart }[]): void {
   window.dispatchEvent(new Event(HELD_EVENT));
 }
 
-export function PosScreen(props: { setup: PosSetupDto; branches: { id: string; name: string }[]; actions: PosActions }): ReactNode {
+// tillId: this computer's registered till, recorded on the bill so the till
+// can take it back offline later (decision 0006).
+export function PosScreen(props: { setup: PosSetupDto; branches: { id: string; name: string }[]; actions: PosActions; tillId?: string | null }): ReactNode {
   const { setup, actions } = props;
   const router = useRouter();
   const [branchId, setBranchId] = useState(props.branches[0]?.id ?? "");
@@ -263,6 +265,7 @@ export function PosScreen(props: { setup: PosSetupDto; branches: { id: string; n
     const input = {
       ...ids,
       branchId,
+      tillId: props.tillId ?? null,
       customerId: cart.customer?.id ?? null,
       lines: cart.lines.map((l) => ({ variantId: l.item.variantId, quantity: l.quantity.trim(), discountPaise: paiseOf(l.discount) ?? 0, serial: l.item.trackSerial ? l.serial.trim() : null })),
       billDiscountPaise: paiseOf(cart.billDiscount) ?? 0,

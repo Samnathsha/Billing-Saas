@@ -58,3 +58,14 @@ CSV file.
 - `tests/flows/reports.spec.ts`: dashboard, reports, CSV download and its
   limit, a cashier kept out
 - `tests/perf/reports.test.ts` (`npm run test:perf`, local only): 50,000 bills
+
+## Phase 9 sign-off (2026-10-04)
+
+The owner moved on ("next") with Phase 9 signed off on the automated
+checks: the hand-worked day in `tests/integration/reports.test.ts`, the
+browser test of the dashboard, profit, CSV and a cashier kept out, and the
+50,000-bill speed check (decision 0005).
+
+**Before going live:** the owner checks one real day by hand as described
+above (about 5 minutes); the accountant answers question 44 and reviews the
+GST summary.

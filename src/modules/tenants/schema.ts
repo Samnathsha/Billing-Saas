@@ -25,10 +25,21 @@ export const tenants = pgTable(
     // Business template (blueprint 6.4): switches fields and screens on.
     template: text("template").notNull(),
     status: text("status").notNull().default("active"),
+    // The owner asked for the business to be deleted (Phase 11): it works
+    // normally until deletion_due_at (30 days later, for exporting and
+    // changing one's mind), then nobody can enter it, and an operator
+    // removes its data (scripts/purge-business.ts).
+    deletionRequestedAt: timestamp("deletion_requested_at", { withTimezone: true }),
+    deletionRequestedBy: uuid("deletion_requested_by"),
+    deletionDueAt: timestamp("deletion_due_at", { withTimezone: true }),
     ...mutableRowColumns(),
   },
   (t) => [
     check("tenants_name_length", sql`char_length(${t.name}) between 1 and 200`),
+    check(
+      "tenants_deletion_fields",
+      sql`(${t.deletionRequestedAt} IS NULL) = (${t.deletionDueAt} IS NULL) AND (${t.deletionRequestedAt} IS NULL) = (${t.deletionRequestedBy} IS NULL) AND (${t.deletionDueAt} IS NULL OR ${t.deletionDueAt} > ${t.deletionRequestedAt})`,
+    ),
     check("tenants_template_valid", sql`${t.template} in ('clothing', 'mobile')`),
     check("tenants_status_valid", sql`${t.status} in ('active', 'suspended', 'closed')`),
   ],

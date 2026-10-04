@@ -58,8 +58,21 @@ first sign.
    - Owner database tools only, never from a development session.
    - Set the business's status to `suspended` (the `tenants.status`
      column). Its members can no longer use it; nothing is deleted.
-4. **A till is lost or stolen:** Tills → Revoke (`docs/offline.md`).
-5. **A person's account is misused:**
+4. **A business asked to be deleted** (Business settings → "Ask to delete
+   this business"):
+   - It works normally for 30 days, with a banner for everyone. Then nobody
+     can enter it.
+   - After the date, the operator runs on the operator's computer:
+     1. `npx tsx scripts/purge-business.ts prod <business id>`. This
+        changes nothing and shows what would go.
+     2. Then the same command with `--delete "<exact business name>"`.
+   - It runs as migrator, in one transaction. Protections and links are put
+     back and checked.
+   - Remove the business's photo folder in R2. Note the date here.
+   - Backups that still contain it expire with the rotation (at most 12
+     months).
+5. **A till is lost or stolen:** Tills → Revoke (`docs/offline.md`).
+6. **A person's account is misused:**
    - Staff → deactivate (ends all their sessions at once).
    - Or, as that person: Your devices → Log out everywhere, then change
      the password.

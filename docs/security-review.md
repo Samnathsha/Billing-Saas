@@ -137,7 +137,7 @@ All V1 requirements are Level 2 or higher. The architecture is in
 | 8.2.2 | No sensitive data in browser storage | **Deviation** | A registered till keeps selling prices, GST rates, IMEIs in stock and its recent bills (never costs) in IndexedDB, as the offline design requires (decision 0006; blueprint 8.5). The till's token is useless once revoked; revoking wipes the store. |
 | 8.2.3 | Client storage cleared at logout | **Fixed** | logout removes the shop copy, held bills and the kept till page; only unsent bills stay (they must not be lost) (`logout-button.tsx`, `forgetOnLogout`, `sync.test.ts`) |
 | 8.3.1 | Sensitive data in bodies/headers, not URLs | Pass | tokens in cookies and headers; CSV query has only dates |
-| 8.3.2 | Users can remove or export their data | Pass after step 7 | business export and deletion request (Phase 11 step 7) |
+| 8.3.2 | Users can remove or export their data | **Fixed** | Owner: download everything (`/api/business/export`), ask for deletion with 30 days' grace, then the operator's purge (`scripts/purge-business.ts`); `business-data.test.ts`, `business-data.spec.ts` |
 | 8.3.3 | Clear terms for collected data | Pass after step 10 | Privacy Policy draft (Phase 11 step 10), for the lawyer |
 | 8.3.4 | Sensitive data identified | Pass | `docs/privacy-data-map.md` (step 10) |
 

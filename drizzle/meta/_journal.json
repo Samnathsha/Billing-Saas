@@ -274,6 +274,13 @@
       "when": 1791135834138,
       "tag": "0038_two_factor",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1791138809177,
+      "tag": "0039_business_deletion",
+      "breakpoints": true
     }
   ]
 }

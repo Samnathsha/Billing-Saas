@@ -6,7 +6,9 @@ import { BusinessProfileForm } from "@/components/forms/business-profile-form";
 import { NotAllowed } from "@/components/not-allowed";
 import { getRequestContext, PermissionDeniedError } from "@/modules/auth";
 import { GST_STATES } from "@/modules/tax";
-import { getBusinessProfile, getPlanUsage, type BusinessProfileDto, type PlanUsageDto } from "@/modules/tenants";
+import { DELETION_GRACE_DAYS, getBusinessDeletion, getBusinessProfile, getPlanUsage, type BusinessProfileDto, type PlanUsageDto } from "@/modules/tenants";
+import { BusinessDataSection } from "@/components/forms/business-data-forms";
+import { cancelDeletionAction, requestDeletionAction } from "./data-actions";
 import { ShopTypeForm } from "@/components/forms/shop-type-form";
 import { ImageUploadForm, RemoveImageButton } from "@/components/forms/image-upload-form";
 import { listImages } from "@/modules/files";
@@ -71,6 +73,16 @@ export default async function BusinessSettingsPage() {
         <p className="text-xs text-muted-foreground">PNG, JPEG or WebP, at most 2 MB.</p>
       </section>
       <BusinessProfileForm profile={profile} states={STATES} save={saveBusinessProfile} />
+      {/* Owner only ("Delete business or transfer ownership"). */}
+      {who.permissions.includes("business.delete") ? (
+        <BusinessDataSection
+          businessName={profile.businessName}
+          dueAt={(await getBusinessDeletion(who.ctx)).dueAt}
+          graceDays={DELETION_GRACE_DAYS}
+          request={requestDeletionAction}
+          cancel={cancelDeletionAction}
+        />
+      ) : null}
     </main>
   );
 }

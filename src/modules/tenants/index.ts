@@ -20,3 +20,14 @@ export {
   type PlanUsageDto,
   type SettingsErrorCode,
 } from "./service";
+export {
+  BusinessDataError,
+  cancelBusinessDeletion,
+  DELETION_GRACE_DAYS,
+  exportBusinessData,
+  getBusinessDeletion,
+  requestBusinessDeletion,
+  requestDeletionInput,
+  type BusinessDeletionDto,
+  type BusinessExport,
+} from "./business-data.service";

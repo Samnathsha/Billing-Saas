@@ -1,0 +1,4 @@
+ALTER TABLE "tenants" ADD COLUMN "deletion_requested_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "tenants" ADD COLUMN "deletion_requested_by" uuid;--> statement-breakpoint
+ALTER TABLE "tenants" ADD COLUMN "deletion_due_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "tenants" ADD CONSTRAINT "tenants_deletion_fields" CHECK (("tenants"."deletion_requested_at" IS NULL) = ("tenants"."deletion_due_at" IS NULL) AND ("tenants"."deletion_requested_at" IS NULL) = ("tenants"."deletion_requested_by" IS NULL) AND ("tenants"."deletion_due_at" IS NULL OR "tenants"."deletion_due_at" > "tenants"."deletion_requested_at"));

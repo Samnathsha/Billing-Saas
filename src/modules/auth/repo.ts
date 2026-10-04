@@ -24,6 +24,11 @@ import { DEFAULT_ROLES, OWNER_ROLE } from "./default-roles";
 
 // Serialises "create a business" per user, so a double click cannot create
 // two businesses. Released automatically at the end of the transaction.
+
+// A business people may use: active, and not past the date its owner asked
+// for it to be deleted (Phase 11; then only an operator removes its data).
+const businessOpen = and(eq(tenants.status, "active"), sql`(${tenants.deletionDueAt} IS NULL OR ${tenants.deletionDueAt} > now())`);
+
 export async function lockUserForBusinessCreation(tx: UserTx, userId: string): Promise<void> {
   await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended('create-business:' || ${userId}, 0))`);
 }
@@ -102,7 +107,7 @@ export async function findActiveMembership(
         eq(memberships.userId, userId),
         eq(memberships.tenantId, tenantId),
         eq(memberships.status, "active"),
-        eq(tenants.status, "active"),
+        businessOpen,
       ),
     );
   return row;
@@ -114,7 +119,7 @@ export async function listActiveBusinessIds(tx: UserTx, userId: string): Promise
     .select({ tenantId: memberships.tenantId })
     .from(memberships)
     .innerJoin(tenants, eq(tenants.id, memberships.tenantId))
-    .where(and(eq(memberships.userId, userId), eq(memberships.status, "active"), eq(tenants.status, "active")));
+    .where(and(eq(memberships.userId, userId), eq(memberships.status, "active"), businessOpen));
   return rows.map((r) => r.tenantId);
 }
 
@@ -153,8 +158,8 @@ export async function memberHasPermission(tx: TenantTx, ctx: TenantContext, perm
         eq(memberships.tenantId, ctx.tenantId),
         eq(memberships.userId, ctx.userId),
         eq(memberships.status, "active"),
-        eq(tenants.status, "active"),
         eq(rolePermissions.permissionCode, permission),
+        businessOpen,
       ),
     )
     .limit(1);

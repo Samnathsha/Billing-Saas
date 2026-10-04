@@ -11,6 +11,7 @@ import { SalesError, SeriesFullError } from "@/modules/sales";
 import { TaxRateError } from "@/modules/tax";
 import { IdempotencyError, TillError } from "@/modules/sync";
 import { PlanLimitError } from "@/modules/plans";
+import { BusinessDataError } from "@/modules/tenants";
 
 // Shared by the stock, supplier and purchase screen actions. Who and which
 // business always come from the session, never from the form.
@@ -57,6 +58,7 @@ export function errorMessage(error: unknown, names?: Map<string, string>): strin
     error instanceof IdempotencyError ||
     error instanceof TillError ||
     error instanceof PlanLimitError ||
+    error instanceof BusinessDataError ||
     error instanceof PermissionDeniedError
   ) {
     return error.message;

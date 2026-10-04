@@ -422,3 +422,11 @@ Each question has the default the app will use until answered.
     recommended for Owner and Admin, but optional (blueprint 5.2). OWASP
     ASVS 4.3.1 expects it for administrators. DEFAULT optional, owner to
     decide whether to make it compulsory for Owner and Admin.
+50. **Deleting a business:** the owner may ask for the business to be
+    deleted. Everything keeps working for 30 days (to download the data and
+    to change one's mind); then nobody can enter it, and an operator removes
+    all its data (`scripts/purge-business.ts`). The app warns that GST law
+    usually requires keeping bills for several years and offers the
+    download first. DEFAULT (30 days), owner and lawyer to confirm (also:
+    how long we keep backups that still contain a deleted business, at
+    most 12 months with the current backup rotation).

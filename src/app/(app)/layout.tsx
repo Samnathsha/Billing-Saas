@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
 import { TillEngine } from "@/components/till/till-engine";
 import { getRequestContext } from "@/modules/auth";
+import { getBusinessDeletion } from "@/modules/tenants";
+import { DeletionBanner } from "@/components/forms/business-data-forms";
 
 // Every page inside the app needs a logged-in member of a business. The
 // check runs on the server for every request; each page and service still
@@ -13,6 +15,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const who = await getRequestContext(await headers());
   if (who.kind === "anonymous") redirect("/login");
   if (who.kind === "no-business") redirect("/setup");
+  const deletion = await getBusinessDeletion(who.ctx).catch(() => null);
   // The service worker (decision 0006) runs only in a production build. It
   // must not reload the page when the internet returns (a sale may be open)
   // and must not cache every visited page.
@@ -24,6 +27,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       reloadOnOnline={false}
     >
       <div className="flex min-h-full flex-1 flex-col">
+        {deletion?.dueAt ? <DeletionBanner dueAt={deletion.dueAt} /> : null}
         <header className="flex items-center justify-between gap-4 border-b px-4 py-3 print:hidden">
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/dashboard" className="font-semibold">Billing</Link>

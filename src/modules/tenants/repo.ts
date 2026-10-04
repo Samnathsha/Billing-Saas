@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, count, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { TenantContext, TenantTx } from "@/db/with-tenant";
-import { auditLogs, branches, devices, invoiceSequences, memberships, products, roles, settings, tenants } from "@/db/schema";
+import { auditLogs, branches, devices, invoiceSequences, memberships, products, roles, settings, tenants, users } from "@/db/schema";
 
 // Database queries of the tenants module. Everything runs inside the
 // caller's withTenant transaction; row-level security limits it to the
@@ -187,4 +187,94 @@ export async function seriesStarted(tx: TenantTx, series: { kind: string; prefix
 export async function tillPrefixes(tx: TenantTx): Promise<string[]> {
   const rows = await tx.select({ prefix: devices.prefix }).from(devices).where(isNotNull(devices.prefix));
   return rows.flatMap((r) => (r.prefix === null ? [] : [r.prefix]));
+}
+
+// ---------------------------------------------------------------------------
+// Business data export and deletion request (Phase 11).
+// ---------------------------------------------------------------------------
+
+// Every table holding this business's data, in a readable order. Not
+// exported: idempotency keys and synced-operation records (technical
+// repeat-protection only). The list is checked against the database by
+// tests/integration/business-data.test.ts.
+export const EXPORT_TABLES = [
+  "settings",
+  "subscriptions",
+  "branches",
+  "roles",
+  "role_permissions",
+  "memberships",
+  "invitations",
+  "devices",
+  "categories",
+  "brands",
+  "units",
+  "products",
+  "product_variants",
+  "barcodes",
+  "serial_numbers",
+  "files",
+  "suppliers",
+  "customers",
+  "purchases",
+  "purchase_items",
+  "supplier_payments",
+  "purchase_returns",
+  "purchase_return_items",
+  "invoice_sequences",
+  "invoices",
+  "invoice_items",
+  "invoice_payments",
+  "customer_payments",
+  "credit_notes",
+  "credit_note_items",
+  "party_ledger_entries",
+  "stock_balances",
+  "stock_movements",
+  "expense_categories",
+  "expenses",
+  "sync_flags",
+  "audit_logs",
+] as const;
+export const NOT_EXPORTED = ["idempotency_keys", "sync_operations"] as const;
+// Secrets never leave the database, even for the owner.
+const SECRET_COLUMNS = new Set(["token_hash"]);
+
+export async function exportTable(tx: TenantTx, table: (typeof EXPORT_TABLES)[number]): Promise<Record<string, unknown>[]> {
+  const result = await tx.execute(sql`SELECT * FROM ${sql.identifier(table)}`);
+  return result.rows.map((row) => Object.fromEntries(Object.entries(row).filter(([column]) => !SECRET_COLUMNS.has(column))));
+}
+
+export async function businessRow(tx: TenantTx) {
+  const [row] = await tx
+    .select({ id: tenants.id, name: tenants.name, template: tenants.template, createdAt: tenants.createdAt, deletionRequestedAt: tenants.deletionRequestedAt, deletionDueAt: tenants.deletionDueAt })
+    .from(tenants);
+  return row;
+}
+
+// The people of this business, for the export (names and emails only).
+export async function businessPeople(tx: TenantTx) {
+  return tx
+    .select({ userId: users.id, name: users.displayName, email: users.email, membershipStatus: memberships.status })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId));
+}
+
+export async function lastExportAt(tx: TenantTx): Promise<Date | null> {
+  const [row] = await tx
+    .select({ at: sql<Date | null>`max(${auditLogs.occurredAt})` })
+    .from(auditLogs)
+    .where(eq(auditLogs.action, "business.exported"));
+  return row?.at ?? null;
+}
+
+export async function setDeletion(tx: TenantTx, ctx: TenantContext, value: { requestedAt: Date; dueAt: Date } | null): Promise<void> {
+  await tx
+    .update(tenants)
+    .set(
+      value === null
+        ? { deletionRequestedAt: null, deletionRequestedBy: null, deletionDueAt: null, updatedAt: new Date() }
+        : { deletionRequestedAt: value.requestedAt, deletionRequestedBy: ctx.userId, deletionDueAt: value.dueAt, updatedAt: new Date() },
+    )
+    .where(eq(tenants.id, ctx.tenantId));
 }

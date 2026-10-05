@@ -50,6 +50,71 @@ current.
 3. Remove `HEALTH_DRILL` and redeploy. The monitor reports "up" again.
 4. Note the date below.
 
+## Deploy (every release)
+
+1. On your computer: `npm run predeploy`. It must end with "Ready to
+   deploy".
+2. Database change in this release? Take a manual snapshot in the Neon
+   console (production project), then run the migrations as migrator
+   against staging. Check staging, then run them against production.
+   Migrations only add; the previous app version keeps working.
+3. Deploy to **staging** (`docs/deploy.md`). Open it, log in, and make one
+   test bill in the staging shop.
+4. Deploy to **production**. Check `/api/health` and log in.
+5. Write one line in the deploy log below: date, commit, what changed.
+
+## Roll back
+
+- **The app misbehaves after a deploy:** redeploy the previous version
+  (`docs/deploy.md`, "Roll back"). Takes a minute; data is not touched.
+- **The data is wrong** (a bad migration or a bug that wrote wrong rows):
+  - Never "undo" by deleting. Bills and ledgers are fixed with
+    correcting entries (voids, returns, adjustments).
+  - If whole tables are damaged: within 6 hours, use Neon's
+    point-in-time restore into a new branch, then check it.
+  - Older damage: restore the nightly copy (below).
+  - Decide with the owner before replacing production.
+
+## Restore from backup
+
+1. Neon console: create an empty database (or a branch) to restore into.
+   Never restore over production directly.
+2. Follow `docs/backups.md` → "Monthly restore drill" with that database
+   as `RESTORE_ADMIN_URL`. Use `KEEP_RESTORE=1` to keep the result.
+3. Check the result: `scripts/restore-test.sh` must pass, and the
+   reconciliation must be clean (`npx tsx scripts/reconcile.ts` against
+   it).
+4. Point the app at the restored database (its `DATABASE_URL` and
+   `AUTH_DATABASE_URL`) and redeploy. Tell the affected shops what period
+   was lost, if any.
+
+## Data requests
+
+- **A shop owner asks for their data:** Business settings → "Download all
+  data (ZIP)". They can do it themselves.
+- **A shop's customer asks** what is stored about them, or to correct or
+  delete it:
+  - The shop is responsible for its customers' data; we help it.
+  - The owner can show or edit the customer in Customers.
+  - Bills must normally be kept for GST, so a customer's name on past
+    bills stays. Note the request and the answer here.
+- **A shop asks to close:** Business settings → "Ask to delete this
+  business", then the purge after 30 days (Incidents, item 4).
+- **Police or another authority asks:** only with a written legal request.
+  Ask the lawyer before handing anything over.
+
+## Who to call
+
+| Need | Who | Contact |
+| --- | --- | --- |
+| Decides on incidents, money, clients | Owner | [name, phone] |
+| App and database problems | Developer / AI agent session | [name or how to start a session] |
+| Tax, GST, numbering questions | Accountant | [name, phone] |
+| Legal: privacy, breach duties, terms | Lawyer | [name, phone] |
+| Hosting down | Host status page and support | [host] status page |
+| Database down | Neon status page and support | neonstatus.com |
+| Email not sending | Resend status page | resend-status.com |
+
 ## Incidents
 
 **Who decides:** the owner. Write down what happened and when, from the
@@ -100,6 +165,11 @@ If a business's data may have been exposed:
 1. Tell its owner what happened, which data, when, and what was done.
 2. Ask the lawyer about the notification duties and deadlines before the
    first paying client (blueprint 13.5).
+
+## Deploy log
+
+| Date | Commit | What changed |
+| --- | --- | --- |
 
 ## Drill log
 

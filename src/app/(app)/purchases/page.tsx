@@ -24,9 +24,9 @@ export default async function PurchasesPage() {
     <main className="flex max-w-4xl flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Purchases</h1>
-        <div className="flex gap-3 text-sm">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
           <Link href="/suppliers" className="underline">Suppliers</Link>
-          {canBuy ? <Link href="/purchases/new" className="underline">New purchase</Link> : null}
+          {canBuy ? <Link href="/purchases/new" className="action-primary">New purchase</Link> : null}
         </div>
       </div>
       {purchases.length === 0 ? <p className="text-sm text-muted-foreground">No purchases yet.</p> : null}

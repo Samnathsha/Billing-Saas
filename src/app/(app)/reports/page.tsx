@@ -25,24 +25,35 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const METHODS: Record<string, string> = { cash: "Cash", upi: "UPI", card: "Card", bank: "Bank" };
 
 // Which reports exist, what each needs, and whether it uses dates.
+// Grouped into four short sets so the choice is quick to scan (Hick's law).
 const VIEWS = [
-  { id: "sales", label: "Sales by day", dated: true, cost: false },
-  { id: "by_item", label: "By item", dated: true, cost: false },
-  { id: "by_category", label: "By category", dated: true, cost: false },
-  { id: "by_user", label: "By staff member", dated: true, cost: false },
-  { id: "payments", label: "Money in and out", dated: true, cost: false },
-  { id: "profit", label: "Profit", dated: true, cost: true },
-  { id: "stock", label: "Stock value", dated: false, cost: true },
-  { id: "low_stock", label: "Low stock", dated: false, cost: false },
-  { id: "customer_ageing", label: "Customers owe", dated: false, cost: false },
-  { id: "supplier_ageing", label: "We owe suppliers", dated: false, cost: false },
-  { id: "tax", label: "GST summary", dated: true, cost: false },
+  { id: "sales", label: "Sales by day", group: "Sales", dated: true, cost: false },
+  { id: "by_item", label: "By item", group: "Sales", dated: true, cost: false },
+  { id: "by_category", label: "By category", group: "Sales", dated: true, cost: false },
+  { id: "by_user", label: "By staff member", group: "Sales", dated: true, cost: false },
+  { id: "payments", label: "Money in and out", group: "Money", dated: true, cost: false },
+  { id: "profit", label: "Profit", group: "Money", dated: true, cost: true },
+  { id: "customer_ageing", label: "Customers owe", group: "Money", dated: false, cost: false },
+  { id: "supplier_ageing", label: "We owe suppliers", group: "Money", dated: false, cost: false },
+  { id: "stock", label: "Stock value", group: "Stock", dated: false, cost: true },
+  { id: "low_stock", label: "Low stock", group: "Stock", dated: false, cost: false },
+  { id: "tax", label: "GST summary", group: "GST", dated: true, cost: false },
 ] as const;
+const GROUPS = ["Sales", "Money", "Stock", "GST"] as const;
 
 const th = "p-2 font-medium";
 const thr = "p-2 text-right font-medium";
 const td = "p-2";
 const tdr = "p-2 text-right tabular-nums";
+
+// Totals as a card: each label sits on the same row as its amount.
+function Totals(props: { label: string; children: ReactNode }): ReactNode {
+  return (
+    <dl className="totals max-w-md rounded-lg border text-sm" aria-label={props.label}>
+      {props.children}
+    </dl>
+  );
+}
 
 function Table(props: { label: string; head: ReactNode; children: ReactNode; foot?: ReactNode }): ReactNode {
   return (
@@ -89,31 +100,48 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
         <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
         {who.permissions.includes("settings.manage") ? <Link href="/reports/audit" className="text-sm underline">Audit log</Link> : null}
       </div>
-      <nav className="flex flex-wrap gap-2 text-sm" aria-label="Report">
-        {views.map((v) => (
-          <Link key={v.id} href={link(v.id)} aria-current={v.id === view.id ? "page" : undefined} className={v.id === view.id ? "rounded-lg border bg-muted px-2 py-1 font-medium" : "rounded-lg border px-2 py-1"}>
-            {v.label}
-          </Link>
-        ))}
+      <nav className="grid gap-3 rounded-lg border p-3 text-sm sm:grid-cols-2 lg:grid-cols-4" aria-label="Report">
+        {GROUPS.map((g) => {
+          const inGroup = views.filter((v) => v.group === g);
+          if (inGroup.length === 0) return null;
+          return (
+            <div key={g} className="flex flex-col gap-1">
+              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{g}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {inGroup.map((v) => (
+                  <Link
+                    key={v.id}
+                    href={link(v.id)}
+                    aria-current={v.id === view.id ? "page" : undefined}
+                    className={v.id === view.id ? "rounded-lg bg-primary px-2.5 py-1.5 font-medium text-primary-foreground" : "rounded-lg border px-2.5 py-1.5 hover:bg-muted"}
+                  >
+                    {v.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </nav>
+      <h2 className="text-lg font-semibold">{view.label}</h2>
       <div className="flex flex-wrap items-end justify-between gap-2">
         {view.dated ? (
           <form method="get" className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="view" value={view.id} />
             <label className="flex flex-col gap-1 text-sm">
               From
-              <input type="date" name="from" defaultValue={from} className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm" />
+              <input type="date" name="from" defaultValue={from} className="h-9 rounded-lg border border-input bg-transparent px-2 text-sm" />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               To
-              <input type="date" name="to" defaultValue={to} className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm" />
+              <input type="date" name="to" defaultValue={to} className="h-9 rounded-lg border border-input bg-transparent px-2 text-sm" />
             </label>
-            <button type="submit" className="h-8 rounded-lg border px-3 text-sm">Show</button>
+            <button type="submit" className="h-9 rounded-lg border px-3 text-sm font-medium hover:bg-muted">Show</button>
           </form>
         ) : (
           <p className="text-sm text-muted-foreground">As of now.</p>
         )}
-        <a href={csv} className="text-sm underline" download>
+        <a href={csv} className="inline-flex h-9 items-center rounded-lg border px-3 text-sm font-medium hover:bg-muted" download>
           Download CSV
         </a>
       </div>
@@ -128,7 +156,7 @@ async function renderView(id: (typeof VIEWS)[number]["id"], range: { from: strin
       const r = await getSalesReport(ctx, range);
       return (
         <>
-          <dl className="grid max-w-md grid-cols-2 gap-1 text-sm" aria-label="Sales totals">
+          <Totals label="Sales totals">
             <dt>Bills</dt>
             <dd className={tdr}>{r.bills}{r.voided > 0 ? ` (+${String(r.voided)} voided)` : ""}</dd>
             <dt>Sales</dt>
@@ -143,7 +171,7 @@ async function renderView(id: (typeof VIEWS)[number]["id"], range: { from: strin
             <dd className={tdr}>{formatPaise(r.discountPaise)}</dd>
             <dt>Sold on credit</dt>
             <dd className={tdr}>{formatPaise(r.onCreditPaise)}</dd>
-          </dl>
+          </Totals>
           <Table label="Sales by day" head={<tr><th className={th}>Day</th><th className={thr}>Bills</th><th className={thr}>Sales</th><th className={thr}>Returns</th><th className={thr}>Net</th></tr>}>
             {r.days.map((d) => (
               <tr key={d.day}>
@@ -221,7 +249,7 @@ async function renderView(id: (typeof VIEWS)[number]["id"], range: { from: strin
     case "profit": {
       const p = await getProfitReport(ctx, range);
       return (
-        <dl className="grid max-w-md grid-cols-2 gap-1 text-sm" aria-label="Profit">
+        <Totals label="Profit">
           <dt>Sales without GST</dt>
           <dd className={tdr}>{formatPaise(p.salesTaxablePaise)}</dd>
           <dt>Returns without GST</dt>
@@ -236,7 +264,7 @@ async function renderView(id: (typeof VIEWS)[number]["id"], range: { from: strin
           <dd className={tdr}>−{formatPaise(p.expensesPaise)}</dd>
           <dt className="font-semibold">Net profit</dt>
           <dd className={`${tdr} font-semibold`}>{formatPaise(p.netProfitPaise)}</dd>
-        </dl>
+        </Totals>
       );
     }
     case "stock": {
@@ -326,12 +354,12 @@ async function renderView(id: (typeof VIEWS)[number]["id"], range: { from: strin
               </tr>
             ))}
           </Table>
-          <dl className="grid max-w-sm grid-cols-2 gap-1 text-sm" aria-label="GST totals">
+          <Totals label="GST totals">
             <dt>GST on sales</dt>
             <dd className={tdr}>{formatPaise(t.outputTaxPaise)}</dd>
             <dt>GST on purchases</dt>
             <dd className={tdr}>{formatPaise(t.inputTaxPaise)}</dd>
-          </dl>
+          </Totals>
         </>
       );
     }

@@ -305,6 +305,15 @@ export function PosScreen(props: { setup: PosSetupDto; branches: { id: string; n
   }
 
   const bill = preview.bill;
+  // Why "Save bill" cannot be pressed yet, in words (other reasons already
+  // show as red messages above it).
+  const needsCustomer = onCredit > 0 && cart.customer === null;
+  const saveHint =
+    cart.lines.length === 0
+      ? "Add an item to start a bill."
+      : needsCustomer && paymentsValid && preview.problem === null
+        ? "Part of this bill is unpaid. Take the full amount, or choose a customer to put the rest on their account."
+        : null;
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
       <section className="flex flex-col gap-3" aria-label="Cart">
@@ -368,20 +377,20 @@ export function PosScreen(props: { setup: PosSetupDto; branches: { id: string; n
             <tbody className="divide-y">
               {cart.lines.map((l, i) => (
                 <tr key={l.key} aria-label={l.item.name}>
-                  <td className="p-1">
+                  <td className="min-w-44 p-1">
                     {l.item.name}
                     <div className="text-xs text-muted-foreground">
                       {l.item.sku} · {formatPaise(l.item.pricePaise)} · {l.item.taxLabel} · in stock {formatQuantity(l.item.inStock)}
                     </div>
                     {l.item.trackSerial ? (
-                      <Input aria-label={`IMEI for ${l.item.name}`} placeholder="IMEI / serial" value={l.serial} onChange={(e) => { updateLine(l.key, { serial: e.target.value }); }} className="mt-1 h-7 w-48" maxLength={40} />
+                      <Input aria-label={`IMEI for ${l.item.name}`} placeholder="IMEI / serial" value={l.serial} onChange={(e) => { updateLine(l.key, { serial: e.target.value }); }} className="mt-1 h-9 w-48" maxLength={40} />
                     ) : null}
                   </td>
                   <td className="p-1">
-                    <Input aria-label={`Quantity of ${l.item.name}`} value={l.quantity} onChange={(e) => { updateLine(l.key, { quantity: e.target.value }); }} disabled={l.item.trackSerial} inputMode={l.item.allowsFraction ? "decimal" : "numeric"} className="h-7 w-20" maxLength={16} />
+                    <Input aria-label={`Quantity of ${l.item.name}`} value={l.quantity} onChange={(e) => { updateLine(l.key, { quantity: e.target.value }); }} disabled={l.item.trackSerial} inputMode={l.item.allowsFraction ? "decimal" : "numeric"} className="h-9 w-20" maxLength={16} />
                   </td>
                   <td className="p-1">
-                    <Input aria-label={`Discount on ${l.item.name}`} value={l.discount} onChange={(e) => { updateLine(l.key, { discount: e.target.value }); }} inputMode="decimal" className="h-7 w-24" maxLength={16} />
+                    <Input aria-label={`Discount on ${l.item.name}`} value={l.discount} onChange={(e) => { updateLine(l.key, { discount: e.target.value }); }} inputMode="decimal" className="h-9 w-24" maxLength={16} />
                   </td>
                   <td className="p-1 text-right tabular-nums">{bill?.lines[i] === undefined ? "–" : formatPaise(bill.lines[i].totalPaise)}</td>
                   <td className="p-1 text-right">
@@ -423,8 +432,8 @@ export function PosScreen(props: { setup: PosSetupDto; branches: { id: string; n
                 </button>
               ))}
               <form action={addCustomer} className="flex flex-wrap gap-1" aria-label="New customer">
-                <Input name="customerName" placeholder="New customer name" aria-label="New customer name" className="h-7 w-36" maxLength={200} required />
-                <Input name="customerPhone" placeholder="Phone" aria-label="New customer phone" className="h-7 w-28" maxLength={20} />
+                <Input name="customerName" placeholder="New customer name" aria-label="New customer name" className="h-9 min-w-0 flex-1" maxLength={200} required />
+                <Input name="customerPhone" placeholder="Phone" aria-label="New customer phone" className="h-9 w-32" maxLength={20} />
                 <Button type="submit" variant="outline" size="sm" disabled={pending}>
                   Add
                 </Button>
@@ -506,11 +515,18 @@ export function PosScreen(props: { setup: PosSetupDto; branches: { id: string; n
         </dl>
         <Button
           type="button"
+          size="lg"
           onClick={save}
-          disabled={pending || bill === null || preview.problem !== null || !paymentsValid || nonCash > payable || (onCredit > 0 && cart.customer === null)}
+          aria-describedby={saveHint === null ? undefined : "pos-save-hint"}
+          disabled={pending || bill === null || preview.problem !== null || !paymentsValid || nonCash > payable || needsCustomer}
         >
           {pending ? "Saving…" : "Save bill (F9)"}
         </Button>
+        {saveHint === null ? null : (
+          <p id="pos-save-hint" className="text-sm text-muted-foreground">
+            {saveHint}
+          </p>
+        )}
       </aside>
     </div>
   );

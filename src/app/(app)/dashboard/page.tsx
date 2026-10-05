@@ -21,9 +21,9 @@ export default async function DashboardPage() {
       <main className="flex flex-col gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Welcome</h1>
         <div className="flex flex-wrap gap-2">
-          {canSell ? <Link href="/pos" className="rounded-lg border px-4 py-2 font-medium">New bill</Link> : null}
-          <Link href="/sales" className="rounded-lg border px-4 py-2">Today&apos;s bills</Link>
-          <Link href="/inventory" className="rounded-lg border px-4 py-2">Stock</Link>
+          {canSell ? <Link href="/pos" className="action-primary">New bill</Link> : null}
+          <Link href="/sales" className="inline-flex h-9 items-center rounded-lg border px-3 text-sm hover:bg-muted">Today&apos;s bills</Link>
+          <Link href="/inventory" className="inline-flex h-9 items-center rounded-lg border px-3 text-sm hover:bg-muted">Stock</Link>
         </div>
       </main>
     );
@@ -34,8 +34,8 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Today, {d.today}</h1>
         <div className="flex gap-2 text-sm">
-          {canSell ? <Link href="/pos" className="rounded-lg border px-3 py-1 font-medium">New bill</Link> : null}
-          <Link href="/reports" className="rounded-lg border px-3 py-1">Reports</Link>
+          {canSell ? <Link href="/pos" className="action-primary">New bill</Link> : null}
+          <Link href="/reports" className="inline-flex h-9 items-center rounded-lg border px-3 hover:bg-muted">Reports</Link>
         </div>
       </div>
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Today">

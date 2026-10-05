@@ -97,42 +97,51 @@ export function NewProductForm(props: {
         <h2 className="text-lg font-semibold">Variants</h2>
         <input type="hidden" name="rows" value={rows.join(",")} />
         {rows.map((row, index) => (
-          <fieldset key={row} className="flex flex-wrap items-end gap-2 rounded-lg border p-2" aria-label={`Variant ${String(index + 1)}`}>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`sku-${String(row)}`}>SKU</Label>
-              <Input id={`sku-${String(row)}`} name={`sku-${String(row)}`} maxLength={40} required className="w-32" />
+          <fieldset key={row} className="flex flex-col gap-3 rounded-lg border p-3" aria-label={`Variant ${String(index + 1)}`}>
+            {/* Two small groups (what it is; price and stock) instead of one
+                long wrapping row, so each field sits near related ones. */}
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Variant {index + 1}</p>
+              {rows.length > 1 ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => {
+                    setRows(rows.filter((r) => r !== row));
+                  }}>
+                  Remove
+                </Button>
+              ) : null}
             </div>
-            {fields.map(([key, label]) => (
-              <div key={key} className="flex flex-col gap-1">
-                <Label htmlFor={`${key}-${String(row)}`}>{label}</Label>
-                <Input id={`${key}-${String(row)}`} name={`${key}-${String(row)}`} maxLength={50} className="w-24" />
-              </div>
-            ))}
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`price-${String(row)}`}>Selling price (₹)</Label>
-              <Input id={`price-${String(row)}`} name={`price-${String(row)}`} inputMode="decimal" required className="w-28" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`mrp-${String(row)}`}>MRP (₹, optional)</Label>
-              <Input id={`mrp-${String(row)}`} name={`mrp-${String(row)}`} inputMode="decimal" className="w-28" />
-            </div>
-            {options.canSetCost ? (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className="flex flex-col gap-1">
-                <Label htmlFor={`cost-${String(row)}`}>Cost (₹, optional)</Label>
-                <Input id={`cost-${String(row)}`} name={`cost-${String(row)}`} inputMode="decimal" className="w-28" />
+                <Label htmlFor={`sku-${String(row)}`}>SKU</Label>
+                <Input id={`sku-${String(row)}`} name={`sku-${String(row)}`} maxLength={40} required />
               </div>
-            ) : null}
-            <div className="flex flex-col gap-1">
-              <Label htmlFor={`reorder-${String(row)}`}>Reorder at</Label>
-              <Input id={`reorder-${String(row)}`} name={`reorder-${String(row)}`} inputMode="decimal" className="w-20" />
+              {fields.map(([key, label]) => (
+                <div key={key} className="flex flex-col gap-1">
+                  <Label htmlFor={`${key}-${String(row)}`}>{label}</Label>
+                  <Input id={`${key}-${String(row)}`} name={`${key}-${String(row)}`} maxLength={50} />
+                </div>
+              ))}
             </div>
-            {rows.length > 1 ? (
-              <Button type="button" variant="outline" size="sm" onClick={() => {
-                  setRows(rows.filter((r) => r !== row));
-                }}>
-                Remove
-              </Button>
-            ) : null}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`price-${String(row)}`}>Selling price (₹)</Label>
+                <Input id={`price-${String(row)}`} name={`price-${String(row)}`} inputMode="decimal" required />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`mrp-${String(row)}`}>MRP (₹, optional)</Label>
+                <Input id={`mrp-${String(row)}`} name={`mrp-${String(row)}`} inputMode="decimal" />
+              </div>
+              {options.canSetCost ? (
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor={`cost-${String(row)}`}>Cost (₹, optional)</Label>
+                  <Input id={`cost-${String(row)}`} name={`cost-${String(row)}`} inputMode="decimal" />
+                </div>
+              ) : null}
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`reorder-${String(row)}`}>Reorder at</Label>
+                <Input id={`reorder-${String(row)}`} name={`reorder-${String(row)}`} inputMode="decimal" />
+              </div>
+            </div>
           </fieldset>
         ))}
         <Button type="button" variant="outline" className="self-start" onClick={() => {

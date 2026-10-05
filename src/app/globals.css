@@ -158,4 +158,34 @@
   .rounded-lg.border {
     background-color: var(--card);
   }
+  /* Totals cards: label on the left, amount on the right of the same row,
+     a thin line between rows so the eye does not jump rows. */
+  .totals {
+    @apply grid grid-cols-[1fr_auto];
+  }
+  .totals > dt,
+  .totals > dd {
+    @apply border-t px-3 py-2;
+  }
+  .totals > dt:first-of-type,
+  .totals > dd:first-of-type {
+    @apply border-t-0;
+  }
+  .totals > dd {
+    @apply text-right tabular-nums;
+  }
+  /* The one main action of a page (e.g. "New product"): a filled button,
+     the same everywhere, so it is found at once (Jakob's law). */
+  .action-primary {
+    @apply inline-flex h-9 items-center rounded-lg bg-primary px-3 text-sm font-medium whitespace-nowrap text-primary-foreground hover:bg-primary/90;
+  }
+  /* Touch targets: on phones, buttons and fields are at least 40px tall
+     so they are easy to hit with a thumb (Fitts's law). */
+  @media (pointer: coarse) {
+    button,
+    input:not([type="checkbox"]):not([type="radio"]),
+    select {
+      min-height: 2.5rem;
+    }
+  }
 }

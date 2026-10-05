@@ -33,10 +33,10 @@ export default async function ProductsPage({ searchParams }: PageProps<"/catalog
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
         {canManage ? (
-          <div className="flex gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
             <Link href="/catalog/lists" className="underline">Categories, brands, units</Link>
             <Link href="/catalog/import" className="underline">Import CSV</Link>
-            <Link href="/catalog/products/new" className="underline">New product</Link>
+            <Link href="/catalog/products/new" className="action-primary">New product</Link>
           </div>
         ) : null}
       </div>

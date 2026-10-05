@@ -27,9 +27,12 @@ export default async function NewPurchasePage({ searchParams }: PageProps<"/purc
       <Link href="/purchases" className="text-sm underline">← Purchases</Link>
       <h1 className="text-2xl font-semibold tracking-tight">New purchase</h1>
       {suppliers.length === 0 ? (
-        <p className="text-sm">
-          Add a supplier first on the <Link href="/suppliers" className="underline">Suppliers</Link> page.
-        </p>
+        <section className="flex max-w-md flex-col items-start gap-3 rounded-lg border p-4 text-sm">
+          <p>A purchase needs a supplier. Add a supplier first on the Suppliers page, then come back here.</p>
+          <Link href="/suppliers" className="inline-flex h-9 items-center rounded-lg bg-primary px-3 font-medium text-primary-foreground">
+            Go to Suppliers
+          </Link>
+        </section>
       ) : (
         <NewPurchaseForm
           suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))}

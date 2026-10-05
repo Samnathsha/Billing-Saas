@@ -29,7 +29,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
     <main className="flex max-w-4xl flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Bills</h1>
-        {who.permissions.includes("sales.create") ? <Link href="/pos" className="text-sm underline">New bill</Link> : null}
+        {who.permissions.includes("sales.create") ? <Link href="/pos" className="action-primary">New bill</Link> : null}
       </div>
       <form method="get" className="flex items-end gap-2">
         <label className="flex flex-col gap-1 text-sm">

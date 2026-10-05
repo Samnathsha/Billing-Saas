@@ -154,7 +154,7 @@ export function ExchangeScreen(props: { bill: ReturnableDto; setup: PosSetupDto;
     <div className="grid gap-6 lg:grid-cols-2">
       <section className="flex flex-col gap-2" aria-label="Coming back">
         <h2 className="font-medium">1. Coming back from {bill.number}</h2>
-        <table className="w-full text-sm" aria-label="Returnable items">
+        <div className="table-scroll"><table className="w-full text-sm" aria-label="Returnable items">
           <thead className="border-b text-left">
             <tr>
               <th className="p-1 font-medium">Item</th>
@@ -198,7 +198,7 @@ export function ExchangeScreen(props: { bill: ReturnableDto; setup: PosSetupDto;
                 </tr>
               ))}
           </tbody>
-        </table>
+        </table></div>
         <Label htmlFor="exchange-reason">Reason</Label>
         <Input id="exchange-reason" value={reason} onChange={(e) => { setReason(e.target.value); }} maxLength={500} placeholder="e.g. wrong size" />
       </section>

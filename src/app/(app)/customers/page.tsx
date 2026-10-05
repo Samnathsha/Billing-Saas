@@ -39,7 +39,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
       {customers.length === 0 ? <p className="text-sm text-muted-foreground">{q === "" ? "No customers yet." : "Nothing found."}</p> : null}
       {customers.length > 0 ? (
         <>
-          <table className="w-full rounded-lg border text-sm" aria-label="Customers">
+          <div className="table-scroll"><table className="w-full text-sm" aria-label="Customers">
             <thead className="border-b bg-muted/40 text-left">
               <tr>
                 <th className="p-2 font-medium">Name</th>
@@ -61,7 +61,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <p className="text-sm">Owed on this list: {formatPaise(owed)}</p>
         </>
       ) : null}

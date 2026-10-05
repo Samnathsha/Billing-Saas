@@ -62,7 +62,7 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
         <h2 className="font-medium">Payments</h2>
         {payments.length === 0 ? <p className="text-sm text-muted-foreground">No payments yet.</p> : null}
         {payments.length > 0 ? (
-          <table className="w-full rounded-lg border text-sm" aria-label="Customer payments">
+          <div className="table-scroll"><table className="w-full text-sm" aria-label="Customer payments">
             <thead className="border-b bg-muted/40 text-left">
               <tr>
                 <th className="p-2 font-medium">Date</th>
@@ -81,14 +81,14 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : null}
       </section>
       <section className="flex flex-col gap-2">
         <h2 className="font-medium">Bills</h2>
         {bills.length === 0 ? <p className="text-sm text-muted-foreground">No bills yet.</p> : null}
         {bills.length > 0 ? (
-          <table className="w-full rounded-lg border text-sm" aria-label="Customer bills">
+          <div className="table-scroll"><table className="w-full text-sm" aria-label="Customer bills">
             <thead className="border-b bg-muted/40 text-left">
               <tr>
                 <th className="p-2 font-medium">Bill</th>
@@ -111,7 +111,7 @@ export default async function CustomerPage({ params }: PageProps<"/customers/[id
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : null}
       </section>
       {who.permissions.includes("sales.create") ? (

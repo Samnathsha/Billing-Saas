@@ -46,7 +46,7 @@ const tdr = "p-2 text-right tabular-nums";
 
 function Table(props: { label: string; head: ReactNode; children: ReactNode; foot?: ReactNode }): ReactNode {
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="table-scroll">
       <table className="w-full text-sm" aria-label={props.label}>
         <thead className="border-b bg-muted/40 text-left">{props.head}</thead>
         <tbody className="divide-y">{props.children}</tbody>

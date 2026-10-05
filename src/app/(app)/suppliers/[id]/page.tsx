@@ -58,7 +58,7 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
         <h2 className="font-medium">Account</h2>
         {entries.length === 0 ? <p className="text-sm text-muted-foreground">Nothing yet.</p> : null}
         {entries.length > 0 ? (
-          <table className="w-full rounded-lg border text-sm" aria-label="Supplier account">
+          <div className="table-scroll"><table className="w-full text-sm" aria-label="Supplier account">
             <thead className="border-b bg-muted/40 text-left">
               <tr>
                 <th className="p-2 font-medium">Date</th>
@@ -81,7 +81,7 @@ export default async function SupplierPage({ params }: PageProps<"/suppliers/[id
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : null}
       </section>
       {canManage ? (

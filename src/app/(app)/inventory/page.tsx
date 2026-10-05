@@ -54,7 +54,7 @@ export default async function StockPage({ searchParams }: PageProps<"/inventory"
       </form>
       {result.total === 0 ? <p className="text-sm text-muted-foreground">{q === "" ? "No products yet." : "Nothing found."}</p> : null}
       {result.total > 0 ? (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="table-scroll">
           <table className="w-full text-sm" aria-label="Stock levels">
             <thead className="border-b bg-muted/40 text-left">
               <tr>

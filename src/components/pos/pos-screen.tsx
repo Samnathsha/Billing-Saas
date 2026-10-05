@@ -355,7 +355,7 @@ export function PosScreen(props: { setup: PosSetupDto; branches: { id: string; n
         ) : null}
         {cart.lines.length === 0 ? <p className="text-sm text-muted-foreground">The cart is empty.</p> : null}
         {cart.lines.length > 0 ? (
-          <table className="w-full text-sm" aria-label="Cart lines">
+          <div className="table-scroll"><table className="w-full text-sm" aria-label="Cart lines">
             <thead className="border-b text-left">
               <tr>
                 <th className="p-1 font-medium">Item</th>
@@ -392,7 +392,7 @@ export function PosScreen(props: { setup: PosSetupDto; branches: { id: string; n
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : null}
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" onClick={hold} disabled={cart.lines.length === 0}>

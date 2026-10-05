@@ -31,7 +31,7 @@ export default async function PurchasesPage() {
       </div>
       {purchases.length === 0 ? <p className="text-sm text-muted-foreground">No purchases yet.</p> : null}
       {purchases.length > 0 ? (
-        <table className="w-full rounded-lg border text-sm" aria-label="Purchases">
+        <div className="table-scroll"><table className="w-full text-sm" aria-label="Purchases">
           <thead className="border-b bg-muted/40 text-left">
             <tr>
               <th className="p-2 font-medium">Bill date</th>
@@ -56,7 +56,7 @@ export default async function PurchasesPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       ) : null}
     </main>
   );

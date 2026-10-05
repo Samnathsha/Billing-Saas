@@ -288,7 +288,7 @@ function OfflineBill(props: { readiness: Extract<OfflineReadiness, { ok: true }>
         ) : null}
         {lines.length === 0 ? <p className="text-sm text-muted-foreground">The cart is empty.</p> : null}
         {lines.length > 0 ? (
-          <table className="w-full text-sm" aria-label="Cart lines">
+          <div className="table-scroll"><table className="w-full text-sm" aria-label="Cart lines">
             <thead className="border-b text-left">
               <tr>
                 <th className="p-1 font-medium">Item</th>
@@ -323,7 +323,7 @@ function OfflineBill(props: { readiness: Extract<OfflineReadiness, { ok: true }>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : null}
       </section>
 
@@ -504,7 +504,7 @@ function OfflineReturn(props: { readiness: Extract<OfflineReadiness, { ok: true 
         </p>
       ) : (
         <>
-          <table className="w-full text-sm" aria-label="Bill lines">
+          <div className="table-scroll"><table className="w-full text-sm" aria-label="Bill lines">
             <thead className="border-b text-left">
               <tr>
                 <th className="p-1 font-medium">Item</th>
@@ -530,7 +530,7 @@ function OfflineReturn(props: { readiness: Extract<OfflineReadiness, { ok: true 
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <div className="flex flex-wrap gap-3">
             <div className="flex flex-col gap-1">
               <Label htmlFor="offline-refund-method">Money back by</Label>
@@ -582,7 +582,7 @@ function ReceiptView(props: { receipt: Receipt; readiness: Extract<OfflineReadin
       <p className="text-sm text-muted-foreground">
         {receipt.at.toLocaleString("en-IN", { timeZone: settings.timeZone })} · {till.name}
       </p>
-      <table className="w-full text-sm" aria-label="Receipt lines">
+      <div className="table-scroll"><table className="w-full text-sm" aria-label="Receipt lines">
         <tbody className="divide-y">
           {receipt.lines.map((l, i) => (
             <tr key={`${l.name}-${String(i)}`}>
@@ -592,7 +592,7 @@ function ReceiptView(props: { receipt: Receipt; readiness: Extract<OfflineReadin
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
       {receipt.bill !== null ? (
         <dl className="grid grid-cols-2 gap-1 text-sm" aria-label="Receipt totals">
           {settings.chargesGst ? (

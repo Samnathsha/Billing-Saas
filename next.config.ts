@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
   // Phase 12: a self-contained server in .next/standalone (only the files
   // the app needs), packaged by the Dockerfile for any container host.
   output: "standalone",
+  // Development only: the Next.js badge sits bottom-right, away from the
+  // side menu's Log out button (bottom-left).
+  devIndicators: { position: "bottom-right" },
   // Do not advertise the framework in an X-Powered-By header.
   poweredByHeader: false,
   headers() {

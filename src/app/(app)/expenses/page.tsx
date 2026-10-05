@@ -78,7 +78,7 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/expense
 
       {rows.length === 0 ? <p className="text-sm text-muted-foreground">No expenses in these dates.</p> : null}
       {rows.length > 0 ? (
-        <table className="w-full rounded-lg border text-sm" aria-label="Expenses">
+        <div className="table-scroll"><table className="w-full text-sm" aria-label="Expenses">
           <thead className="border-b bg-muted/40 text-left">
             <tr>
               <th className="p-2 font-medium">Date</th>
@@ -111,7 +111,7 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/expense
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       ) : null}
 
       {canRecord ? (

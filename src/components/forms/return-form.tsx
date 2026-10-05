@@ -22,7 +22,7 @@ export function ReturnForm(props: { bill: ReturnableDto; branches: BranchChoice[
       <input type="hidden" name="invoiceId" value={props.bill.invoiceId} />
       <input type="hidden" name="creditNoteId" value={props.creditNoteId} />
       <input type="hidden" name="idempotencyKey" value={props.idempotencyKey} />
-      <table className="w-full text-sm" aria-label="Returnable items">
+      <div className="table-scroll"><table className="w-full text-sm" aria-label="Returnable items">
         <thead className="border-b text-left">
           <tr>
             <th className="p-1 font-medium">Item</th>
@@ -59,7 +59,7 @@ export function ReturnForm(props: { bill: ReturnableDto; branches: BranchChoice[
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
       {open.length === 0 ? <p className="text-sm text-muted-foreground">Everything on this bill has already been returned.</p> : null}
       <div className="flex flex-wrap gap-3">
         {props.branches.length > 1 ? (

@@ -54,7 +54,7 @@ export default async function PurchasePage({ params, searchParams }: PageProps<"
       {purchase.status === "voided" ? (
         <p className="text-sm text-destructive">Voided: {purchase.voidReason}</p>
       ) : null}
-      <table className="w-full rounded-lg border text-sm" aria-label="Bill lines">
+      <div className="table-scroll"><table className="w-full text-sm" aria-label="Bill lines">
         <thead className="border-b bg-muted/40 text-left">
           <tr>
             <th className="p-2 font-medium">#</th>
@@ -86,7 +86,7 @@ export default async function PurchasePage({ params, searchParams }: PageProps<"
             );
           })}
         </tbody>
-      </table>
+      </table></div>
       <dl className="grid max-w-sm grid-cols-2 gap-1 text-sm" aria-label="Totals">
         <dt>Before GST</dt>
         <dd className="text-right tabular-nums">{formatPaise(purchase.subtotalPaise)}</dd>

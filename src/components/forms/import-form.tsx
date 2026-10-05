@@ -20,7 +20,7 @@ export function ImportForm({ action }: { action: (p: ImportState, f: FormData) =
       </Button>
       <FormMessage kind={state.done ? "info" : "error"} text={state.message} />
       {state.errors.length > 0 ? (
-        <table className="w-full max-w-3xl text-left text-sm" aria-label="Problems">
+        <div className="table-scroll"><table className="w-full max-w-3xl text-left text-sm" aria-label="Problems">
           <thead>
             <tr>
               <th className="p-1">Line</th>
@@ -37,7 +37,7 @@ export function ImportForm({ action }: { action: (p: ImportState, f: FormData) =
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       ) : null}
     </form>
   );

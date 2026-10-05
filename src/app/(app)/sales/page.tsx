@@ -44,7 +44,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
       </p>
       {bills.length === 0 ? <p className="text-sm text-muted-foreground">No bills on this day.</p> : null}
       {bills.length > 0 ? (
-        <table className="w-full rounded-lg border text-sm" aria-label="Bills">
+        <div className="table-scroll"><table className="w-full text-sm" aria-label="Bills">
           <thead className="border-b bg-muted/40 text-left">
             <tr>
               <th className="p-2 font-medium">Bill</th>
@@ -69,7 +69,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/sales">) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       ) : null}
     </main>
   );

@@ -71,7 +71,7 @@ export default async function CreditNotePage({ params, searchParams }: PageProps
           <p>Place of supply: {stateName(note.placeOfSupply)}</p>
           <p>Reason: {note.reason}{note.outsideWindow ? " (after the return period, approved by a manager)" : ""}</p>
         </section>
-        <table className="w-full text-sm" aria-label="Returned items">
+        <div className="table-scroll"><table className="w-full text-sm" aria-label="Returned items">
           <thead className="border-y text-left">
             <tr>
               <th className="p-1 font-medium">#</th>
@@ -125,7 +125,7 @@ export default async function CreditNotePage({ params, searchParams }: PageProps
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
         <dl className="ml-auto grid w-full max-w-xs grid-cols-2 gap-1 text-sm" aria-label="Totals">
           {note.chargesGst ? (
             <>

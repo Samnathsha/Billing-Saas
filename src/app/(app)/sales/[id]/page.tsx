@@ -94,7 +94,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
           <p>Place of supply: {stateName(bill.placeOfSupply)}</p>
         </section>
 
-        <table className="w-full text-sm" aria-label="Bill lines">
+        <div className="table-scroll"><table className="w-full text-sm" aria-label="Bill lines">
           <thead className="border-y text-left">
             <tr>
               <th className="p-1 font-medium">#</th>
@@ -152,7 +152,7 @@ export default async function InvoicePage({ params, searchParams }: PageProps<"/
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
 
         <dl className="ml-auto grid w-full max-w-xs grid-cols-2 gap-1 text-sm" aria-label="Totals">
           <dt>Total of items</dt>

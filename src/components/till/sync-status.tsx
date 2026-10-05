@@ -169,7 +169,7 @@ export function SyncStatus(): ReactNode {
         <h2 className="font-semibold">Waiting and failed</h2>
         {waiting.length === 0 ? <p className="text-sm text-muted-foreground">Nothing waiting.</p> : null}
         {waiting.length > 0 ? (
-          <table className="w-full text-sm">
+          <div className="table-scroll"><table className="w-full text-sm">
             <thead className="border-b text-left">
               <tr>
                 <th className="p-1 font-medium">Number</th>
@@ -201,7 +201,7 @@ export function SyncStatus(): ReactNode {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         ) : null}
       </section>
 

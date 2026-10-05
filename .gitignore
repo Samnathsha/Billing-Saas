@@ -58,3 +58,6 @@ next-env.d.ts
 
 # Encrypted backups made locally (scripts/backup.sh)
 /backups-out/
+
+# Local load-test data (npm run load:fixture)
+/.load/

@@ -42,7 +42,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: "perf",
-          include: ["tests/perf/**/*.test.ts"],
+          include: ["tests/perf/**/*.test.ts", "tests/load/**/*.test.ts"],
           setupFiles: ["tests/setup-db-env.ts"],
           testTimeout: 900_000,
           hookTimeout: 900_000,

@@ -151,6 +151,36 @@ jobs:
             echo "::warning title=npm audit (dev tools)::Developer-tool vulnerabilities found. See ADR 0001; review them, but they do not fail the build."
           fi
 
+  container:
+    name: Container builds and starts
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the image (no settings inside)
+        run: docker build -t billing:ci .
+      - name: Without settings it refuses to start
+        run: |
+          if docker run --rm billing:ci; then echo "started without settings" && exit 1; fi
+      - name: With (made-up) settings it serves /api/health
+        run: |
+          docker run -d --name app -p 3000:3000 \
+            -e DATABASE_URL_DEV=postgresql://app_user@db.invalid/none \
+            -e AUTH_DATABASE_URL_DEV=postgresql://auth_service@db.invalid/none \
+            -e BETTER_AUTH_SECRET="$(openssl rand -base64 32)" \
+            -e BETTER_AUTH_URL=http://localhost:3000 \
+            -e RESEND_API_KEY=re_ci_not_a_real_key \
+            -e EMAIL_FROM="CI <ci@test.invalid>" \
+            billing:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/api/health | grep -q '"ok"'; then echo "healthy"; exit 0; fi
+            sleep 2
+          done
+          docker logs app
+          exit 1
+
   semgrep:
     name: Code scan (Semgrep)
     runs-on: ubuntu-latest
@@ -168,8 +198,8 @@ jobs:
         run: >
           semgrep scan --error --metrics=off
           --config p/javascript --config p/typescript --config p/react --config p/nextjs
-          --config p/owasp-top-ten --config p/secrets --config p/github-actions
-          src scripts tests .github drizzle
+          --config p/owasp-top-ten --config p/secrets --config p/github-actions --config p/dockerfile
+          src scripts tests .github drizzle Dockerfile
 
   secrets:
     name: Secret scan (gitleaks)

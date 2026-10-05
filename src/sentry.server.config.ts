@@ -9,7 +9,7 @@ const dsn = process.env.SENTRY_DSN;
 Sentry.init({
   dsn,
   enabled: dsn !== undefined && dsn !== "",
-  environment: process.env.NODE_ENV,
+  environment: process.env.APP_ENV ?? process.env.NODE_ENV,
   dataCollection: SENTRY_DATA_COLLECTION,
   tracesSampleRate: 0,
   beforeSend: scrubEvent,

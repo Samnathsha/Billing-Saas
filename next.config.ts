@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  // Phase 12: a self-contained server in .next/standalone (only the files
+  // the app needs), packaged by the Dockerfile for any container host.
+  output: "standalone",
   // Do not advertise the framework in an X-Powered-By header.
   poweredByHeader: false,
   headers() {

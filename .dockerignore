@@ -1,0 +1,14 @@
+# Never in the image: settings and secrets, local data, build output.
+.env*
+!.env.example
+.git
+node_modules
+.next
+.local-files
+.dev-mailbox
+.load
+backups-out
+test-results
+playwright-report
+coverage
+*.log

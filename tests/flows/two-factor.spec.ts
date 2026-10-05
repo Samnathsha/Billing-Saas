@@ -10,6 +10,8 @@ import { confirmedAccount, logIn, PASSWORD, test } from "./helpers";
 const codeFor = async (key: string): Promise<string> => createOTP(new TextDecoder().decode(base32.decode(key.replace(/\s+/g, "")))).totp();
 
 test("switch on two-step login, then log in with the password and a code", async ({ page }) => {
+  // Setup plus three logins (each with Argon2id): longer than the default.
+  test.setTimeout(90_000);
   const email = await confirmedAccount(page, "two-step");
   await logIn(page, email);
   await page.getByLabel("Business name").fill("Two Step Shop");

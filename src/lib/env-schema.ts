@@ -5,9 +5,14 @@ import { z } from "zod";
 // because values hold passwords.
 
 export type AppMode = "development" | "test" | "production";
+// Where a production build runs (Phase 12): "local" (your computer, with the
+// development database), or a real deployment, "staging" or "production",
+// with its own databases and secrets.
+export type AppEnv = "local" | "staging" | "production";
 
 export interface Env {
   mode: AppMode;
+  appEnv: AppEnv;
   // app_user: all business code.
   databaseUrl: string;
   // auth_service: the login library only (ADR 0003).
@@ -108,11 +113,62 @@ const schemas = {
     DATABASE_URL_DEV: optional(postgresUrlValue),
     ...shared,
   }),
-  // Until deployment is set up, a local production build (`npm run build &&
-  // npm start`) uses the development database. The deployment phase replaces
-  // this with separate production variables.
+  // A local production build (`npm run build && npm start`) uses the
+  // development database (APP_ENV unset or "local").
   production: z.object({ ...devDatabases, ...shared, RESEND_API_KEY: resendApiKey, EMAIL_FROM: emailFrom }),
 } as const;
+
+// A real deployment (APP_ENV=staging or production): its own databases under
+// plain names, set in the host's settings; real email; https only.
+const deployed = z.object({
+  DATABASE_URL: postgresUrl,
+  AUTH_DATABASE_URL: postgresUrl,
+  ...shared,
+  BETTER_AUTH_URL: z.preprocess(emptyIsMissing, z.url({ protocol: /^https$/, error: (issue) => (issue.input === undefined ? "is missing" : "must be the app's https:// address") })),
+  RESEND_API_KEY: resendApiKey,
+  EMAIL_FROM: emailFrom,
+});
+
+// Settings that belong on a developer's computer only. On a deployment they
+// mean a mix-up (a live site must never reach the development database).
+const LOCAL_ONLY = [
+  "DATABASE_URL_DEV",
+  "AUTH_DATABASE_URL_DEV",
+  "DATABASE_URL_TEST",
+  "AUTH_DATABASE_URL_TEST",
+  "MIGRATOR_DATABASE_URL_DEV",
+  "MIGRATOR_DATABASE_URL_TEST",
+  "OWNER_DATABASE_URL_DEV",
+  "OWNER_DATABASE_URL_TEST",
+];
+
+function readAppEnv(value: string | undefined): AppEnv {
+  if (value === undefined || value === "" || value === "local") return "local";
+  if (value === "staging" || value === "production") return value;
+  throw new EnvError(["APP_ENV must be local, staging or production"]);
+}
+
+function parseDeployed(source: Readonly<Record<string, string | undefined>>, appEnv: AppEnv): Env {
+  const present = LOCAL_ONLY.filter((key) => (source[key] ?? "") !== "");
+  if (present.length > 0) {
+    throw new EnvError(present.map((key) => `${key} must not be set on a ${appEnv} server (it belongs to a developer's computer)`));
+  }
+  const result = deployed.safeParse(source);
+  if (!result.success) throw new EnvError(result.error.issues.map((issue) => `${issue.path.join(".")} ${issue.message}`));
+  const d = result.data;
+  if (d.DATABASE_URL === d.AUTH_DATABASE_URL) throw new EnvError(["DATABASE_URL and AUTH_DATABASE_URL must use different roles"]);
+  return {
+    mode: "production",
+    appEnv,
+    databaseUrl: d.DATABASE_URL,
+    authDatabaseUrl: d.AUTH_DATABASE_URL,
+    authSecret: d.BETTER_AUTH_SECRET,
+    authUrl: d.BETTER_AUTH_URL,
+    email: { resendApiKey: d.RESEND_API_KEY, from: d.EMAIL_FROM },
+    healthDrill: d.HEALTH_DRILL === "fail",
+    cronSecret: d.CRON_SECRET ?? null,
+  };
+}
 
 function readMode(nodeEnv: string | undefined): AppMode {
   if (nodeEnv === undefined || nodeEnv === "" || nodeEnv === "development") return "development";
@@ -122,6 +178,11 @@ function readMode(nodeEnv: string | undefined): AppMode {
 
 export function parseEnv(source: Readonly<Record<string, string | undefined>>): Env {
   const mode = readMode(source.NODE_ENV);
+  const appEnv = readAppEnv(source.APP_ENV);
+  if (appEnv !== "local") {
+    if (mode !== "production") throw new EnvError([`APP_ENV=${appEnv} needs a production build (NODE_ENV=production)`]);
+    return parseDeployed(source, appEnv);
+  }
   const result = schemas[mode].safeParse(source);
 
   if (!result.success) {
@@ -153,6 +214,7 @@ export function parseEnv(source: Readonly<Record<string, string | undefined>>): 
 
   return {
     mode,
+    appEnv,
     databaseUrl,
     authDatabaseUrl,
     authSecret: result.data.BETTER_AUTH_SECRET,

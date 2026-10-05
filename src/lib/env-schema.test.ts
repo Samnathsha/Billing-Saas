@@ -34,6 +34,7 @@ describe("parseEnv: valid settings", () => {
       email: null,
       healthDrill: false,
       cronSecret: null,
+      appEnv: "local",
     });
   });
 
@@ -190,5 +191,33 @@ describe("health drill switch (Phase 11)", () => {
     expect(parseEnv({ ...devEnv }).healthDrill).toBe(false);
     expect(parseEnv({ ...devEnv, HEALTH_DRILL: "fail" }).healthDrill).toBe(true);
     expect(problemsOf({ ...devEnv, HEALTH_DRILL: "yes" })).toEqual(['HEALTH_DRILL may only be "fail" (or left out)']);
+  });
+});
+
+describe("staging and production deployments (Phase 12)", () => {
+  const LIVE = "postgresql://app_user:x@ep-live.ap-southeast-1.aws.neon.tech/neondb";
+  const AUTH_LIVE = "postgresql://auth_service:x@ep-live.ap-southeast-1.aws.neon.tech/neondb";
+  const live = { NODE_ENV: "production", APP_ENV: "production", DATABASE_URL: LIVE, AUTH_DATABASE_URL: AUTH_LIVE, BETTER_AUTH_SECRET: SECRET, BETTER_AUTH_URL: "https://app.example.in", ...RESEND };
+
+  it("use their own databases under plain names", () => {
+    expect(parseEnv(live)).toMatchObject({ mode: "production", appEnv: "production", databaseUrl: LIVE, authDatabaseUrl: AUTH_LIVE });
+    expect(parseEnv({ ...live, APP_ENV: "staging" }).appEnv).toBe("staging");
+  });
+
+  it("refuse development or test database settings on the server", () => {
+    expect(problemsOf({ ...live, DATABASE_URL_DEV: DEV })).toEqual(["DATABASE_URL_DEV must not be set on a production server (it belongs to a developer's computer)"]);
+    expect(problemsOf({ ...live, MIGRATOR_DATABASE_URL_TEST: TEST })).toHaveLength(1);
+  });
+
+  it("need https, real email, and both databases", () => {
+    expect(problemsOf({ ...live, BETTER_AUTH_URL: "http://app.example.in" })).toEqual(["BETTER_AUTH_URL must be the app's https:// address"]);
+    expect(problemsOf({ ...live, RESEND_API_KEY: undefined, EMAIL_FROM: undefined })).toEqual(["RESEND_API_KEY is missing", "EMAIL_FROM is missing"]);
+    expect(problemsOf({ ...live, AUTH_DATABASE_URL: undefined })).toEqual(["AUTH_DATABASE_URL is missing"]);
+    expect(problemsOf({ ...live, AUTH_DATABASE_URL: LIVE })).toEqual(["DATABASE_URL and AUTH_DATABASE_URL must use different roles"]);
+  });
+
+  it("APP_ENV must be a known value, and only with a production build", () => {
+    expect(problemsOf({ ...live, APP_ENV: "prod" })).toEqual(["APP_ENV must be local, staging or production"]);
+    expect(problemsOf({ ...devEnv, APP_ENV: "staging" })).toEqual(["APP_ENV=staging needs a production build (NODE_ENV=production)"]);
   });
 });

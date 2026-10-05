@@ -46,7 +46,7 @@ export function setup() {
   return { cookie };
 }
 
-export default function (data) {
+export default function iteration(data) {
   if (SCENARIO === "login") {
     const res = logIn(exec.scenario.iterationInTest + 1);
     check(res, { "login 200": (r) => r.status === 200 });

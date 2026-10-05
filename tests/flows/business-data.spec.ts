@@ -20,7 +20,7 @@ test("the owner downloads all data and can ask for (and cancel) deletion; an adm
   await section.getByRole("link", { name: "Download all data (ZIP)" }).click();
   const file = await download;
   expect(file.suggestedFilename()).toMatch(/^business-export-\d{4}-\d{2}-\d{2}\.zip$/);
-  const bytes = await readFile((await file.path()) ?? "");
+  const bytes = await readFile(await file.path());
   expect(bytes.subarray(0, 2).toString()).toBe("PK");
 
   await section.getByLabel(/To confirm, type the name exactly/).fill("Data shop");

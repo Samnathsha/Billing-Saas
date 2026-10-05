@@ -32,6 +32,14 @@ current.
    - It removes repeat-protection rows older than 90 days and login
      counters older than 1 day; nothing else.
 
+5. **Daily reconciliation** (Reconcile workflow, 04:00, read-only, uses
+   the backup secret): for every business it checks bills against their
+   lines, payments, stock movements and customer accounts, returns
+   against stock, and stock levels against their full history. A mismatch
+   fails the run, which emails you. By hand:
+   `npx tsx scripts/reconcile.ts prod [YYYY-MM-DD]`. During the pilot,
+   compare its day totals with the shop's own book every evening.
+
 ### Alert drill (do once after setup, then every few months)
 
 1. In the hosting platform, set the environment variable

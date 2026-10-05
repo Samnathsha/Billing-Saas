@@ -64,6 +64,7 @@ jobs:
       DATABASE_URL_TEST: postgresql://app_user@localhost:5432/billing_test
       MIGRATOR_DATABASE_URL_TEST: postgresql://migrator@localhost:5432/billing_test
       AUTH_DATABASE_URL_TEST: postgresql://auth_service@localhost:5432/billing_test
+      BACKUP_DATABASE_URL_TEST: postgresql://backup_reader@localhost:5432/billing_test
       BETTER_AUTH_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -82,6 +83,8 @@ jobs:
           echo "BETTER_AUTH_SECRET=$secret" >> "$GITHUB_ENV"
       - name: Create roles (scripts/db-roles.sql, as on Neon)
         run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d billing_test -v ON_ERROR_STOP=1 < scripts/db-roles.sql
+      - name: Create the read-only backup role (scripts/backup-role.sql)
+        run: docker exec -i "${{ job.services.postgres.id }}" psql -U postgres -d billing_test -v ON_ERROR_STOP=1 < scripts/backup-role.sql
       - name: Run migrations as migrator
         run: npm run db:migrate:test
       - name: check-rls

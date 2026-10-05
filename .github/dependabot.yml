@@ -6,6 +6,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Only versions published at least 7 days ago: a new release that turns
+    # out to be malicious or broken is usually pulled within days.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     groups:
       # Patch and minor updates in one PR per week; majors one by one.
@@ -15,3 +19,5 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7

@@ -23,10 +23,10 @@ test("the owner downloads all data and can ask for (and cancel) deletion; an adm
   const bytes = await readFile((await file.path()) ?? "");
   expect(bytes.subarray(0, 2).toString()).toBe("PK");
 
-  await section.getByLabel(/Type the business name/).fill("Data shop");
+  await section.getByLabel(/To confirm, type the name exactly/).fill("Data shop");
   await section.getByRole("button", { name: "Ask to delete this business" }).click();
   await expect(section.getByRole("alert").or(section.getByRole("status"))).toContainText("Type the business name exactly");
-  await section.getByLabel(/Type the business name/).fill("Data Shop");
+  await section.getByLabel(/To confirm, type the name exactly/).fill("Data Shop");
   await section.getByRole("button", { name: "Ask to delete this business" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "This business will be deleted on" })).toBeVisible();
 

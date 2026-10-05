@@ -430,3 +430,10 @@ Each question has the default the app will use until answered.
     download first. DEFAULT (30 days), owner and lawyer to confirm (also:
     how long we keep backups that still contain a deleted business, at
     most 12 months with the current backup rotation).
+51. **How long logs are kept:** the security log (logins, failures, password
+    and two-step changes) and each business's audit log are kept with no
+    end date for now. DEFAULT, lawyer to set a period.
+52. **Terms of Service and Privacy Policy:** drafts at `/terms` and
+    `/privacy` (marked DRAFT, with blanks for the company's name, address,
+    grievance officer, prices and liability). They need a lawyer's review
+    and the company details before the first paying client.

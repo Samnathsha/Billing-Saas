@@ -48,6 +48,9 @@ export function AuthCard({ title, children }: { title: string; children: ReactNo
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-12">
       <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       {children}
+      <p className="text-xs text-muted-foreground">
+        <a href="/terms" className="underline">Terms</a> · <a href="/privacy" className="underline">Privacy</a>
+      </p>
     </main>
   );
 }

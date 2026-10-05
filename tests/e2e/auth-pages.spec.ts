@@ -15,6 +15,9 @@ for (const [path, heading, button] of [
   ["/invite", "This link is not complete", null],
   ["/invite?token=x", "This link is not complete", null],
   ["/invite?token=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "You are invited", null],
+  // Phase 11 drafts, readable without logging in.
+  ["/terms", "Terms of Service", null],
+  ["/privacy", "Privacy Policy", null],
 ] as const) {
   test(`${path} renders`, async ({ page }) => {
     const violations: string[] = [];

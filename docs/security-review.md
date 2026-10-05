@@ -138,8 +138,8 @@ All V1 requirements are Level 2 or higher. The architecture is in
 | 8.2.3 | Client storage cleared at logout | **Fixed** | logout removes the shop copy, held bills and the kept till page; only unsent bills stay (they must not be lost) (`logout-button.tsx`, `forgetOnLogout`, `sync.test.ts`) |
 | 8.3.1 | Sensitive data in bodies/headers, not URLs | Pass | tokens in cookies and headers; CSV query has only dates |
 | 8.3.2 | Users can remove or export their data | **Fixed** | Owner: download everything (`/api/business/export`), ask for deletion with 30 days' grace, then the operator's purge (`scripts/purge-business.ts`); `business-data.test.ts`, `business-data.spec.ts` |
-| 8.3.3 | Clear terms for collected data | Pass after step 10 | Privacy Policy draft (Phase 11 step 10), for the lawyer |
-| 8.3.4 | Sensitive data identified | Pass | `docs/privacy-data-map.md` (step 10) |
+| 8.3.3 | Clear terms for collected data | **Fixed** (draft) | `/privacy` and `/terms` drafts, linked from every login screen; lawyer review pending (open question 52) |
+| 8.3.4 | Sensitive data identified | **Fixed** | `docs/privacy-data-map.md` |
 
 ## V9 Communications
 
@@ -262,3 +262,15 @@ the host's cron.
 - **npm audit**: packages the live app uses: clean. Developer tools only:
   `braces` (high, via eslint/shadcn CLI) and `esbuild` (moderate, via
   drizzle-kit). They are reported, not blocking (ADR 0001).
+
+## Phase 11 "done when" (blueprint)
+
+| Check | Status |
+| --- | --- |
+| `docs/security-review.md` has no open fails | Done (deviations listed with reasons; open questions 49-52) |
+| A restore into an empty database succeeds, with real invoice totals verified | Done locally: 9,493 businesses, 101,912 bills, totals equal (`docs/backups.md`). Repeat with production after Phase 12 setup. |
+| An alert reaches you when `/api/health` is broken deliberately | Built and checked locally (`HEALTH_DRILL=fail` gives 503 and a Sentry message). The phone alert needs the uptime monitor and Sentry set up with production (`docs/runbook.md`). |
+| A deliberate secret commit is blocked | Done (pre-commit gitleaks; also in CI over all history) |
+| Headers score well on an external scanner | Needs a public https address (Phase 12); every header is checked by `security-headers.spec.ts` |
+
+Owner hand test: `docs/hand-tests/phase-11-hand-test.pdf`.

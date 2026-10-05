@@ -33,7 +33,7 @@ export function BusinessDataSection(props: {
           <p className="text-sm">
             Everything is deleted {props.graceDays} days after you ask: bills, stock, customers, staff and logs. Until then everything works and you can cancel. GST law usually requires keeping bills for several years: download the data first and ask your accountant.
           </p>
-          <Label htmlFor="confirmName">Type the business name ({props.businessName}) to confirm</Label>
+          <Label htmlFor="confirmName">To confirm, type the name exactly: {props.businessName}</Label>
           <Input id="confirmName" name="confirmName" autoComplete="off" maxLength={200} required />
           <Button type="submit" variant="destructive" disabled={requesting} className="self-start">
             Ask to delete this business
